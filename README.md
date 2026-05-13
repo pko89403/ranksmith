@@ -112,6 +112,49 @@ Ready-to-use example code for integrating the **RankGPT** algorithm into your pr
 - [`examples/rankgpt_sync.py`](examples/rankgpt_sync.py): Synchronous RankGPT integration guide
 - [`examples/rankgpt_async.py`](examples/rankgpt_async.py): High-performance asynchronous RankGPT integration guide
 
+## Benchmarking
+
+`ranksmith` includes a qrels-backed comparison runner for reranking algorithms. It
+can run against the committed smoke fixture or a local BEIR/SciFact cache. BEIR
+mode requires a first-stage candidate TSV, because qrels alone are not a valid
+reranking benchmark.
+
+Expected BEIR/SciFact cache layout:
+
+```text
+.benchmark-cache/scifact/
+  corpus.jsonl
+  queries.jsonl
+  qrels/test.tsv
+```
+
+Candidate TSV rows must start with `query_id` and `document_id`:
+
+```text
+query_id    document_id    rank
+```
+
+Run a live Azure comparison and write a JSON artifact:
+
+```bash
+python scripts/compare_reranking.py \
+  --dataset beir-scifact \
+  --cache-dir .benchmark-cache/scifact \
+  --split test \
+  --candidates path/to/candidates.tsv \
+  --algorithm all \
+  --top-k 10 \
+  --window-size 20 \
+  --stride 10 \
+  --output benchmark-results/scifact.json \
+  --allow-live
+```
+
+The JSON report includes per-query metrics and macro-averaged NDCG@k, MRR@k,
+and Recall@k. Raw benchmark artifacts are intentionally ignored by git; publish
+only reviewed summaries. The committed smoke fixture currently verifies the
+deterministic offline RankGPT path at NDCG@3, MRR@3, and Recall@3 = `1.000`.
+
 ## Result Model
 
 ```python
