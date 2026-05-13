@@ -57,6 +57,9 @@ for result in results:
 - **`sliding_window` 알고리즘 (기본값)**
   - 후보 문서가 너무 많아 한 번에 처리할 수 없을 때, 문서를 윈도우 크기(`window_size`)만큼 나누어 겹치면서(`stride`) 반복적으로 순위를 매깁니다.
   - 많은 수의 문서를 처리하거나, 프롬프트 길이가 길어져 LLM의 순위 판단 능력이 떨어지는 현상(Lost in the middle)을 방지할 때 필수적입니다.
+- **`rankgpt_sliding_window` 알고리즘**
+  - RankGPT 방식의 뒤에서 앞으로(back-to-first) 이동하는 sliding window와 bubble-up 동작을 구현합니다.
+  - RankGPT의 윈도우 순회 방식을 쓰면서도 ranksmith의 엄격한 JSON 출력 검증을 유지하고 싶을 때 적합합니다.
 
 ### 전략 적용 방법
 
@@ -67,7 +70,7 @@ from ranksmith import AzureOpenAIReranker, ListwiseStrategy
 
 # 1. 원하는 전략과 알고리즘 구성
 strategy = ListwiseStrategy(
-    algorithm="sliding_window", # 'direct' 또는 'sliding_window'
+    algorithm="rankgpt_sliding_window",
     window_size=20,             # 한 번에 평가할 문서 수
     stride=10,                  # 다음 윈도우로 넘어갈 때 겹칠 문서 수
     max_document_chars=4000,    # 문서당 최대 허용 글자 수
@@ -84,7 +87,7 @@ reranker = AzureOpenAIReranker(
 results = reranker.rerank("query", documents)
 ```
 
-> **참고**: `strategy`를 명시하지 않으면 기본적으로 `ListwiseStrategy(algorithm="sliding_window")`가 자동으로 적용됩니다. 추후 버전에서 Pointwise, Pairwise, Tournament 등의 전략도 확장될 예정입니다.
+> **참고**: `strategy`를 명시하지 않으면 기본적으로 `ListwiseStrategy(algorithm="sliding_window")`가 자동으로 적용됩니다. v1은 `direct`, `sliding_window`, `rankgpt_sliding_window`를 지원합니다. 추후 버전에서 Pointwise, Pairwise, Tournament 등의 전략도 확장될 예정입니다.
 
 ## 비동기 지원 (Async Support)
 
