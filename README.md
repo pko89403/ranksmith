@@ -44,25 +44,47 @@ for result in results:
 `rank` is 1-based for display. `original_index` is 0-based so it maps back to
 the input list.
 
-## Strategy
+## Supported Strategies & Algorithms
 
-The default strategy is listwise reranking with automatic sliding-window
-handling for longer candidate lists.
+`ranksmith` separates the evaluation methodology (Strategy) from its specific execution logic (Algorithm). Version 1 officially supports the **Listwise Reranking (RankGPT)** strategy.
+
+### 1. ListwiseStrategy (RankGPT)
+This strategy places multiple documents into a single prompt and asks the LLM to rank them all at once.
+
+- **`direct` Algorithm**
+  - Reranks all candidates in a single LLM API call.
+  - Suitable when the number of documents is small enough to comfortably fit within the LLM's context window.
+- **`sliding_window` Algorithm (Default)**
+  - When there are too many documents, this algorithm chunks them by `window_size` and iteratively ranks them with an overlap of `stride`.
+  - Essential for handling long candidate lists, preventing token limit exceedances, and avoiding the "lost in the middle" degradation in LLM ranking capabilities.
+
+### How to Apply a Strategy
+
+You can configure and inject a custom strategy into the `AzureOpenAIReranker`.
 
 ```python
-from ranksmith import ListwiseStrategy
+from ranksmith import AzureOpenAIReranker, ListwiseStrategy
 
+# 1. Configure the strategy and algorithm
 strategy = ListwiseStrategy(
-    algorithm="sliding_window",
-    window_size=20,
-    stride=10,
-    max_document_chars=4000,
+    algorithm="sliding_window", # 'direct' or 'sliding_window'
+    window_size=20,             # Number of documents evaluated at once
+    stride=10,                  # Number of overlapping documents between windows
+    max_document_chars=4000,    # Max characters allowed per document
 )
+
+# 2. Inject into the Reranker
+reranker = AzureOpenAIReranker(
+    api_key="...",
+    azure_endpoint="https://example.openai.azure.com",
+    azure_deployment="gpt-4o-mini",
+    strategy=strategy, # <-- Inject the strategy here
+)
+
+results = reranker.rerank("query", documents)
 ```
 
-Version 1 supports `direct` and `sliding_window` algorithms. Pointwise,
-pairwise, tournament, bayesian, and confidence-style algorithms are left for
-future versions.
+> **Note**: If `strategy` is not provided, it defaults to `ListwiseStrategy(algorithm="sliding_window")`. Pointwise, Pairwise, and Tournament strategies are planned for future releases.
 
 ## Async Support
 
