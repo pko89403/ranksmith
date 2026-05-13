@@ -5,14 +5,27 @@ import argparse
 import json
 import os
 import sys
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
-from typing import Literal, TypedDict, cast
+from typing import Literal, cast
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from ranksmith._benchmark import (  # noqa: E402
+    SCHEMA_VERSION,
+    BenchmarkCase,
+    CandidateStrategy,
+    aggregate_evaluations,
+    aggregate_to_dict,
+    evaluate_ranked_ids,
+    evaluation_to_dict,
+    load_beir_cases,
+    load_fixture_cases,
+)
+
 Algorithm = Literal["direct", "sliding_window", "rankgpt_sliding_window"]
+Dataset = Literal["fixture", "beir-scifact"]
 DEFAULT_FIXTURE = ROOT / "tests/fixtures/reranking_smoke_fixture.jsonl"
 ALGORITHMS: tuple[Algorithm, ...] = (
     "direct",
@@ -21,22 +34,9 @@ ALGORITHMS: tuple[Algorithm, ...] = (
 )
 
 
-class FixtureDocument(TypedDict):
-    id: str
-    title: str
-    text: str
-
-
-class FixtureCase(TypedDict):
-    schema_version: int
-    fixture_id: str
-    query: str
-    documents: list[FixtureDocument]
-    qrels: dict[str, int]
-
-
 def main() -> None:
     args = _parse_args()
+    _validate_args(args)
     _load_env_file(args.env_file)
     if not args.allow_live:
         raise SystemExit("Refusing live Azure calls without --allow-live.")
@@ -44,11 +44,11 @@ def main() -> None:
     algorithms = (
         ALGORITHMS if args.algorithm == "all" else (cast(Algorithm, args.algorithm),)
     )
-    cases = _load_cases(args.fixture)
+    cases = _load_cases(args)
     call_estimates = {
         algorithm: sum(
             _estimate_provider_calls(
-                len(case["documents"]), algorithm, args.window_size, args.stride
+                len(case.documents), algorithm, args.window_size, args.stride
             )
             for case in cases
         )
@@ -60,27 +60,81 @@ def main() -> None:
         file=sys.stderr,
     )
 
-    results = [
-        _evaluate_case(
+    evaluations = [
+        evaluate_ranked_ids(
             case=case,
             algorithm=algorithm,
-            window_size=args.window_size,
-            stride=args.stride,
+            ranked_ids=_rank_case(
+                case=case,
+                algorithm=algorithm,
+                window_size=args.window_size,
+                stride=args.stride,
+            ),
             top_k=args.top_k,
         )
         for algorithm in algorithms
         for case in cases
     ]
-    print(json.dumps(results, indent=2, sort_keys=True))
+    report = _build_report(
+        args=args,
+        algorithms=algorithms,
+        cases=cases,
+        call_estimates=call_estimates,
+        per_query=[evaluation_to_dict(evaluation) for evaluation in evaluations],
+        aggregate=[
+            aggregate_to_dict(aggregate)
+            for aggregate in aggregate_evaluations(evaluations)
+        ],
+    )
+    output = json.dumps(report, indent=2, sort_keys=True)
+    if args.output is None:
+        print(output)
+    else:
+        args.output.write_text(f"{output}\n", encoding="utf-8")
 
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Compare ranksmith reranking algorithms on a qrels-backed fixture."
+            "Compare ranksmith reranking algorithms on qrels-backed benchmark cases."
         )
     )
+    parser.add_argument(
+        "--dataset",
+        choices=("fixture", "beir-scifact"),
+        default="fixture",
+        help="Benchmark source. fixture uses the committed smoke fixture.",
+    )
     parser.add_argument("--fixture", type=Path, default=DEFAULT_FIXTURE)
+    parser.add_argument(
+        "--cache-dir",
+        type=Path,
+        help=(
+            "BEIR/SciFact cache directory containing corpus.jsonl, queries.jsonl, "
+            "and qrels/<split>.tsv."
+        ),
+    )
+    parser.add_argument("--split", default="test")
+    parser.add_argument(
+        "--candidates",
+        type=Path,
+        help=(
+            "First-stage candidate TSV for BEIR mode. Each row must start with "
+            "query_id and document_id."
+        ),
+    )
+    parser.add_argument(
+        "--candidate-strategy",
+        choices=("candidate_file", "oracle_plus_random"),
+        default="candidate_file",
+        help=(
+            "candidate_file is required for benchmark-style reranking. "
+            "oracle_plus_random is diagnostic only."
+        ),
+    )
+    parser.add_argument("--candidate-count", type=int, default=20)
+    parser.add_argument("--max-cases", type=int)
+    parser.add_argument("--seed", type=int, default=13)
     parser.add_argument(
         "--algorithm",
         choices=("all", *ALGORITHMS),
@@ -89,6 +143,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--window-size", type=int, default=3)
     parser.add_argument("--stride", type=int, default=2)
     parser.add_argument("--top-k", type=int, default=3)
+    parser.add_argument("--output", type=Path)
     parser.add_argument(
         "--env-file",
         type=Path,
@@ -103,16 +158,56 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _evaluate_case(
+def _validate_args(args: argparse.Namespace) -> None:
+    for name in ("window_size", "stride", "top_k", "candidate_count"):
+        if getattr(args, name) < 1:
+            raise SystemExit(f"--{name.replace('_', '-')} must be greater than 0.")
+    if args.max_cases is not None and args.max_cases < 1:
+        raise SystemExit("--max-cases must be greater than 0.")
+    if args.dataset == "fixture":
+        if args.cache_dir is not None:
+            raise SystemExit("--cache-dir is only valid with --dataset beir-scifact.")
+        if args.candidates is not None:
+            raise SystemExit("--candidates is only valid with --dataset beir-scifact.")
+        if args.candidate_strategy != "candidate_file":
+            raise SystemExit(
+                "--candidate-strategy is only valid with --dataset beir-scifact."
+            )
+    if args.dataset == "beir-scifact" and args.cache_dir is None:
+        raise SystemExit("--cache-dir is required with --dataset beir-scifact.")
+    if (
+        args.dataset == "beir-scifact"
+        and args.candidate_strategy == "candidate_file"
+        and args.candidates is None
+    ):
+        raise SystemExit(
+            "--candidates is required for BEIR benchmark mode. "
+            "Use --candidate-strategy oracle_plus_random only for diagnostics."
+        )
+
+
+def _load_cases(args: argparse.Namespace) -> list[BenchmarkCase]:
+    if args.dataset == "fixture":
+        return load_fixture_cases(args.fixture)
+    return load_beir_cases(
+        args.cache_dir,
+        split=args.split,
+        candidates_path=args.candidates,
+        candidate_strategy=cast(CandidateStrategy, args.candidate_strategy),
+        candidate_count=args.candidate_count,
+        max_cases=args.max_cases,
+        seed=args.seed,
+    )
+
+
+def _rank_case(
     *,
-    case: FixtureCase,
+    case: BenchmarkCase,
     algorithm: Algorithm,
     window_size: int,
     stride: int,
-    top_k: int,
-) -> dict[str, object]:
+) -> tuple[str, ...]:
     from ranksmith import AzureOpenAIReranker, Document, ListwiseStrategy
-    from ranksmith._metrics import mrr_at_k, ndcg_at_k, recall_at_k
 
     reranker = AzureOpenAIReranker(
         api_key=_required_env("AZURE_OPENAI_API_KEY"),
@@ -135,30 +230,52 @@ def _evaluate_case(
     )
     documents = [
         Document(
-            id=document["id"],
-            text=f"{document['title']}\n\n{document['text']}",
+            id=document.id,
+            text=f"{document.title}\n\n{document.text}",
         )
-        for document in case["documents"]
+        for document in case.documents
     ]
-    ranked_ids = [
-        result.document.id or "" for result in reranker.rerank(case["query"], documents)
-    ]
+    return tuple(
+        result.document.id or "" for result in reranker.rerank(case.query, documents)
+    )
+
+
+def _build_report(
+    *,
+    args: argparse.Namespace,
+    algorithms: Sequence[Algorithm],
+    cases: Sequence[BenchmarkCase],
+    call_estimates: Mapping[str, int],
+    per_query: Sequence[dict[str, object]],
+    aggregate: Sequence[dict[str, object]],
+) -> dict[str, object]:
+    benchmark_type = (
+        "diagnostic_not_retrieval"
+        if args.dataset == "beir-scifact"
+        and args.candidate_strategy == "oracle_plus_random"
+        else "reranking_with_first_stage_candidates"
+    )
+    if args.dataset == "fixture":
+        benchmark_type = "smoke_fixture"
     return {
-        "fixture_id": case["fixture_id"],
-        "algorithm": algorithm,
-        "ranked_ids": ranked_ids,
-        f"ndcg@{top_k}": ndcg_at_k(ranked_ids, case["qrels"], top_k),
-        f"mrr@{top_k}": mrr_at_k(ranked_ids, case["qrels"], top_k),
-        f"recall@{top_k}": recall_at_k(ranked_ids, case["qrels"], top_k),
+        "schema_version": SCHEMA_VERSION,
+        "benchmark_type": benchmark_type,
+        "dataset": args.dataset,
+        "fixture": str(args.fixture) if args.dataset == "fixture" else None,
+        "cache_dir": str(args.cache_dir) if args.cache_dir is not None else None,
+        "candidates": str(args.candidates) if args.candidates is not None else None,
+        "candidate_strategy": args.candidate_strategy,
+        "candidate_count": args.candidate_count,
+        "seed": args.seed,
+        "algorithm": list(algorithms),
+        "top_k": args.top_k,
+        "window_size": args.window_size,
+        "stride": args.stride,
+        "case_count": len(cases),
+        "call_estimates": dict(call_estimates),
+        "aggregate": list(aggregate),
+        "per_query": list(per_query),
     }
-
-
-def _load_cases(path: Path) -> list[FixtureCase]:
-    return [
-        cast(FixtureCase, json.loads(line))
-        for line in path.read_text(encoding="utf-8").splitlines()
-        if line
-    ]
 
 
 def _load_env_file(path: Path) -> None:

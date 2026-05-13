@@ -4,6 +4,8 @@
 .pytest_cache/
 .ruff_cache/
 .env
+.benchmark-cache/
+benchmark-results/
 dist/
 build/
 *.egg-info/
