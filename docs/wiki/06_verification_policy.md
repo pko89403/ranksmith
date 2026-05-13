@@ -42,6 +42,7 @@ Codex는 실제 검증 없이 완료, 성공, 동작을 주장하지 않는다.
 - `pre-commit`: 빠른 품질 체크만 실행한다.
 - `pre-push`: 테스트, lint, format, type check, build, twine check를 실행한다.
 - CI: 로컬 hook 우회를 막는 최종 방어선이다.
+- PyPI 배포: `docs/wiki/07_release.md`의 Trusted Publishing 절차를 따른다.
 
 설치:
 
