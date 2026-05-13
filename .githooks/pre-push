@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+rm -rf dist
+./scripts/verify.sh
+UV_CACHE_DIR=.uv-cache uv tool run twine check dist/*

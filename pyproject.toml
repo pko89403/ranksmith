@@ -33,6 +33,7 @@ Issues = "https://github.com/pko89403/ranksmith/issues"
 dev = [
     "mypy>=1.8",
     "pytest>=8.0",
+    "pytest-asyncio>=0.23",
     "ruff>=0.5",
 ]
 
@@ -41,12 +42,20 @@ packages = ["src/ranksmith"]
 
 [tool.hatch.build]
 exclude = [
+    "/.github",
     "/.uv-cache",
     "/.venv",
     "/.mypy_cache",
     "/.pytest_cache",
     "/.ruff_cache",
+    "/.githooks",
+    "/AGENTS.md",
+    "/docs",
     "/dist",
+    "/examples",
+    "/scripts",
+    "/tests",
+    "/uv.lock",
 ]
 
 [tool.ruff]

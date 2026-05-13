@@ -1,4 +1,4 @@
-from ranksmith.azure import AzureOpenAIReranker
+from ranksmith.azure import AsyncAzureOpenAIReranker, AzureOpenAIReranker
 from ranksmith.errors import (
     DocumentTooLongError,
     RerankError,
@@ -6,10 +6,12 @@ from ranksmith.errors import (
     RerankParseError,
     RerankProviderError,
 )
-from ranksmith.strategies import ListwiseStrategy
+from ranksmith.strategies import AsyncListwiseStrategy, ListwiseStrategy
 from ranksmith.types import Document, RerankResult
 
 __all__ = [
+    "AsyncAzureOpenAIReranker",
+    "AsyncListwiseStrategy",
     "AzureOpenAIReranker",
     "Document",
     "DocumentTooLongError",

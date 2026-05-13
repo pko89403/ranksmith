@@ -64,6 +64,29 @@ Version 1 supports `direct` and `sliding_window` algorithms. Pointwise,
 pairwise, tournament, bayesian, and confidence-style algorithms are left for
 future versions.
 
+## Async Support
+
+`ranksmith` provides first-class asynchronous support for high-throughput environments like FastAPI.
+
+```python
+from ranksmith import AsyncAzureOpenAIReranker
+
+reranker = AsyncAzureOpenAIReranker(
+    api_key="...",
+    azure_endpoint="https://example.openai.azure.com",
+    azure_deployment="gpt-4o-mini",
+)
+
+results = await reranker.rerank("query", documents)
+```
+
+## Examples
+
+Ready-to-use example code for integrating the **RankGPT** algorithm into your production environment can be found in the `examples/` directory.
+
+- [`examples/rankgpt_sync.py`](examples/rankgpt_sync.py): Synchronous RankGPT integration guide
+- [`examples/rankgpt_async.py`](examples/rankgpt_async.py): High-performance asynchronous RankGPT integration guide
+
 ## Result Model
 
 ```python
