@@ -57,6 +57,9 @@ This strategy places multiple documents into a single prompt and asks the LLM to
 - **`sliding_window` Algorithm (Default)**
   - When there are too many documents, this algorithm chunks them by `window_size` and iteratively ranks them with an overlap of `stride`.
   - Essential for handling long candidate lists, preventing token limit exceedances, and avoiding the "lost in the middle" degradation in LLM ranking capabilities.
+- **`rankgpt_sliding_window` Algorithm**
+  - Implements the RankGPT-style back-to-first sliding window with bubble-up behavior.
+  - Useful when you want RankGPT's window traversal semantics while keeping ranksmith's strict JSON output validation.
 
 ### How to Apply a Strategy
 
@@ -67,7 +70,7 @@ from ranksmith import AzureOpenAIReranker, ListwiseStrategy
 
 # 1. Configure the strategy and algorithm
 strategy = ListwiseStrategy(
-    algorithm="sliding_window", # 'direct' or 'sliding_window'
+    algorithm="rankgpt_sliding_window",
     window_size=20,             # Number of documents evaluated at once
     stride=10,                  # Number of overlapping documents between windows
     max_document_chars=4000,    # Max characters allowed per document
@@ -84,7 +87,7 @@ reranker = AzureOpenAIReranker(
 results = reranker.rerank("query", documents)
 ```
 
-> **Note**: If `strategy` is not provided, it defaults to `ListwiseStrategy(algorithm="sliding_window")`. Pointwise, Pairwise, and Tournament strategies are planned for future releases.
+> **Note**: If `strategy` is not provided, it defaults to `ListwiseStrategy(algorithm="sliding_window")`. Version 1 supports `direct`, `sliding_window`, and `rankgpt_sliding_window`. Pointwise, Pairwise, and Tournament strategies are planned for future releases.
 
 ## Async Support
 
