@@ -18,6 +18,8 @@
   - 새 benchmark dataset은 repository에 commit하지 않는다.
   - qrels만으로 만든 후보군을 진짜 BEIR benchmark처럼 표현하지 않는다.
   - candidate file이 없으면 기본 benchmark mode는 fast fail한다.
+  - benchmark report는 reranking LLM 호출 수와 upstream embedding/community 호출 수를 구분한다.
+  - `ranksmith` runner는 first-stage candidate, embedding, community 생성을 수행하지 않는다.
   - diagnostic 후보군 생성은 명시 옵션일 때만 허용하고 결과 JSON에 표시한다.
   - public API를 확장하지 않는다.
 
@@ -28,7 +30,8 @@
   3. runner가 선택된 algorithm별로 reranking을 수행한다.
   4. metric layer가 NDCG@k, MRR@k, Recall@k를 per-query로 계산한다.
   5. aggregate layer가 macro average를 계산한다.
-  6. JSON output에는 schema version, source metadata, algorithm, candidate strategy, per-query, aggregate를 포함한다.
+  6. JSON output에는 schema version, source metadata, algorithm, candidate strategy, reranking call estimates, per-query, aggregate를 포함한다.
+  7. embedding/community 호출 수는 upstream candidate 생성 단계의 비용으로 별도 요약한다.
 - **의사 알고리즘 (Pseudo-algorithm)**
   - For each algorithm:
     - For each benchmark case:

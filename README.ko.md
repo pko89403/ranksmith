@@ -112,6 +112,31 @@ results = await reranker.rerank("query", documents)
 - [`examples/rankgpt_sync.py`](examples/rankgpt_sync.py): 기본적인 동기 방식의 RankGPT 연동 가이드
 - [`examples/rankgpt_async.py`](examples/rankgpt_async.py): 다중 문서 병렬 처리 및 고성능 비동기 방식의 RankGPT 연동 가이드
 
+## 벤치마크
+
+`ranksmith`의 비교 스크립트는 reranking 단계의 live LLM 호출 수를 실행 전에
+추정해 출력합니다. 호출 수는 query 수, 선택한 algorithm, `window_size`,
+`stride`, query별 candidate 수에 따라 달라집니다.
+
+- `direct`: query마다 LLM 1회 호출
+- `sliding_window`: 평가 window마다 LLM 1회 호출
+- `rankgpt_sliding_window`: RankGPT back-to-front window마다 LLM 1회 호출
+
+비교 스크립트는 first-stage candidate, embedding, community를 생성하지
+않습니다. candidate TSV를 embedding retrieval이나 community-building
+pipeline으로 만들었다면, 그 비용은 별도로 기록해야 합니다.
+
+일반적인 전체 pipeline 비용은 다음처럼 나눠서 봅니다.
+
+1. Candidate generation: corpus/query vector 생성을 위한 embedding 호출과,
+   community 생성/요약에 쓰인 LLM 호출
+2. Reranking: `ranksmith`가 선택된 reranking algorithm 실행을 위해 호출한 LLM
+   호출
+
+community retrieval까지 포함한 실험 요약에는 `embedding calls=<n>`,
+`community LLM calls=<n>`, `reranking LLM calls=<n>`처럼 구분해 기록하는 것을
+권장합니다.
+
 ## 결과 모델
 
 ```python

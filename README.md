@@ -155,6 +155,30 @@ and Recall@k. Raw benchmark artifacts are intentionally ignored by git; publish
 only reviewed summaries. The committed smoke fixture currently verifies the
 deterministic offline RankGPT path at NDCG@3, MRR@3, and Recall@3 = `1.000`.
 
+### Call accounting
+
+`compare_reranking.py` estimates and prints the number of live LLM reranking
+calls before execution. The count depends on the number of benchmark cases, the
+selected algorithms, `window_size`, `stride`, and candidate count per query:
+
+- `direct`: one LLM call per query.
+- `sliding_window`: one LLM call per evaluated window.
+- `rankgpt_sliding_window`: one LLM call per back-to-front RankGPT window.
+
+The runner does **not** create first-stage candidates, embeddings, or
+communities. If your candidate TSV is produced by an upstream retrieval or
+community-building pipeline, account for those calls separately. A typical full
+pipeline has two cost surfaces:
+
+1. Candidate generation: embedding calls for corpus/query vectors, plus any LLM
+   calls used to create or summarize communities.
+2. Reranking: LLM calls made by `ranksmith` for the selected reranking
+   algorithms.
+
+Benchmark summaries should report both numbers when community retrieval is part
+of the experiment, for example: `embedding calls=<n>`, `community LLM calls=<n>`,
+and `reranking LLM calls=<n>`.
+
 ## Result Model
 
 ```python
