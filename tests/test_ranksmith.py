@@ -177,3 +177,31 @@ def test_provider_errors_are_wrapped() -> None:
         reranker.rerank("query", ["alpha"])
 
     assert "timeout" in str(error.value)
+
+
+def test_rankgpt_sliding_window_bubbles_top_document_up() -> None:
+    provider = FakeProvider(
+        [
+            '{"ranking": [3, 1, 2]}',
+            '{"ranking": [3, 1, 2]}',
+        ]
+    )
+    reranker = AzureOpenAIReranker(
+        api_key="key",
+        azure_endpoint="https://example.openai.azure.com",
+        azure_deployment="gpt-4o-mini",
+        provider=provider,
+        strategy=ListwiseStrategy(
+            algorithm="rankgpt_sliding_window", window_size=3, stride=2
+        ),
+    )
+
+    results = reranker.rerank("query", ["a", "b", "c", "d", "e"])
+
+    assert [result.document.text for result in results] == ["e", "a", "b", "c", "d"]
+    assert provider.calls == [["c", "d", "e"], ["a", "b", "e"]]
+
+
+def test_rankgpt_sliding_window_rejects_stride_larger_than_window_size() -> None:
+    with pytest.raises(RerankInputError):
+        ListwiseStrategy(algorithm="rankgpt_sliding_window", window_size=3, stride=4)

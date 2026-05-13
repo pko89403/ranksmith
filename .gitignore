@@ -3,6 +3,7 @@
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
+.env
 dist/
 build/
 *.egg-info/

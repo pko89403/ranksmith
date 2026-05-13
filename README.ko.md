@@ -63,6 +63,29 @@ strategy = ListwiseStrategy(
 v1은 `direct`, `sliding_window` 알고리즘을 지원합니다. Pointwise, pairwise,
 tournament, bayesian, confidence 계열 알고리즘은 이후 버전에서 확장합니다.
 
+## 비동기 지원 (Async Support)
+
+대규모 트래픽이나 비동기 웹 프레임워크(FastAPI 등)를 위해 비동기 처리를 완벽하게 지원합니다.
+
+```python
+from ranksmith import AsyncAzureOpenAIReranker
+
+reranker = AsyncAzureOpenAIReranker(
+    api_key="...",
+    azure_endpoint="https://example.openai.azure.com",
+    azure_deployment="gpt-4o-mini",
+)
+
+results = await reranker.rerank("query", documents)
+```
+
+## 실전 가이드 (Examples)
+
+실제 프로덕션 환경에 **RankGPT** 알고리즘을 바로 연동할 수 있는 완성된 형태의 예제 코드를 제공합니다. 환경 변수(`.env`) 세팅 방법과 함께 `examples/` 폴더에서 확인하세요.
+
+- [`examples/rankgpt_sync.py`](examples/rankgpt_sync.py): 기본적인 동기 방식의 RankGPT 연동 가이드
+- [`examples/rankgpt_async.py`](examples/rankgpt_async.py): 다중 문서 병렬 처리 및 고성능 비동기 방식의 RankGPT 연동 가이드
+
 ## 결과 모델
 
 ```python
