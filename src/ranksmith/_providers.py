@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from typing import Protocol
 
 from openai import AsyncAzureOpenAI, AzureOpenAI
 
 from ranksmith.errors import RerankProviderError
-from ranksmith.types import Document
+from ranksmith.types import Document, RerankUsage
+
+UsageCallback = Callable[[RerankUsage], None]
+AsyncUsageCallback = Callable[[RerankUsage], Awaitable[None] | None]
 
 
 class LLMProvider(Protocol):
@@ -27,6 +31,7 @@ class AzureOpenAIProvider:
         azure_deployment: str,
         api_version: str,
         timeout: float | None = None,
+        on_usage: UsageCallback | None = None,
     ) -> None:
         self._azure_deployment = azure_deployment
         self._client = AzureOpenAI(
@@ -35,6 +40,7 @@ class AzureOpenAIProvider:
             api_version=api_version,
             timeout=timeout,
         )
+        self._on_usage = on_usage
 
     def rank(self, query: str, documents: list[Document]) -> str:
         try:
@@ -57,6 +63,7 @@ class AzureOpenAIProvider:
         except Exception as exc:
             raise RerankProviderError(str(exc)) from exc
 
+        _emit_usage(response, self._on_usage)
         content = response.choices[0].message.content
         if content is None:
             raise RerankProviderError("Azure OpenAI returned an empty response.")
@@ -72,6 +79,7 @@ class AsyncAzureOpenAIProvider:
         azure_deployment: str,
         api_version: str,
         timeout: float | None = None,
+        on_usage: AsyncUsageCallback | None = None,
     ) -> None:
         self._azure_deployment = azure_deployment
         self._client = AsyncAzureOpenAI(
@@ -80,6 +88,7 @@ class AsyncAzureOpenAIProvider:
             api_version=api_version,
             timeout=timeout,
         )
+        self._on_usage = on_usage
 
     async def rank(self, query: str, documents: list[Document]) -> str:
         try:
@@ -102,10 +111,43 @@ class AsyncAzureOpenAIProvider:
         except Exception as exc:
             raise RerankProviderError(str(exc)) from exc
 
+        await _emit_usage_async(response, self._on_usage)
         content = response.choices[0].message.content
         if content is None:
             raise RerankProviderError("Azure OpenAI returned an empty response.")
         return content
+
+
+def _extract_usage(response: object) -> RerankUsage | None:
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return None
+    return RerankUsage(
+        prompt_tokens=int(getattr(usage, "prompt_tokens", 0) or 0),
+        completion_tokens=int(getattr(usage, "completion_tokens", 0) or 0),
+        total_tokens=int(getattr(usage, "total_tokens", 0) or 0),
+    )
+
+
+def _emit_usage(response: object, callback: UsageCallback | None) -> None:
+    if callback is None:
+        return
+    usage = _extract_usage(response)
+    if usage is not None:
+        callback(usage)
+
+
+async def _emit_usage_async(
+    response: object, callback: AsyncUsageCallback | None
+) -> None:
+    if callback is None:
+        return
+    usage = _extract_usage(response)
+    if usage is None:
+        return
+    result = callback(usage)
+    if isinstance(result, Awaitable):
+        await result
 
 
 def _build_prompt(query: str, documents: list[Document]) -> str:

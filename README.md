@@ -205,3 +205,23 @@ except RerankParseError:
 except RerankProviderError:
     ...
 ```
+
+## MTEB Reranking Reference Evaluation
+
+These results are intended as practical reference points, not a universal ranking.
+Results depend on dataset, model, candidate count, latency budget, and invalid output rate.
+This benchmark measures reranking over fixed native MTEB candidate sets, not first-stage retrieval.
+
+```bash
+uv run python scripts/evaluate_mteb_reranking.py \
+  --tasks AskUbuntuDupQuestions SciDocsRR StackOverflowDupQuestions \
+  --methods original direct@20 rankgpt_sliding_window@20 rankgpt_sliding_window@100 \
+  --output-dir benchmark-results/mteb-reranking/example \
+  --max-queries 50 \
+  --max-document-chars 4000 \
+  --shuffle-candidates --shuffle-seed 13 \
+  --rankgpt-window-size 20 --rankgpt-step 10 \
+  --input-token-price-per-1m 2.50 \
+  --output-token-price-per-1m 10.00 \
+  --allow-live
+```

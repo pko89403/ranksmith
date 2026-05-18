@@ -5,8 +5,10 @@ from collections.abc import Sequence
 from ranksmith._providers import (
     AsyncAzureOpenAIProvider,
     AsyncLLMProvider,
+    AsyncUsageCallback,
     AzureOpenAIProvider,
     LLMProvider,
+    UsageCallback,
 )
 from ranksmith.errors import RerankError, RerankProviderError
 from ranksmith.strategies import (
@@ -29,6 +31,7 @@ class AzureOpenAIReranker:
         strategy: RerankStrategy | None = None,
         provider: LLMProvider | None = None,
         timeout: float | None = None,
+        on_usage: UsageCallback | None = None,
     ) -> None:
         self._strategy = strategy or ListwiseStrategy()
         self._provider = provider or AzureOpenAIProvider(
@@ -37,6 +40,7 @@ class AzureOpenAIReranker:
             azure_deployment=azure_deployment,
             api_version=api_version,
             timeout=timeout,
+            on_usage=on_usage,
         )
 
     def rerank(
@@ -71,6 +75,7 @@ class AsyncAzureOpenAIReranker:
         strategy: AsyncRerankStrategy | None = None,
         provider: AsyncLLMProvider | None = None,
         timeout: float | None = None,
+        on_usage: AsyncUsageCallback | None = None,
     ) -> None:
         self._strategy = strategy or AsyncListwiseStrategy()
         self._provider = provider or AsyncAzureOpenAIProvider(
@@ -79,6 +84,7 @@ class AsyncAzureOpenAIReranker:
             azure_deployment=azure_deployment,
             api_version=api_version,
             timeout=timeout,
+            on_usage=on_usage,
         )
 
     async def rerank(

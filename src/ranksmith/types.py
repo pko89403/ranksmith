@@ -24,3 +24,12 @@ class RerankResult:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "metadata", dict(self.metadata))
+
+
+@dataclass(frozen=True)
+class RerankUsage:
+    """Token usage reported by an LLM provider for a single rank call."""
+
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
