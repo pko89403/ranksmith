@@ -7,7 +7,7 @@ from ranksmith.errors import (
     RerankProviderError,
 )
 from ranksmith.strategies import AsyncListwiseStrategy, ListwiseStrategy
-from ranksmith.types import Document, RerankResult
+from ranksmith.types import Document, RerankResult, RerankUsage
 
 __all__ = [
     "AsyncAzureOpenAIReranker",
@@ -21,4 +21,5 @@ __all__ = [
     "RerankParseError",
     "RerankProviderError",
     "RerankResult",
+    "RerankUsage",
 ]

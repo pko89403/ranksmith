@@ -163,3 +163,23 @@ except RerankParseError:
 except RerankProviderError:
     ...
 ```
+
+## MTEB Reranking 참고 측정
+
+아래 결과는 참고 기준점이며 보편적 leaderboard가 아닙니다.
+점수는 dataset, model, candidate 수, latency 예산, invalid output 비율에 따라 달라지며,
+이 벤치마크는 native MTEB 후보 집합 위의 재랭킹만 측정합니다 (first-stage retrieval 미포함).
+
+```bash
+uv run python scripts/evaluate_mteb_reranking.py \
+  --tasks AskUbuntuDupQuestions SciDocsRR StackOverflowDupQuestions \
+  --methods original direct@20 rankgpt_sliding_window@20 rankgpt_sliding_window@100 \
+  --output-dir benchmark-results/mteb-reranking/example \
+  --max-queries 50 \
+  --max-document-chars 4000 \
+  --shuffle-candidates --shuffle-seed 13 \
+  --rankgpt-window-size 20 --rankgpt-step 10 \
+  --input-token-price-per-1m 2.50 \
+  --output-token-price-per-1m 10.00 \
+  --allow-live
+```

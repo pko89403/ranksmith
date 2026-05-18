@@ -36,6 +36,23 @@ def recall_at_k(ranking: Sequence[str], qrels: Mapping[str, int], k: int) -> flo
     return len(retrieved_relevant) / len(relevant_documents)
 
 
+def map_score(ranking: Sequence[str], qrels: Mapping[str, int]) -> float:
+    relevant_documents = {
+        document_id for document_id, score in qrels.items() if score > 0
+    }
+    if not relevant_documents:
+        return 0.0
+
+    precision_sum = 0.0
+    relevant_seen = 0
+    for rank, document_id in enumerate(ranking, start=1):
+        if document_id in relevant_documents:
+            relevant_seen += 1
+            precision_sum += relevant_seen / rank
+
+    return precision_sum / len(relevant_documents)
+
+
 def _dcg(gains: Sequence[int]) -> float:
     return sum(gain / math.log2(index + 1) for index, gain in enumerate(gains, start=1))
 
