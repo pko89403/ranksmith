@@ -2,6 +2,7 @@
 
 ## 등록된 Reference
 - [Is ChatGPT Good at Search? (RankGPT)](references/rankgpt.md): Paper / Listwise Reranking, Sliding Window / 요약 완료
+- [Large Language Models are Effective Text Rankers with Pairwise Ranking Prompting](references/pairwise_ranking_prompting.md): Paper / Pairwise Reranking, PRP / 요약 완료, 사용자 결정 대기
 
 ## 예상 카테고리
 - listwise reranking

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ranksmith"
-version = "0.1.0"
+version = "0.2.0"
 description = "Forge better rankings from candidate documents with LLM reranking."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -45,6 +45,7 @@ packages = ["src/ranksmith"]
 exclude = [
     "/.github",
     "/.uv-cache",
+    "/.uv-cache-twine",
     "/.venv",
     "/.mypy_cache",
     "/.pytest_cache",

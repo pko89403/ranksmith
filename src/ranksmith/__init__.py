@@ -6,16 +6,23 @@ from ranksmith.errors import (
     RerankParseError,
     RerankProviderError,
 )
-from ranksmith.strategies import AsyncListwiseStrategy, ListwiseStrategy
+from ranksmith.strategies import (
+    AsyncListwiseStrategy,
+    AsyncPairwiseStrategy,
+    ListwiseStrategy,
+    PairwiseStrategy,
+)
 from ranksmith.types import Document, RerankResult, RerankUsage
 
 __all__ = [
     "AsyncAzureOpenAIReranker",
     "AsyncListwiseStrategy",
+    "AsyncPairwiseStrategy",
     "AzureOpenAIReranker",
     "Document",
     "DocumentTooLongError",
     "ListwiseStrategy",
+    "PairwiseStrategy",
     "RerankError",
     "RerankInputError",
     "RerankParseError",

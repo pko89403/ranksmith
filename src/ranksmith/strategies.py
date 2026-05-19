@@ -1,15 +1,24 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Literal, Protocol
+from typing import Literal, Protocol, TypeAlias, cast
 
-from ranksmith._providers import AsyncLLMProvider, LLMProvider
+from ranksmith._providers import (
+    AsyncLLMProvider,
+    AsyncPairwiseLLMProvider,
+    LLMProvider,
+    PairwiseLLMProvider,
+)
 from ranksmith.errors import DocumentTooLongError, RerankInputError, RerankParseError
 from ranksmith.types import Document, RerankResult
 
-Algorithm = Literal["direct", "sliding_window", "rankgpt_sliding_window"]
+Algorithm = Literal["rankgpt_sliding_window"]
+PairwiseAlgorithm = Literal["prp_sliding_k"]
+Provider: TypeAlias = LLMProvider | PairwiseLLMProvider
+AsyncProvider: TypeAlias = AsyncLLMProvider | AsyncPairwiseLLMProvider
 
 
 class RerankStrategy(Protocol):
@@ -18,7 +27,7 @@ class RerankStrategy(Protocol):
         *,
         query: str,
         documents: Sequence[Document],
-        provider: LLMProvider,
+        provider: Provider,
         top_k: int | None = None,
     ) -> list[RerankResult]: ...
 
@@ -29,35 +38,32 @@ class AsyncRerankStrategy(Protocol):
         *,
         query: str,
         documents: Sequence[Document],
-        provider: AsyncLLMProvider,
+        provider: AsyncProvider,
         top_k: int | None = None,
     ) -> list[RerankResult]: ...
 
 
 @dataclass(frozen=True)
 class _ListwiseConfigMixin:
-    algorithm: Algorithm = "sliding_window"
+    algorithm: Algorithm = "rankgpt_sliding_window"
     window_size: int = 20
     stride: int = 10
     max_document_chars: int = 4000
 
     def __post_init__(self) -> None:
-        if self.algorithm not in {"direct", "sliding_window", "rankgpt_sliding_window"}:
-            raise ValueError(
-                'algorithm must be "direct", "sliding_window", or '
-                '"rankgpt_sliding_window"'
-            )
+        if self.algorithm != "rankgpt_sliding_window":
+            raise ValueError('algorithm must be "rankgpt_sliding_window"')
         if self.window_size < 1:
             raise ValueError("window_size must be greater than 0")
         if self.stride < 1:
             raise ValueError("stride must be greater than 0")
         if (
-            self.algorithm in {"sliding_window", "rankgpt_sliding_window"}
+            self.algorithm == "rankgpt_sliding_window"
             and self.stride > self.window_size
         ):
             raise RerankInputError(
                 "stride must be less than or equal to window_size "
-                "for sliding window algorithms."
+                'for "rankgpt_sliding_window".'
             )
         if self.max_document_chars < 1:
             raise ValueError("max_document_chars must be greater than 0")
@@ -82,17 +88,16 @@ class ListwiseStrategy(_ListwiseConfigMixin):
         *,
         query: str,
         documents: Sequence[Document],
-        provider: LLMProvider,
+        provider: Provider,
         top_k: int | None = None,
     ) -> list[RerankResult]:
         self._validate_documents(documents)
         if not documents:
             return []
 
-        if self.algorithm == "direct" or len(documents) <= self.window_size:
+        provider = _ensure_listwise_provider(provider)
+        if len(documents) <= self.window_size:
             ordered_indexes = self._rank_window(query, documents, provider)
-        elif self.algorithm == "sliding_window":
-            ordered_indexes = self._rank_sliding_windows(query, documents, provider)
         else:
             ordered_indexes = self._rank_rankgpt_sliding_windows(
                 query, documents, provider
@@ -122,35 +127,6 @@ class ListwiseStrategy(_ListwiseConfigMixin):
         raw_response = provider.rank(query, list(documents))
         ranking = _parse_ranking(raw_response, expected_count=len(documents))
         return [number - 1 for number in ranking]
-
-    def _rank_sliding_windows(
-        self,
-        query: str,
-        documents: Sequence[Document],
-        provider: LLMProvider,
-    ) -> list[int]:
-        scores = [0.0 for _ in documents]
-        last_evidence = [-1 for _ in documents]
-
-        for window_number, start in enumerate(
-            _window_starts(len(documents), self.window_size, self.stride)
-        ):
-            window_documents = list(documents[start : start + self.window_size])
-            raw_response = provider.rank(query, window_documents)
-            ranking = _parse_ranking(raw_response, expected_count=len(window_documents))
-            for position, local_number in enumerate(ranking):
-                original_index = start + local_number - 1
-                scores[original_index] += len(window_documents) - position - 1
-                last_evidence[original_index] = window_number
-
-        if all(evidence == -1 for evidence in last_evidence):
-            return self._rank_window(query, documents, provider)
-
-        return sorted(
-            range(len(documents)),
-            key=lambda index: (scores[index], last_evidence[index], index),
-            reverse=True,
-        )
 
     def _rank_rankgpt_sliding_windows(
         self,
@@ -183,25 +159,122 @@ class ListwiseStrategy(_ListwiseConfigMixin):
 
 
 @dataclass(frozen=True)
-class AsyncListwiseStrategy(_ListwiseConfigMixin):
-    async def rerank(
+class _PairwiseConfigMixin:
+    algorithm: PairwiseAlgorithm = "prp_sliding_k"
+    passes: int = 10
+    max_document_chars: int = 4000
+
+    def __post_init__(self) -> None:
+        if self.algorithm != "prp_sliding_k":
+            raise ValueError('algorithm must be "prp_sliding_k"')
+        if self.passes < 1:
+            raise ValueError("passes must be greater than 0")
+        if self.max_document_chars < 1:
+            raise ValueError("max_document_chars must be greater than 0")
+
+    def _validate_documents(self, documents: Sequence[Document]) -> None:
+        for index, document in enumerate(documents):
+            length = len(document.text)
+            if length > self.max_document_chars:
+                message = (
+                    f"Document at index {index} has {length} characters, exceeding "
+                    f"max_document_chars={self.max_document_chars}. Shorten the "
+                    "document, chunk it before reranking, or increase "
+                    "max_document_chars."
+                )
+                raise DocumentTooLongError(message)
+
+
+@dataclass(frozen=True)
+class PairwiseStrategy(_PairwiseConfigMixin):
+    def rerank(
         self,
         *,
         query: str,
         documents: Sequence[Document],
-        provider: AsyncLLMProvider,
+        provider: Provider,
         top_k: int | None = None,
     ) -> list[RerankResult]:
         self._validate_documents(documents)
         if not documents:
             return []
 
-        if self.algorithm == "direct" or len(documents) <= self.window_size:
-            ordered_indexes = await self._rank_window(query, documents, provider)
-        elif self.algorithm == "sliding_window":
-            ordered_indexes = await self._rank_sliding_windows(
-                query, documents, provider
+        provider = _ensure_pairwise_provider(provider)
+        ordered_indexes = self._rank_prp_sliding_k(query, documents, provider)
+
+        results = [
+            RerankResult(
+                document=documents[original_index],
+                rank=rank,
+                original_index=original_index,
+                metadata={"strategy": "pairwise", "algorithm": self.algorithm},
             )
+            for rank, original_index in enumerate(ordered_indexes, start=1)
+        ]
+        if top_k is None:
+            return results
+        if top_k < 0:
+            raise RerankInputError("top_k must be greater than or equal to 0")
+        return results[:top_k]
+
+    def _rank_prp_sliding_k(
+        self,
+        query: str,
+        documents: Sequence[Document],
+        provider: PairwiseLLMProvider,
+    ) -> list[int]:
+        current_order = list(range(len(documents)))
+
+        for _ in range(self.passes):
+            for right_pos in range(len(current_order) - 1, 0, -1):
+                left_pos = right_pos - 1
+                left_index = current_order[left_pos]
+                right_index = current_order[right_pos]
+
+                first = _parse_pairwise_winner(
+                    provider.compare(
+                        query,
+                        documents[left_index],
+                        documents[right_index],
+                    )
+                )
+                second = _parse_pairwise_winner(
+                    provider.compare(
+                        query,
+                        documents[right_index],
+                        documents[left_index],
+                    )
+                )
+
+                first_winner = left_index if first == "A" else right_index
+                second_winner = right_index if second == "A" else left_index
+
+                if first_winner == second_winner and first_winner == right_index:
+                    current_order[left_pos], current_order[right_pos] = (
+                        current_order[right_pos],
+                        current_order[left_pos],
+                    )
+
+        return current_order
+
+
+@dataclass(frozen=True)
+class AsyncListwiseStrategy(_ListwiseConfigMixin):
+    async def rerank(
+        self,
+        *,
+        query: str,
+        documents: Sequence[Document],
+        provider: AsyncProvider,
+        top_k: int | None = None,
+    ) -> list[RerankResult]:
+        self._validate_documents(documents)
+        if not documents:
+            return []
+
+        provider = _ensure_async_listwise_provider(provider)
+        if len(documents) <= self.window_size:
+            ordered_indexes = await self._rank_window(query, documents, provider)
         else:
             ordered_indexes = await self._rank_rankgpt_sliding_windows(
                 query, documents, provider
@@ -232,40 +305,6 @@ class AsyncListwiseStrategy(_ListwiseConfigMixin):
         ranking = _parse_ranking(raw_response, expected_count=len(documents))
         return [number - 1 for number in ranking]
 
-    async def _rank_sliding_windows(
-        self,
-        query: str,
-        documents: Sequence[Document],
-        provider: AsyncLLMProvider,
-    ) -> list[int]:
-        scores = [0.0 for _ in documents]
-        last_evidence = [-1 for _ in documents]
-
-        # NOTE: If we want real concurrency for the basic sliding window,
-        # we could do `asyncio.gather`.
-        # However, the original synchronous version processes sequentially.
-        # For simplicity and exact parity, we process sequentially for now,
-        # but could optimize with asyncio.gather if desired.
-        for window_number, start in enumerate(
-            _window_starts(len(documents), self.window_size, self.stride)
-        ):
-            window_documents = list(documents[start : start + self.window_size])
-            raw_response = await provider.rank(query, window_documents)
-            ranking = _parse_ranking(raw_response, expected_count=len(window_documents))
-            for position, local_number in enumerate(ranking):
-                original_index = start + local_number - 1
-                scores[original_index] += len(window_documents) - position - 1
-                last_evidence[original_index] = window_number
-
-        if all(evidence == -1 for evidence in last_evidence):
-            return await self._rank_window(query, documents, provider)
-
-        return sorted(
-            range(len(documents)),
-            key=lambda index: (scores[index], last_evidence[index], index),
-            reverse=True,
-        )
-
     async def _rank_rankgpt_sliding_windows(
         self,
         query: str,
@@ -294,6 +333,116 @@ class AsyncListwiseStrategy(_ListwiseConfigMixin):
             start_pos -= self.stride
 
         return current_order
+
+
+@dataclass(frozen=True)
+class AsyncPairwiseStrategy(_PairwiseConfigMixin):
+    pair_order_parallelism: int = 2
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if self.pair_order_parallelism not in {1, 2}:
+            raise ValueError("pair_order_parallelism must be 1 or 2")
+
+    async def rerank(
+        self,
+        *,
+        query: str,
+        documents: Sequence[Document],
+        provider: AsyncProvider,
+        top_k: int | None = None,
+    ) -> list[RerankResult]:
+        self._validate_documents(documents)
+        if not documents:
+            return []
+
+        provider = _ensure_async_pairwise_provider(provider)
+        ordered_indexes = await self._rank_prp_sliding_k(query, documents, provider)
+
+        results = [
+            RerankResult(
+                document=documents[original_index],
+                rank=rank,
+                original_index=original_index,
+                metadata={"strategy": "pairwise", "algorithm": self.algorithm},
+            )
+            for rank, original_index in enumerate(ordered_indexes, start=1)
+        ]
+        if top_k is None:
+            return results
+        if top_k < 0:
+            raise RerankInputError("top_k must be greater than or equal to 0")
+        return results[:top_k]
+
+    async def _rank_prp_sliding_k(
+        self,
+        query: str,
+        documents: Sequence[Document],
+        provider: AsyncPairwiseLLMProvider,
+    ) -> list[int]:
+        current_order = list(range(len(documents)))
+
+        for _ in range(self.passes):
+            for right_pos in range(len(current_order) - 1, 0, -1):
+                left_pos = right_pos - 1
+                left_index = current_order[left_pos]
+                right_index = current_order[right_pos]
+
+                first_raw, second_raw = await self._compare_pair_orders(
+                    query=query,
+                    documents=documents,
+                    provider=provider,
+                    left_index=left_index,
+                    right_index=right_index,
+                )
+                first = _parse_pairwise_winner(first_raw)
+                second = _parse_pairwise_winner(second_raw)
+
+                first_winner = left_index if first == "A" else right_index
+                second_winner = right_index if second == "A" else left_index
+
+                if first_winner == second_winner and first_winner == right_index:
+                    current_order[left_pos], current_order[right_pos] = (
+                        current_order[right_pos],
+                        current_order[left_pos],
+                    )
+
+        return current_order
+
+    async def _compare_pair_orders(
+        self,
+        *,
+        query: str,
+        documents: Sequence[Document],
+        provider: AsyncPairwiseLLMProvider,
+        left_index: int,
+        right_index: int,
+    ) -> tuple[str, str]:
+        if self.pair_order_parallelism == 1:
+            first_raw = await provider.compare(
+                query,
+                documents[left_index],
+                documents[right_index],
+            )
+            second_raw = await provider.compare(
+                query,
+                documents[right_index],
+                documents[left_index],
+            )
+            return first_raw, second_raw
+
+        return await asyncio.gather(
+            provider.compare(
+                query,
+                documents[left_index],
+                documents[right_index],
+            ),
+            provider.compare(
+                query,
+                documents[right_index],
+                documents[left_index],
+            ),
+        )
 
 
 def _parse_ranking(raw_response: str, *, expected_count: int) -> list[int]:
@@ -326,9 +475,46 @@ def _parse_ranking(raw_response: str, *, expected_count: int) -> list[int]:
     return ranking
 
 
-def _window_starts(document_count: int, window_size: int, stride: int) -> list[int]:
-    last_start = document_count - window_size
-    starts = list(range(0, last_start + 1, stride))
-    if starts[-1] != last_start:
-        starts.append(last_start)
-    return starts
+def _parse_pairwise_winner(raw_response: str) -> Literal["A", "B"]:
+    try:
+        data = json.loads(raw_response)
+    except json.JSONDecodeError as exc:
+        raise RerankParseError("LLM response is not valid JSON.", raw_response) from exc
+
+    winner = data.get("winner") if isinstance(data, dict) else None
+    if winner not in {"A", "B"}:
+        raise RerankParseError(
+            'LLM response must contain a "winner" value of "A" or "B".',
+            raw_response,
+        )
+    return cast(Literal["A", "B"], winner)
+
+
+def _ensure_listwise_provider(provider: object) -> LLMProvider:
+    rank = getattr(provider, "rank", None)
+    if not callable(rank):
+        raise RerankInputError("provider must support listwise rank()")
+    return cast(LLMProvider, provider)
+
+
+def _ensure_async_listwise_provider(provider: object) -> AsyncLLMProvider:
+    rank = getattr(provider, "rank", None)
+    if not callable(rank):
+        raise RerankInputError("provider must support listwise rank()")
+    return cast(AsyncLLMProvider, provider)
+
+
+def _ensure_pairwise_provider(provider: object) -> PairwiseLLMProvider:
+    compare = getattr(provider, "compare", None)
+    if not callable(compare):
+        raise RerankInputError("provider must support pairwise compare()")
+    return cast(PairwiseLLMProvider, provider)
+
+
+def _ensure_async_pairwise_provider(
+    provider: object,
+) -> AsyncPairwiseLLMProvider:
+    compare = getattr(provider, "compare", None)
+    if not callable(compare):
+        raise RerankInputError("provider must support pairwise compare()")
+    return cast(AsyncPairwiseLLMProvider, provider)

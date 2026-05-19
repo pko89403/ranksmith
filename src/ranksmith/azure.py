@@ -5,9 +5,11 @@ from collections.abc import Sequence
 from ranksmith._providers import (
     AsyncAzureOpenAIProvider,
     AsyncLLMProvider,
+    AsyncPairwiseLLMProvider,
     AsyncUsageCallback,
     AzureOpenAIProvider,
     LLMProvider,
+    PairwiseLLMProvider,
     UsageCallback,
 )
 from ranksmith.errors import RerankError, RerankProviderError
@@ -29,11 +31,11 @@ class AzureOpenAIReranker:
         azure_deployment: str,
         api_version: str = "2024-08-01-preview",
         strategy: RerankStrategy | None = None,
-        provider: LLMProvider | None = None,
+        provider: LLMProvider | PairwiseLLMProvider | None = None,
         timeout: float | None = None,
         on_usage: UsageCallback | None = None,
     ) -> None:
-        self._strategy = strategy or ListwiseStrategy()
+        self._strategy: RerankStrategy = strategy or ListwiseStrategy()
         self._provider = provider or AzureOpenAIProvider(
             api_key=api_key,
             azure_endpoint=azure_endpoint,
@@ -73,11 +75,11 @@ class AsyncAzureOpenAIReranker:
         azure_deployment: str,
         api_version: str = "2024-08-01-preview",
         strategy: AsyncRerankStrategy | None = None,
-        provider: AsyncLLMProvider | None = None,
+        provider: AsyncLLMProvider | AsyncPairwiseLLMProvider | None = None,
         timeout: float | None = None,
         on_usage: AsyncUsageCallback | None = None,
     ) -> None:
-        self._strategy = strategy or AsyncListwiseStrategy()
+        self._strategy: AsyncRerankStrategy = strategy or AsyncListwiseStrategy()
         self._provider = provider or AsyncAzureOpenAIProvider(
             api_key=api_key,
             azure_endpoint=azure_endpoint,

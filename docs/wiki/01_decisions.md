@@ -48,3 +48,17 @@ Decision: if references are insufficient, stop and ask the user.
 Status: accepted
 
 Reason: 사용자가 scope, 조사 출처, 구현 방향을 통제한다.
+
+## D008 Pairwise PRP public API
+Decision: add `PairwiseStrategy` and `AsyncPairwiseStrategy`.
+
+Status: accepted
+
+Reason: PRP는 listwise permutation이 아니라 pairwise comparison을 비교 단위로 사용하므로, `ListwiseStrategy`에 억지로 넣으면 provider 계약과 알고리즘 의미가 흐려진다.
+
+## D009 Pairwise provider contract
+Decision: keep `LLMProvider.rank()` for listwise ranking and add pairwise `compare()`.
+
+Status: accepted
+
+Reason: 기존 JSON permutation 계약을 유지하면서 PRP의 binary choice prompt와 strict winner parsing을 분리한다.

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import datetime as _dt
 import json
 import os
@@ -11,7 +12,7 @@ import subprocess
 import sys
 import time
 from collections import Counter
-from collections.abc import Iterable, Sequence
+from collections.abc import Awaitable, Callable, Iterable, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -46,6 +47,12 @@ def main() -> None:
         args.input_token_price_per_1m < 0 or args.output_token_price_per_1m < 0
     ):
         raise SystemExit("Token prices must be greater than or equal to 0.")
+    if args.prp_passes < 1:
+        raise SystemExit("--prp-passes must be greater than 0.")
+    if args.concurrency < 1:
+        raise SystemExit("--concurrency must be greater than 0.")
+    if args.max_document_chars < 1:
+        raise SystemExit("--max-document-chars must be greater than 0.")
 
     if args.list_tasks:
         _list_tasks()
@@ -122,34 +129,37 @@ def main() -> None:
                 )
             )
 
-    total_pairs = len(samples) * len(normalized_methods)
-    done_pairs = 0
     with query_results_path.open("a", encoding="utf-8") as handle:
-        for sample in samples:
-            for method in normalized_methods:
-                done_pairs += 1
-                key = (sample.task_name, sample.split, sample.query_id, method)
-                if key in already_done:
-                    continue
-                row = _evaluate_sample_method(
-                    sample=sample,
-                    method=method,
+        total_pairs = len(samples) * len(normalized_methods)
+
+        def on_row(done_pair: int, row: dict[str, Any]) -> None:
+            handle.write(json.dumps(row, sort_keys=True) + "\n")
+            handle.flush()
+            print(
+                f"[{done_pair}/{total_pairs}] {row['task']} "
+                f"q={row['query_id']} method={row['method']} "
+                f"valid={row['valid']} "
+                f"failure={row['failure_type']} "
+                f"latency={row['latency_ms']:.0f}ms",
+                file=sys.stderr,
+                flush=True,
+            )
+
+        rows.extend(
+            asyncio.run(
+                _evaluate_pending_methods(
+                    samples=samples,
+                    methods=normalized_methods,
+                    already_done=already_done,
                     price_config=price_config,
                     rankgpt_window_size=args.rankgpt_window_size,
                     rankgpt_step=args.rankgpt_step,
+                    prp_passes=args.prp_passes,
+                    concurrency=args.concurrency,
+                    on_row=on_row,
                 )
-                rows.append(row)
-                handle.write(json.dumps(row, sort_keys=True) + "\n")
-                handle.flush()
-                print(
-                    f"[{done_pairs}/{total_pairs}] {sample.task_name} "
-                    f"q={sample.query_id} method={method} "
-                    f"valid={row['valid']} "
-                    f"failure={row['failure_type']} "
-                    f"latency={row['latency_ms']:.0f}ms",
-                    file=sys.stderr,
-                    flush=True,
-                )
+            )
+        )
 
     _write_summaries(
         output_dir=output_dir,
@@ -166,6 +176,7 @@ def _evaluate_sample_method(
     price_config: PriceConfig | None,
     rankgpt_window_size: int,
     rankgpt_step: int,
+    prp_passes: int,
 ) -> dict[str, Any]:
     start = time.perf_counter()
     ranked_doc_ids: tuple[str, ...] | None
@@ -176,12 +187,14 @@ def _evaluate_sample_method(
 
     if method == "original":
         ranked_doc_ids = tuple(candidate.doc_id for candidate in sample.candidates)
+        llm_calls = 0
     else:
-        ranked_doc_ids, valid, failure_type, usage, error = _run_llm_method(
+        ranked_doc_ids, valid, failure_type, usage, llm_calls, error = _run_llm_method(
             sample=sample,
             method=method,
             rankgpt_window_size=rankgpt_window_size,
             rankgpt_step=rankgpt_step,
+            prp_passes=prp_passes,
         )
 
     elapsed_ms = (time.perf_counter() - start) * 1000.0
@@ -201,9 +214,128 @@ def _evaluate_sample_method(
         "error": error,
         "latency_ms": elapsed_ms,
         "usage": list(usage) if usage is not None else None,
+        "llm_calls": llm_calls,
         "cost": estimate_cost(usage, price_config),
         "ranked_doc_ids": list(ranked_doc_ids) if ranked_doc_ids is not None else None,
     }
+
+
+async def _evaluate_sample_method_async(
+    *,
+    sample: MtebRerankingSample,
+    method: str,
+    price_config: PriceConfig | None,
+    rankgpt_window_size: int,
+    rankgpt_step: int,
+    prp_passes: int,
+) -> dict[str, Any]:
+    if not method.startswith("prp_sliding_k@"):
+        return await asyncio.to_thread(
+            _evaluate_sample_method,
+            sample=sample,
+            method=method,
+            price_config=price_config,
+            rankgpt_window_size=rankgpt_window_size,
+            rankgpt_step=rankgpt_step,
+            prp_passes=prp_passes,
+        )
+
+    start = time.perf_counter()
+    (
+        ranked_doc_ids,
+        valid,
+        failure_type,
+        usage,
+        llm_calls,
+        error,
+    ) = await _run_llm_method_async(
+        sample=sample,
+        method=method,
+        rankgpt_window_size=rankgpt_window_size,
+        rankgpt_step=rankgpt_step,
+        prp_passes=prp_passes,
+    )
+    elapsed_ms = (time.perf_counter() - start) * 1000.0
+    metrics = compute_query_metrics(
+        sample=sample,
+        ranked_doc_ids=ranked_doc_ids,
+        valid=valid,
+    )
+    return {
+        "task": sample.task_name,
+        "split": sample.split,
+        "query_id": sample.query_id,
+        "method": method,
+        "metrics": metrics,
+        "valid": valid,
+        "failure_type": failure_type,
+        "error": error,
+        "latency_ms": elapsed_ms,
+        "usage": list(usage) if usage is not None else None,
+        "llm_calls": llm_calls,
+        "cost": estimate_cost(usage, price_config),
+        "ranked_doc_ids": list(ranked_doc_ids) if ranked_doc_ids is not None else None,
+    }
+
+
+async def _evaluate_pending_methods(
+    *,
+    samples: Sequence[MtebRerankingSample],
+    methods: Sequence[str],
+    already_done: set[tuple[str, str, str, str]],
+    price_config: PriceConfig | None,
+    rankgpt_window_size: int,
+    rankgpt_step: int,
+    prp_passes: int,
+    concurrency: int,
+    evaluate_one: Callable[
+        ...,
+        Awaitable[dict[str, Any]],
+    ] = _evaluate_sample_method_async,
+    on_row: Callable[[int, dict[str, Any]], None] | None = None,
+) -> list[dict[str, Any]]:
+    queue: asyncio.Queue[tuple[int, MtebRerankingSample, str] | None] = asyncio.Queue()
+    done_pair = 0
+
+    for sample in samples:
+        for method in methods:
+            done_pair += 1
+            key = (sample.task_name, sample.split, sample.query_id, method)
+            if key not in already_done:
+                queue.put_nowait((done_pair, sample, method))
+
+    worker_count = min(concurrency, queue.qsize())
+    rows: list[dict[str, Any]] = []
+
+    async def worker() -> None:
+        while True:
+            item = await queue.get()
+            try:
+                if item is None:
+                    return
+                pair_number, sample, method = item
+                row = await evaluate_one(
+                    sample=sample,
+                    method=method,
+                    price_config=price_config,
+                    rankgpt_window_size=rankgpt_window_size,
+                    rankgpt_step=rankgpt_step,
+                    prp_passes=prp_passes,
+                )
+                rows.append(row)
+                if on_row is not None:
+                    on_row(pair_number, row)
+            finally:
+                queue.task_done()
+
+    workers = [asyncio.create_task(worker()) for _ in range(worker_count)]
+    for _ in range(worker_count):
+        queue.put_nowait(None)
+
+    await queue.join()
+    for task in workers:
+        await task
+    return rows
 
 
 def _run_llm_method(
@@ -212,28 +344,34 @@ def _run_llm_method(
     method: str,
     rankgpt_window_size: int,
     rankgpt_step: int,
+    prp_passes: int,
 ) -> tuple[
     tuple[str, ...] | None,
     bool,
     str | None,
     tuple[int, int] | None,
+    int,
     str | None,
 ]:
     from openai import APIError
 
-    from ranksmith import AzureOpenAIReranker, Document, ListwiseStrategy
+    from ranksmith import (
+        AzureOpenAIReranker,
+        Document,
+        ListwiseStrategy,
+    )
     from ranksmith.errors import RerankParseError, RerankProviderError
 
-    if method.startswith("direct@"):
-        algorithm = "direct"
-        rank_end = int(method.removeprefix("direct@"))
-        window_size = rank_end
-        stride = rank_end
+    if method.startswith("prp_sliding_k@"):
+        raise ValueError("PRP methods require async execution")
     else:
         algorithm = "rankgpt_sliding_window"
         rank_end = int(method.removeprefix("rankgpt_sliding_window@"))
-        window_size = rankgpt_window_size
-        stride = rankgpt_step
+        strategy = ListwiseStrategy(
+            algorithm=algorithm,
+            window_size=rankgpt_window_size,
+            stride=rankgpt_step,
+        )
 
     totals = {"prompt_tokens": 0, "completion_tokens": 0, "calls": 0}
 
@@ -253,11 +391,7 @@ def _run_llm_method(
             "AZURE_OPENAI_LLM_API_VERSION",
             os.environ.get("AZURE_OPENAI_API_VERSION", "2024-08-01-preview"),
         ),
-        strategy=ListwiseStrategy(
-            algorithm=algorithm,
-            window_size=window_size,
-            stride=stride,
-        ),
+        strategy=strategy,
         on_usage=on_usage,
     )
     documents = [
@@ -267,11 +401,101 @@ def _run_llm_method(
     try:
         results = reranker.rerank(sample.query, documents)
     except RerankParseError as exc:
-        return None, False, "llm_output_invalid", _read_usage(totals), str(exc)
+        return (
+            None,
+            False,
+            "llm_output_invalid",
+            _read_usage(totals),
+            totals["calls"],
+            str(exc),
+        )
     except (RerankProviderError, APIError) as exc:
-        return None, False, "provider_error", _read_usage(totals), str(exc)
+        return (
+            None,
+            False,
+            "provider_error",
+            _read_usage(totals),
+            totals["calls"],
+            str(exc),
+        )
     ranked = tuple(result.document.id or "" for result in results)
-    return ranked, True, None, _read_usage(totals), None
+    return ranked, True, None, _read_usage(totals), totals["calls"], None
+
+
+async def _run_llm_method_async(
+    *,
+    sample: MtebRerankingSample,
+    method: str,
+    rankgpt_window_size: int,
+    rankgpt_step: int,
+    prp_passes: int,
+) -> tuple[
+    tuple[str, ...] | None,
+    bool,
+    str | None,
+    tuple[int, int] | None,
+    int,
+    str | None,
+]:
+    del rankgpt_window_size, rankgpt_step
+
+    from openai import APIError
+
+    from ranksmith import (
+        AsyncAzureOpenAIReranker,
+        AsyncPairwiseStrategy,
+        Document,
+    )
+    from ranksmith.errors import RerankParseError, RerankProviderError
+
+    rank_end = int(method.removeprefix("prp_sliding_k@"))
+    totals = {"prompt_tokens": 0, "completion_tokens": 0, "calls": 0}
+
+    def on_usage(usage: Any) -> None:
+        totals["prompt_tokens"] += usage.prompt_tokens
+        totals["completion_tokens"] += usage.completion_tokens
+        totals["calls"] += 1
+
+    reranker = AsyncAzureOpenAIReranker(
+        api_key=_required_env("AZURE_OPENAI_API_KEY"),
+        azure_endpoint=_required_env("AZURE_OPENAI_ENDPOINT"),
+        azure_deployment=_required_env(
+            "AZURE_OPENAI_LLM_DEPLOYMENT",
+            fallback="AZURE_OPENAI_DEPLOYMENT",
+        ),
+        api_version=os.environ.get(
+            "AZURE_OPENAI_LLM_API_VERSION",
+            os.environ.get("AZURE_OPENAI_API_VERSION", "2024-08-01-preview"),
+        ),
+        strategy=AsyncPairwiseStrategy(passes=prp_passes),
+        on_usage=on_usage,
+    )
+    documents = [
+        Document(id=candidate.doc_id, text=candidate.text)
+        for candidate in sample.candidates[:rank_end]
+    ]
+    try:
+        results = await reranker.rerank(sample.query, documents)
+    except RerankParseError as exc:
+        return (
+            None,
+            False,
+            "llm_output_invalid",
+            _read_usage(totals),
+            totals["calls"],
+            str(exc),
+        )
+    except (RerankProviderError, APIError) as exc:
+        return (
+            None,
+            False,
+            "provider_error",
+            _read_usage(totals),
+            totals["calls"],
+            str(exc),
+        )
+    ranked = tuple(result.document.id or "" for result in results)
+    return ranked, True, None, _read_usage(totals), totals["calls"], None
 
 
 def _read_usage(totals: dict[str, int]) -> tuple[int, int] | None:
@@ -334,6 +558,8 @@ def _collect_metadata(
         "shuffle_seed": args.shuffle_seed,
         "rankgpt_window_size": args.rankgpt_window_size,
         "rankgpt_step": args.rankgpt_step,
+        "prp_passes": args.prp_passes,
+        "concurrency": args.concurrency,
         "azure_deployment": os.environ.get("AZURE_OPENAI_LLM_DEPLOYMENT")
         or os.environ.get("AZURE_OPENAI_DEPLOYMENT"),
         "azure_api_version": os.environ.get("AZURE_OPENAI_LLM_API_VERSION")
@@ -427,6 +653,14 @@ def _aggregate(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
         aggregate["completion_tokens_mean"] = mean(
             [float(row["usage"][1]) for row in usage_rows]
         )
+    llm_call_rows = [row for row in rows if row.get("llm_calls") is not None]
+    if llm_call_rows:
+        aggregate["llm_calls_mean"] = mean(
+            [float(row["llm_calls"]) for row in llm_call_rows]
+        )
+        aggregate["llm_calls_total"] = sum(
+            float(row["llm_calls"]) for row in llm_call_rows
+        )
     cost_rows = [row for row in rows if row.get("cost") is not None]
     if cost_rows:
         total = sum(float(row["cost"]) for row in cost_rows)
@@ -464,14 +698,18 @@ def _write_result_tables(
 def _render_metric_table(rollup: dict[str, dict[str, Any]]) -> list[str]:
     header = (
         "| Method | ndcg@10 | ndcg@10 (valid-only) | mrr@10 | map | "
-        "recall@10 | p50_ms | p95_ms | invalid_rate | n |"
+        "recall@10 | p50_ms | p95_ms | invalid_rate | llm_calls/query | "
+        "llm_calls_total | n |"
     )
-    separator = "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"
+    separator = (
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"
+    )
     lines = [header, separator]
     for method, agg in sorted(rollup.items()):
         lines.append(
             "| {method} | {ndcg:.4f} | {ndcg_v:.4f} | {mrr:.4f} | {map_:.4f} | "
-            "{recall:.4f} | {p50:.1f} | {p95:.1f} | {invalid:.3f} | {n:.0f} |".format(
+            "{recall:.4f} | {p50:.1f} | {p95:.1f} | {invalid:.3f} | "
+            "{llm_mean:.1f} | {llm_total:.0f} | {n:.0f} |".format(
                 method=method,
                 ndcg=agg.get("ndcg@10", 0.0),
                 ndcg_v=agg.get("ndcg@10_valid_only", 0.0),
@@ -481,6 +719,8 @@ def _render_metric_table(rollup: dict[str, dict[str, Any]]) -> list[str]:
                 p50=agg.get("latency_ms_p50", 0.0),
                 p95=agg.get("latency_ms_p95", 0.0),
                 invalid=agg.get("invalid_rate", 0.0),
+                llm_mean=agg.get("llm_calls_mean", 0.0),
+                llm_total=agg.get("llm_calls_total", 0.0),
                 n=agg.get("query_count", 0.0),
             )
         )
@@ -546,10 +786,18 @@ def _samples_from_task(
     queries = {row["id"]: row["text"] for row in split_data["queries"]}
     relevant = split_data["relevant_docs"]
     top_ranked = _get_split_field(split_data, "top_ranked")
+    if top_ranked is None and all(
+        isinstance(labels, dict) and any(float(label) <= 0 for label in labels.values())
+        for labels in relevant.values()
+    ):
+        top_ranked = {
+            query_id: list(labels.keys()) for query_id, labels in relevant.items()
+        }
     if top_ranked is None:
         raise SystemExit(
             f"Task {task_name} does not expose a 'top_ranked' candidate field; "
-            "this CLI requires the BEIR-style MTEB reranking schema."
+            "this CLI requires top_ranked candidates or qrels containing "
+            "both positive and negative candidate labels."
         )
 
     query_ids = sorted(top_ranked.keys())
@@ -565,10 +813,17 @@ def _samples_from_task(
             title = doc.get("title", "")
             text = doc.get("text", "")
             combined = f"{title}\n\n{text}".strip() if title else str(text)
+            if len(combined) > max_document_chars:
+                raise SystemExit(
+                    f"Task {task_name} query {query_id} document {doc_id} has "
+                    f"{len(combined)} characters, exceeding "
+                    f"--max-document-chars={max_document_chars}. Increase the limit "
+                    "or preprocess/chunk the dataset before evaluation."
+                )
             candidates.append(
                 MtebRerankingCandidate(
                     doc_id=str(doc_id),
-                    text=combined[:max_document_chars],
+                    text=combined,
                     label=float(qrels.get(doc_id, 0)),
                 )
             )
@@ -593,7 +848,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--methods",
         nargs="+",
-        default=["original", "direct@20", "rankgpt_sliding_window@100"],
+        default=["original", "rankgpt_sliding_window@100"],
     )
     parser.add_argument("--split", default="test")
     parser.add_argument("--output-dir", type=Path, required=False)
@@ -611,6 +866,8 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--shuffle-seed", type=int, default=13)
     parser.add_argument("--rankgpt-window-size", type=int, default=20)
     parser.add_argument("--rankgpt-step", type=int, default=10)
+    parser.add_argument("--prp-passes", type=int, default=10)
+    parser.add_argument("--concurrency", type=int, default=1)
     return parser.parse_args()
 
 
