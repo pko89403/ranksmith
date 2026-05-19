@@ -6,7 +6,7 @@ from typing import TypedDict, cast
 
 import pytest
 
-from ranksmith import AzureOpenAIReranker, Document, ListwiseStrategy
+from ranksmith import AzureOpenAIReranker, Document, ListwiseStrategy, PairwiseStrategy
 from ranksmith._metrics import mrr_at_k, ndcg_at_k, recall_at_k
 
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "reranking_smoke_fixture.jsonl"
@@ -44,6 +44,21 @@ class RelevanceProvider:
             key=lambda index: (-self.qrels.get(ids[index], 0), index),
         )
         return json.dumps({"ranking": [index + 1 for index in ranking]})
+
+
+class PairwiseRelevanceProvider:
+    def __init__(self, qrels: dict[str, int]) -> None:
+        self.qrels = qrels
+        self.calls: list[tuple[str, str]] = []
+
+    def compare(self, query: str, document_a: Document, document_b: Document) -> str:
+        del query
+        id_a = document_a.id or ""
+        id_b = document_b.id or ""
+        self.calls.append((id_a, id_b))
+        if self.qrels.get(id_a, 0) >= self.qrels.get(id_b, 0):
+            return json.dumps({"winner": "A"})
+        return json.dumps({"winner": "B"})
 
 
 def test_reranking_smoke_fixture_schema_is_valid() -> None:
@@ -114,6 +129,33 @@ def test_rankgpt_sliding_window_with_real_fixture_reaches_relevant_docs() -> Non
         assert provider.calls[0] == [
             document["id"] for document in case["documents"][2:5]
         ]
+
+
+def test_pairwise_prp_sliding_k_with_real_fixture_reaches_relevant_docs() -> None:
+    for case in _load_fixture_cases():
+        provider = PairwiseRelevanceProvider(case["qrels"])
+        reranker = AzureOpenAIReranker(
+            api_key="key",
+            azure_endpoint="https://example.openai.azure.com",
+            azure_deployment="gpt-4o-mini",
+            provider=provider,
+            strategy=PairwiseStrategy(passes=2),
+        )
+        documents = [
+            Document(
+                id=document["id"],
+                text=f"{document['title']}\n\n{document['text']}",
+            )
+            for document in case["documents"]
+        ]
+
+        results = reranker.rerank(case["query"], documents)
+        ranked_ids = [result.document.id or "" for result in results]
+
+        assert ndcg_at_k(ranked_ids, case["qrels"], 3) == pytest.approx(1.0)
+        assert mrr_at_k(ranked_ids, case["qrels"], 3) == pytest.approx(1.0)
+        assert recall_at_k(ranked_ids, case["qrels"], 3) == pytest.approx(1.0)
+        assert len(provider.calls) == 2 * 2 * (len(documents) - 1)
 
 
 def _load_fixture_cases() -> list[FixtureCase]:

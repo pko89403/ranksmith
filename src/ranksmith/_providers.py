@@ -17,9 +17,29 @@ class LLMProvider(Protocol):
         """Return a JSON string containing a 1-based ranking permutation."""
 
 
+class PairwiseLLMProvider(Protocol):
+    def compare(
+        self,
+        query: str,
+        document_a: Document,
+        document_b: Document,
+    ) -> str:
+        """Return a JSON string containing a pairwise winner, "A" or "B"."""
+
+
 class AsyncLLMProvider(Protocol):
     async def rank(self, query: str, documents: list[Document]) -> str:
         """Return a JSON string containing a 1-based ranking asynchronously."""
+
+
+class AsyncPairwiseLLMProvider(Protocol):
+    async def compare(
+        self,
+        query: str,
+        document_a: Document,
+        document_b: Document,
+    ) -> str:
+        """Return a JSON string containing a pairwise winner asynchronously."""
 
 
 class AzureOpenAIProvider:
@@ -56,6 +76,42 @@ class AzureOpenAIProvider:
                         ),
                     },
                     {"role": "user", "content": _build_prompt(query, documents)},
+                ],
+                response_format={"type": "json_object"},
+                temperature=0,
+            )
+        except Exception as exc:
+            raise RerankProviderError(str(exc)) from exc
+
+        _emit_usage(response, self._on_usage)
+        content = response.choices[0].message.content
+        if content is None:
+            raise RerankProviderError("Azure OpenAI returned an empty response.")
+        return content
+
+    def compare(
+        self,
+        query: str,
+        document_a: Document,
+        document_b: Document,
+    ) -> str:
+        try:
+            response = self._client.chat.completions.create(
+                model=self._azure_deployment,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a pairwise reranking engine. Return only JSON "
+                            'with a "winner" value of "A" or "B".'
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": _build_pairwise_prompt(
+                            query, document_a, document_b
+                        ),
+                    },
                 ],
                 response_format={"type": "json_object"},
                 temperature=0,
@@ -117,6 +173,42 @@ class AsyncAzureOpenAIProvider:
             raise RerankProviderError("Azure OpenAI returned an empty response.")
         return content
 
+    async def compare(
+        self,
+        query: str,
+        document_a: Document,
+        document_b: Document,
+    ) -> str:
+        try:
+            response = await self._client.chat.completions.create(
+                model=self._azure_deployment,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a pairwise reranking engine. Return only JSON "
+                            'with a "winner" value of "A" or "B".'
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": _build_pairwise_prompt(
+                            query, document_a, document_b
+                        ),
+                    },
+                ],
+                response_format={"type": "json_object"},
+                temperature=0,
+            )
+        except Exception as exc:
+            raise RerankProviderError(str(exc)) from exc
+
+        await _emit_usage_async(response, self._on_usage)
+        content = response.choices[0].message.content
+        if content is None:
+            raise RerankProviderError("Azure OpenAI returned an empty response.")
+        return content
+
 
 def _extract_usage(response: object) -> RerankUsage | None:
     usage = getattr(response, "usage", None)
@@ -164,4 +256,21 @@ def _build_prompt(query: str, documents: list[Document]) -> str:
         "Return JSON exactly like this shape:\n"
         '{"ranking": [1, 2, 3]}\n'
         "Use each candidate number exactly once."
+    )
+
+
+def _build_pairwise_prompt(
+    query: str,
+    document_a: Document,
+    document_b: Document,
+) -> str:
+    return (
+        "Given a query, choose which passage is more relevant to the query.\n\n"
+        f"Query:\n{query}\n\n"
+        f"Passage A:\n{document_a.text}\n\n"
+        f"Passage B:\n{document_b.text}\n\n"
+        "Return JSON exactly like this shape:\n"
+        '{"winner": "A"}\n\n'
+        'Use "A" if Passage A is more relevant. '
+        'Use "B" if Passage B is more relevant.'
     )

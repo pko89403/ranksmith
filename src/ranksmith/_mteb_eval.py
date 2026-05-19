@@ -45,17 +45,14 @@ class PriceConfig:
 def normalize_method_name(method: str) -> str:
     if method == "original":
         return method
-    if method.startswith("direct@"):
-        _parse_positive_suffix(method, "direct@")
-        return method
-    if method.startswith("sliding@"):
-        rank_end = _parse_positive_suffix(method, "sliding@")
-        return f"rankgpt_sliding_window@{rank_end}"
     if method.startswith("rankgpt_sliding_window@"):
         _parse_positive_suffix(method, "rankgpt_sliding_window@")
         return method
+    if method.startswith("prp_sliding_k@"):
+        _parse_positive_suffix(method, "prp_sliding_k@")
+        return method
     raise ValueError(
-        "method must be original, direct@N, sliding@N, or rankgpt_sliding_window@N"
+        "method must be original, rankgpt_sliding_window@N, or prp_sliding_k@N"
     )
 
 

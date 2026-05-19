@@ -5,7 +5,7 @@ import argparse
 import json
 import os
 import sys
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Literal, cast
 
@@ -24,13 +24,15 @@ from ranksmith._benchmark import (  # noqa: E402
     load_fixture_cases,
 )
 
-Algorithm = Literal["direct", "sliding_window", "rankgpt_sliding_window"]
+Algorithm = Literal[
+    "rankgpt_sliding_window",
+    "prp_sliding_k",
+]
 Dataset = Literal["fixture", "beir-scifact"]
 DEFAULT_FIXTURE = ROOT / "tests/fixtures/reranking_smoke_fixture.jsonl"
 ALGORITHMS: tuple[Algorithm, ...] = (
-    "direct",
-    "sliding_window",
     "rankgpt_sliding_window",
+    "prp_sliding_k",
 )
 
 
@@ -48,7 +50,11 @@ def main() -> None:
     call_estimates = {
         algorithm: sum(
             _estimate_provider_calls(
-                len(case.documents), algorithm, args.window_size, args.stride
+                len(case.documents),
+                algorithm,
+                args.window_size,
+                args.stride,
+                args.passes,
             )
             for case in cases
         )
@@ -69,6 +75,7 @@ def main() -> None:
                 algorithm=algorithm,
                 window_size=args.window_size,
                 stride=args.stride,
+                passes=args.passes,
             ),
             top_k=args.top_k,
         )
@@ -142,6 +149,7 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--window-size", type=int, default=3)
     parser.add_argument("--stride", type=int, default=2)
+    parser.add_argument("--passes", type=int, default=10)
     parser.add_argument("--top-k", type=int, default=3)
     parser.add_argument("--output", type=Path)
     parser.add_argument(
@@ -159,7 +167,7 @@ def _parse_args() -> argparse.Namespace:
 
 
 def _validate_args(args: argparse.Namespace) -> None:
-    for name in ("window_size", "stride", "top_k", "candidate_count"):
+    for name in ("window_size", "stride", "passes", "top_k", "candidate_count"):
         if getattr(args, name) < 1:
             raise SystemExit(f"--{name.replace('_', '-')} must be greater than 0.")
     if args.max_cases is not None and args.max_cases < 1:
@@ -206,8 +214,23 @@ def _rank_case(
     algorithm: Algorithm,
     window_size: int,
     stride: int,
+    passes: int,
 ) -> tuple[str, ...]:
-    from ranksmith import AzureOpenAIReranker, Document, ListwiseStrategy
+    from ranksmith import (
+        AzureOpenAIReranker,
+        Document,
+        ListwiseStrategy,
+        PairwiseStrategy,
+    )
+
+    if algorithm == "prp_sliding_k":
+        strategy = PairwiseStrategy(passes=passes)
+    else:
+        strategy = ListwiseStrategy(
+            algorithm=algorithm,
+            window_size=window_size,
+            stride=stride,
+        )
 
     reranker = AzureOpenAIReranker(
         api_key=_required_env("AZURE_OPENAI_API_KEY"),
@@ -222,11 +245,7 @@ def _rank_case(
             default="2024-08-01-preview",
         ),
         timeout=_env_float("AZURE_OPENAI_LLM_TIMEOUT"),
-        strategy=ListwiseStrategy(
-            algorithm=algorithm,
-            window_size=window_size,
-            stride=stride,
-        ),
+        strategy=strategy,
     )
     documents = [
         Document(
@@ -271,6 +290,7 @@ def _build_report(
         "top_k": args.top_k,
         "window_size": args.window_size,
         "stride": args.stride,
+        "passes": args.passes,
         "case_count": len(cases),
         "call_estimates": dict(call_estimates),
         "aggregate": list(aggregate),
@@ -341,11 +361,12 @@ def _estimate_provider_calls(
     algorithm: Algorithm,
     window_size: int,
     stride: int,
+    passes: int = 10,
 ) -> int:
-    if algorithm == "direct" or document_count <= window_size:
+    if algorithm == "prp_sliding_k":
+        return 2 * passes * max(document_count - 1, 0)
+    if document_count <= window_size:
         return 1
-    if algorithm == "sliding_window":
-        return len(tuple(_window_starts(document_count, window_size, stride)))
     start_pos = document_count - window_size
     calls = 0
     while True:
@@ -354,18 +375,6 @@ def _estimate_provider_calls(
         if start_pos == 0:
             return calls
         start_pos -= stride
-
-
-def _window_starts(
-    document_count: int,
-    window_size: int,
-    stride: int,
-) -> Iterable[int]:
-    last_start = document_count - window_size
-    starts = list(range(0, last_start + 1, stride))
-    if starts[-1] != last_start:
-        starts.append(last_start)
-    return starts
 
 
 if __name__ == "__main__":

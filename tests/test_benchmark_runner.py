@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
 import pytest
@@ -80,7 +81,7 @@ def test_aggregate_evaluations_uses_macro_average(tmp_path: Path) -> None:
 
     evaluation = evaluate_ranked_ids(
         case=case,
-        algorithm="direct",
+        algorithm="rankgpt_sliding_window",
         ranked_ids=["d3", "d2", "d1"],
         top_k=3,
     )
@@ -89,7 +90,28 @@ def test_aggregate_evaluations_uses_macro_average(tmp_path: Path) -> None:
     assert evaluation.metrics["mrr@3"] == pytest.approx(0.5)
     assert aggregate.case_count == 1
     assert aggregate.metrics["mrr@3"] == pytest.approx(0.5)
-    assert aggregate_to_dict(aggregate)["algorithm"] == "direct"
+    assert aggregate_to_dict(aggregate)["algorithm"] == "rankgpt_sliding_window"
+
+
+def test_compare_runner_estimates_pairwise_calls() -> None:
+    module_path = (
+        Path(__file__).resolve().parents[1] / "scripts" / "compare_reranking.py"
+    )
+    spec = spec_from_file_location("compare_reranking", module_path)
+    assert spec is not None and spec.loader is not None
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    assert (
+        module._estimate_provider_calls(
+            document_count=5,
+            algorithm="prp_sliding_k",
+            window_size=3,
+            stride=2,
+            passes=10,
+        )
+        == 80
+    )
 
 
 def _write_beir_cache(root: Path) -> None:

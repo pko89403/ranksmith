@@ -8,25 +8,30 @@
 ## 현재 구조
 ```text
 AzureOpenAIReranker
-= Azure OpenAI provider + ListwiseStrategy + input normalization
+= Azure OpenAI provider + Strategy + input normalization
 ```
 
 ## Provider
 v1은 Azure OpenAI만 구현한다.
 
-Provider는 1-based ranking permutation을 담은 JSON 문자열을 반환한다.
+Listwise provider call은 1-based ranking permutation을 담은 JSON 문자열을 반환한다.
+
+Pairwise provider call은 `"A"` 또는 `"B"` winner를 담은 JSON 문자열을 반환한다.
 
 ## Strategy
-v1은 `ListwiseStrategy`만 공개한다.
+v1 공개 strategy:
+- `ListwiseStrategy`
+- `AsyncListwiseStrategy`
+- `PairwiseStrategy`
+- `AsyncPairwiseStrategy`
 
 향후 strategy 후보:
 - `PointwiseStrategy`
-- `PairwiseStrategy`
 
 ## Algorithm
 v1 지원 algorithm:
-- `direct`
-- `sliding_window`
+- `rankgpt_sliding_window`
+- `prp_sliding_k`
 
 향후 algorithm 후보:
 - `tournament`
@@ -34,10 +39,16 @@ v1 지원 algorithm:
 - `confidence`
 
 ## LLM 응답 계약
-JSON permutation만 유효하다:
+Listwise JSON permutation:
 
 ```json
 {"ranking": [3, 1, 2]}
 ```
 
-잘못된 JSON, 누락 값, 중복 값, 범위 밖 값, 정수가 아닌 값은 `RerankParseError`로 실패한다.
+Pairwise JSON winner:
+
+```json
+{"winner": "A"}
+```
+
+잘못된 JSON, 누락 값, 중복 값, 범위 밖 값, 정수가 아닌 값, 잘못된 winner 값은 `RerankParseError`로 실패한다.
