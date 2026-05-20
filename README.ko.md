@@ -66,6 +66,18 @@ for result in results:
   - query당 예상 provider 호출 수는 `2 * passes * max(document_count - 1, 0)`입니다.
   - `AsyncPairwiseStrategy`는 `pair_order_parallelism=2`로 같은 pair의 A/B, B/A 호출만 병렬 실행할 수 있으며, PRP 순회 방식과 호출 수는 바꾸지 않습니다.
 
+### 3. TourRankStrategy (TourRank-r)
+후보 문서를 토너먼트 참가자처럼 보고, 각 stage의 group 안에서 provider가
+top-`m` 문서를 선택합니다. 선택된 문서는 다음 stage로 진출하고 점수를 얻으며,
+최종 순위는 누적 점수 내림차순으로 정렬합니다.
+
+- **`tourrank_r` 알고리즘**
+  - 기본값은 비용과 품질 균형을 위한 `rounds=2`입니다.
+  - 논문식 고품질 설정이 필요하면 `rounds=10`을 명시합니다.
+  - 기본 stage는 정확히 100개 후보 문서를 가정합니다:
+    `100 -> 50 -> 20 -> 10 -> 5 -> 2`.
+  - 다른 후보 수에서는 `stage_configs`를 명시해야 하며, ranksmith는 자동 보정이나 조용한 truncation을 하지 않습니다.
+
 ### 전략 적용 방법
 
 사용자 정의 전략을 `AzureOpenAIReranker`에 주입(Inject)하여 사용할 수 있습니다.
@@ -109,7 +121,20 @@ reranker = AzureOpenAIReranker(
 )
 ```
 
-> **참고**: `strategy`를 명시하지 않으면 기본적으로 `ListwiseStrategy(algorithm="rankgpt_sliding_window")`가 자동으로 적용됩니다. Pairwise PRP는 listwise보다 LLM 호출 수가 훨씬 많으므로 live benchmark 전 호출 수를 확인해야 합니다.
+TourRank-r도 같은 방식으로 주입합니다.
+
+```python
+from ranksmith import AzureOpenAIReranker, TourRankStrategy
+
+reranker = AzureOpenAIReranker(
+    api_key="...",
+    azure_endpoint="https://example.openai.azure.com",
+    azure_deployment="gpt-4o-mini",
+    strategy=TourRankStrategy(rounds=2),
+)
+```
+
+> **참고**: `strategy`를 명시하지 않으면 기본적으로 `ListwiseStrategy(algorithm="rankgpt_sliding_window")`가 자동으로 적용됩니다. Pairwise PRP와 TourRank-r은 listwise보다 LLM 호출 수가 많으므로 live benchmark 전 호출 수를 확인해야 합니다.
 
 ## 커스텀 Strategy
 

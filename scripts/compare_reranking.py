@@ -27,12 +27,14 @@ from ranksmith._benchmark import (  # noqa: E402
 Algorithm = Literal[
     "rankgpt_sliding_window",
     "prp_sliding_k",
+    "tourrank_r",
 ]
 Dataset = Literal["fixture", "beir-scifact"]
 DEFAULT_FIXTURE = ROOT / "tests/fixtures/reranking_smoke_fixture.jsonl"
 ALGORITHMS: tuple[Algorithm, ...] = (
     "rankgpt_sliding_window",
     "prp_sliding_k",
+    "tourrank_r",
 )
 
 
@@ -55,6 +57,7 @@ def main() -> None:
                 args.window_size,
                 args.stride,
                 args.passes,
+                args.tourrank_rounds,
             )
             for case in cases
         )
@@ -76,6 +79,7 @@ def main() -> None:
                 window_size=args.window_size,
                 stride=args.stride,
                 passes=args.passes,
+                tourrank_rounds=args.tourrank_rounds,
             ),
             top_k=args.top_k,
         )
@@ -150,6 +154,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--window-size", type=int, default=3)
     parser.add_argument("--stride", type=int, default=2)
     parser.add_argument("--passes", type=int, default=10)
+    parser.add_argument("--tourrank-rounds", type=int, default=2)
     parser.add_argument("--top-k", type=int, default=3)
     parser.add_argument("--output", type=Path)
     parser.add_argument(
@@ -167,7 +172,14 @@ def _parse_args() -> argparse.Namespace:
 
 
 def _validate_args(args: argparse.Namespace) -> None:
-    for name in ("window_size", "stride", "passes", "top_k", "candidate_count"):
+    for name in (
+        "window_size",
+        "stride",
+        "passes",
+        "tourrank_rounds",
+        "top_k",
+        "candidate_count",
+    ):
         if getattr(args, name) < 1:
             raise SystemExit(f"--{name.replace('_', '-')} must be greater than 0.")
     if args.max_cases is not None and args.max_cases < 1:
@@ -215,16 +227,20 @@ def _rank_case(
     window_size: int,
     stride: int,
     passes: int,
+    tourrank_rounds: int,
 ) -> tuple[str, ...]:
     from ranksmith import (
         AzureOpenAIReranker,
         Document,
         ListwiseStrategy,
         PairwiseStrategy,
+        TourRankStrategy,
     )
 
     if algorithm == "prp_sliding_k":
         strategy = PairwiseStrategy(passes=passes)
+    elif algorithm == "tourrank_r":
+        strategy = TourRankStrategy(rounds=tourrank_rounds)
     else:
         strategy = ListwiseStrategy(
             algorithm=algorithm,
@@ -291,6 +307,7 @@ def _build_report(
         "window_size": args.window_size,
         "stride": args.stride,
         "passes": args.passes,
+        "tourrank_rounds": args.tourrank_rounds,
         "case_count": len(cases),
         "call_estimates": dict(call_estimates),
         "aggregate": list(aggregate),
@@ -362,9 +379,16 @@ def _estimate_provider_calls(
     window_size: int,
     stride: int,
     passes: int = 10,
+    tourrank_rounds: int = 2,
 ) -> int:
     if algorithm == "prp_sliding_k":
         return 2 * passes * max(document_count - 1, 0)
+    if algorithm == "tourrank_r":
+        if document_count != 100:
+            raise SystemExit(
+                "tourrank_r default stage_configs require exactly 100 candidates."
+            )
+        return tourrank_rounds * (5 + 5 + 1 + 1 + 1)
     if document_count <= window_size:
         return 1
     start_pos = document_count - window_size
