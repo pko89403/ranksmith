@@ -45,10 +45,8 @@ def main() -> None:
     if not args.allow_live:
         raise SystemExit("Refusing live Azure calls without --allow-live.")
 
-    algorithms = (
-        ALGORITHMS if args.algorithm == "all" else (cast(Algorithm, args.algorithm),)
-    )
     cases = _load_cases(args)
+    algorithms = _selected_algorithms(args, cases)
     call_estimates = {
         algorithm: sum(
             _estimate_provider_calls(
@@ -218,6 +216,23 @@ def _load_cases(args: argparse.Namespace) -> list[BenchmarkCase]:
         max_cases=args.max_cases,
         seed=args.seed,
     )
+
+
+def _selected_algorithms(
+    args: argparse.Namespace,
+    cases: Sequence[BenchmarkCase],
+) -> tuple[Algorithm, ...]:
+    if args.algorithm != "all":
+        return (cast(Algorithm, args.algorithm),)
+    if all(len(case.documents) == 100 for case in cases):
+        return ALGORITHMS
+    print(
+        "Skipping tourrank_r for --algorithm all because default TourRank "
+        "stages require exactly 100 candidates. Use --algorithm tourrank_r "
+        "with 100-candidate cases.",
+        file=sys.stderr,
+    )
+    return tuple(algorithm for algorithm in ALGORITHMS if algorithm != "tourrank_r")
 
 
 def _rank_case(
