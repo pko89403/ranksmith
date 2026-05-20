@@ -77,6 +77,8 @@ top-`m` 문서를 선택합니다. 선택된 문서는 다음 stage로 진출하
   - 기본 stage는 정확히 100개 후보 문서를 가정합니다:
     `100 -> 50 -> 20 -> 10 -> 5 -> 2`.
   - 다른 후보 수에서는 `stage_configs`를 명시해야 하며, ranksmith는 자동 보정이나 조용한 truncation을 하지 않습니다.
+  - `TourRankStrategy`는 sync 호출 안정성을 위해 기본 `group_parallelism=1`입니다. 같은 stage의 group을 병렬 실행하려면 값을 높입니다.
+  - `AsyncTourRankStrategy`는 기본적으로 group을 병렬 실행합니다. `group_parallelism`을 지정하면 동시 provider 호출 수를 제한합니다.
 
 ### 전략 적용 방법
 
@@ -130,7 +132,7 @@ reranker = AzureOpenAIReranker(
     api_key="...",
     azure_endpoint="https://example.openai.azure.com",
     azure_deployment="gpt-4o-mini",
-    strategy=TourRankStrategy(rounds=2),
+    strategy=TourRankStrategy(rounds=2, group_parallelism=1),
 )
 ```
 

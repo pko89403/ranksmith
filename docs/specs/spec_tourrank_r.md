@@ -11,6 +11,8 @@
 - **제약 사항**:
   - 기존 `ListwiseStrategy` / `PairwiseStrategy` 동작을 바꾸지 않는다.
   - 기본 `rounds=2`, 기본 stage는 논문 top-100 설정이다.
+  - sync `TourRankStrategy`는 기본 `group_parallelism=1`로 직렬 실행한다.
+  - async `AsyncTourRankStrategy`는 기본 `group_parallelism=None`으로 stage 내 group을 병렬 실행한다.
   - 기본 stage와 문서 수가 맞지 않으면 자동 보정하지 않고 fast fail한다.
   - provider 응답은 strict JSON `{"selected": [...]}`만 허용한다.
 
@@ -23,7 +25,8 @@
 ## 4. 재사용 및 모듈화 (Reusability & Modularization)
 - `parse_selection_response()`를 public parser helper로 추가한다.
 - Azure provider는 기존 `rank()` / `compare()`와 별개로 `select()`를 제공한다.
-- Async strategy는 같은 stage의 group calls를 `asyncio.gather()`로 병렬 실행한다.
+- Sync strategy는 `group_parallelism > 1`이면 같은 stage의 group calls를 thread pool로 병렬 실행한다.
+- Async strategy는 같은 stage의 group calls를 `asyncio.gather()`로 병렬 실행하고, `group_parallelism`이 지정되면 semaphore로 동시성을 제한한다.
 
 ## 5. 에러 핸들링 (Error Handling)
 - stage config와 문서 수 불일치: `RerankInputError`
@@ -35,6 +38,7 @@
 - public import 테스트
 - `parse_selection_response()` 성공/실패 테스트
 - sync/async TourRank 동작 테스트
+- sync 기본 직렬, sync 병렬 opt-in, async 병렬 제한 테스트
 - stage 불일치, provider protocol 불일치, invalid selection fast fail 테스트
 - fixture 기반 smoke test
 - example 실행 테스트
@@ -58,6 +62,7 @@
 ### Phase 3: 검증 (Verification)
 - [x] parser/public import 테스트 추가
 - [x] sync/async TourRank 테스트 추가
+- [x] group_parallelism 테스트 추가
 - [x] fixture smoke test 추가
 - [x] example 실행 테스트 추가
 - [x] `scripts/compare_reranking.py` 비교 대상 추가
