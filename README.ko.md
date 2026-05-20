@@ -50,58 +50,13 @@ for result in results:
 
 ### 추천 사용 시나리오
 
-| Method | Strategy | 추천 상황 | Trade-off | 상세 |
-| --- | --- | --- | --- | --- |
-| `rankgpt_sliding_window` | `ListwiseStrategy` | production 또는 evaluation에서 기본 LLM reranker가 필요할 때 | 호출 수가 적지만, 한 번에 전체 순위를 출력해야 하므로 output format에 민감할 수 있음 | [RankGPT listwise](#rankgpt-listwise) |
-| `prp_sliding_k` | `PairwiseStrategy` | pairwise preference 비교가 필요하거나 PRP 방식 재현이 필요할 때 | LLM 호출 수가 많고, 기본 `passes=10`은 비용이 큼 | [PRP pairwise](#prp-pairwise) |
-| `tourrank_r`, `rounds=2` | `TourRankStrategy` | 중간 수준 호출 예산에서 listwise보다 강한 품질을 원할 때 | RankGPT보다 호출 수가 많지만 TourRank-10보다 훨씬 가벼움 | [TourRank-r](#tourrank-r) |
-| `tourrank_r`, `rounds=10` | `TourRankStrategy` | 품질 중심 offline reranking, 논문식 평가, 최종 reranking처럼 latency를 감수할 수 있을 때 | 일반 사용 기준 built-in 중 호출 비용이 가장 큼 | [TourRank-r](#tourrank-r) |
-| Custom strategy | `RerankStrategy` / `AsyncRerankStrategy` | deterministic business logic, proprietary ranking, 새 research method가 필요할 때 | ranking contract와 validation을 직접 책임져야 함 | [커스텀 Strategy](#커스텀-strategy) |
-
-### Strategy 상세
-
-#### RankGPT Listwise
-
-`ListwiseStrategy`는 프롬프트에 여러 문서를 한 번에 넣고 LLM에게 전체 순위를
-매기도록 요청하는 전략입니다.
-
-`rankgpt_sliding_window`는 기본 알고리즘입니다. RankGPT 방식의 뒤에서 앞으로
-(back-to-first) 이동하는 sliding window와 bubble-up 동작을 구현하면서,
-ranksmith의 엄격한 JSON 출력 검증을 유지합니다.
-
-#### PRP Pairwise
-
-`PairwiseStrategy`는 두 문서씩 비교하는 Pairwise Ranking Prompting 전략입니다.
-
-`prp_sliding_k`는 현재 순위의 아래쪽부터 인접 문서 쌍을 비교합니다. 위치
-편향을 줄이기 위해 같은 쌍을 A/B, B/A 순서로 두 번 호출합니다. 두 유효 비교가
-충돌하면 동률로 보고 현재 순서를 유지합니다.
-
-기본 `passes=10`이며, reference 논문의 PRP-Sliding-10 설정과 맞춥니다.
-query당 예상 provider 호출 수는 `2 * passes * max(document_count - 1, 0)`입니다.
-
-`AsyncPairwiseStrategy`는 `pair_order_parallelism=2`로 같은 pair의 A/B, B/A
-호출만 병렬 실행할 수 있으며, PRP 순회 방식과 호출 수는 바꾸지 않습니다.
-
-#### TourRank-r
-
-`TourRankStrategy`는 후보 문서를 토너먼트 참가자처럼 봅니다. 각 stage의 group
-안에서 provider가 top-`m` 문서를 선택하고, 선택된 문서는 다음 stage로 진출하며
-점수를 얻습니다. 최종 순위는 누적 점수 내림차순으로 정렬합니다.
-
-`rounds=2`는 기본 실용 설정입니다. 품질 중심 평가, 논문식 재현, 최종 offline
-reranking처럼 추가 LLM 호출을 감수할 수 있으면 `rounds=10`을 우선 고려합니다.
-
-기본 stage는 정확히 100개 후보 문서를 가정합니다:
-`100 -> 50 -> 20 -> 10 -> 5 -> 2`. 다른 후보 수에서는 `stage_configs`를
-명시해야 하며, ranksmith는 자동 보정이나 조용한 truncation을 하지 않습니다.
-
-`TourRankStrategy`는 sync 호출 안정성을 위해 기본 `group_parallelism=1`입니다.
-같은 stage의 group을 병렬 실행하려면 값을 높입니다. 병렬 실행 중 한 group이
-실패해도 이미 시작된 group 호출은 끝까지 진행될 수 있습니다.
-
-`AsyncTourRankStrategy`는 기본적으로 group을 병렬 실행합니다. `group_parallelism`을
-지정하면 동시 provider 호출 수를 제한합니다.
+| Method | Strategy | 추천 상황 | Trade-off |
+| --- | --- | --- | --- |
+| `rankgpt_sliding_window` | `ListwiseStrategy` | production 또는 evaluation에서 기본 LLM reranker가 필요할 때 | 호출 수가 적지만, 한 번에 전체 순위를 출력해야 하므로 output format에 민감할 수 있음 |
+| `prp_sliding_k` | `PairwiseStrategy` | pairwise preference 비교가 필요하거나 PRP 방식 재현이 필요할 때 | LLM 호출 수가 많고, 기본 `passes=10`은 비용이 큼 |
+| `tourrank_r`, `rounds=2` | `TourRankStrategy` | 중간 수준 호출 예산에서 listwise보다 강한 품질을 원할 때 | RankGPT보다 호출 수가 많지만 TourRank-10보다 훨씬 가벼움 |
+| `tourrank_r`, `rounds=10` | `TourRankStrategy` | 품질 중심 offline reranking, 논문식 평가, 최종 reranking처럼 latency를 감수할 수 있을 때 | 일반 사용 기준 built-in 중 호출 비용이 가장 큼 |
+| Custom strategy | `RerankStrategy` / `AsyncRerankStrategy` | deterministic business logic, proprietary ranking, 새 research method가 필요할 때 | ranking contract와 validation을 직접 책임져야 함 |
 
 ### 전략 적용 방법
 

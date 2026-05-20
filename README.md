@@ -51,64 +51,13 @@ logic (Algorithm).
 
 ### Recommended Use Cases
 
-| Method | Strategy | Recommended when | Trade-off | Details |
-| --- | --- | --- | --- | --- |
-| `rankgpt_sliding_window` | `ListwiseStrategy` | You need the default, lowest-friction LLM reranker for production or evaluation. | Low call count, but each prompt asks for a full ordered list and can be sensitive to output format. | [RankGPT listwise](#rankgpt-listwise) |
-| `prp_sliding_k` | `PairwiseStrategy` | You need pairwise preference comparisons or want to reproduce PRP-style behavior. | Many LLM calls; default `passes=10` is expensive. | [PRP pairwise](#prp-pairwise) |
-| `tourrank_r`, `rounds=2` | `TourRankStrategy` | You want stronger quality than listwise on a moderate call budget. | More calls than RankGPT, much fewer than TourRank-10. | [TourRank-r](#tourrank-r) |
-| `tourrank_r`, `rounds=10` | `TourRankStrategy` | You are doing quality-focused offline reranking, paper-style evaluation, or final reranking where latency is acceptable. | Highest call cost among built-in methods in normal use. | [TourRank-r](#tourrank-r) |
-| Custom strategy | `RerankStrategy` / `AsyncRerankStrategy` | You need deterministic business logic, a proprietary ranking process, or a new research method. | You own the ranking contract and validation behavior. | [Custom Strategies](#custom-strategies) |
-
-### Strategy Details
-
-#### RankGPT Listwise
-
-`ListwiseStrategy` places multiple documents into one prompt and asks the LLM to
-rank them together.
-
-`rankgpt_sliding_window` is the default algorithm. It implements the
-RankGPT-style back-to-first sliding window with bubble-up behavior while keeping
-ranksmith's strict JSON output validation.
-
-#### PRP Pairwise
-
-`PairwiseStrategy` compares two documents at a time using Pairwise Ranking
-Prompting.
-
-`prp_sliding_k` starts from the bottom of the current ranking and compares
-adjacent pairs. It calls the provider twice per pair, swapping A/B order to
-reduce position bias. Conflicting valid comparisons are treated as ties and keep
-the current order.
-
-Default `passes=10`, matching the PRP-Sliding-10 setting from the reference
-paper. Expected provider calls per query:
-`2 * passes * max(document_count - 1, 0)`.
-
-`AsyncPairwiseStrategy` can run each pair's A/B and B/A calls concurrently with
-`pair_order_parallelism=2` without changing PRP traversal or call count.
-
-#### TourRank-r
-
-`TourRankStrategy` treats candidate documents as tournament participants. In
-each stage, the provider selects the top-`m` documents from each group; selected
-documents advance and earn points. The final ranking is sorted by accumulated
-points.
-
-`rounds=2` is the default practical setting. Prefer `rounds=10` for
-quality-focused evaluation, paper-style reproduction, or final offline
-reranking when the extra LLM calls are acceptable.
-
-Default stages assume exactly 100 candidate documents:
-`100 -> 50 -> 20 -> 10 -> 5 -> 2`. For other candidate counts, pass explicit
-`stage_configs`; ranksmith fast fails instead of silently deriving or trimming
-stages.
-
-`TourRankStrategy` defaults to `group_parallelism=1` for serial sync calls.
-Increase it to run groups in the same stage concurrently. If one parallel group
-fails, already-started group calls may still finish.
-
-`AsyncTourRankStrategy` runs groups concurrently by default. Set
-`group_parallelism` to cap concurrent provider calls.
+| Method | Strategy | Recommended when | Trade-off |
+| --- | --- | --- | --- |
+| `rankgpt_sliding_window` | `ListwiseStrategy` | You need the default, lowest-friction LLM reranker for production or evaluation. | Low call count, but each prompt asks for a full ordered list and can be sensitive to output format. |
+| `prp_sliding_k` | `PairwiseStrategy` | You need pairwise preference comparisons or want to reproduce PRP-style behavior. | Many LLM calls; default `passes=10` is expensive. |
+| `tourrank_r`, `rounds=2` | `TourRankStrategy` | You want stronger quality than listwise on a moderate call budget. | More calls than RankGPT, much fewer than TourRank-10. |
+| `tourrank_r`, `rounds=10` | `TourRankStrategy` | You are doing quality-focused offline reranking, paper-style evaluation, or final reranking where latency is acceptable. | Highest call cost among built-in methods in normal use. |
+| Custom strategy | `RerankStrategy` / `AsyncRerankStrategy` | You need deterministic business logic, a proprietary ranking process, or a new research method. | You own the ranking contract and validation behavior. |
 
 ### How to Apply a Strategy
 
