@@ -390,6 +390,55 @@ MTEB runner는 PRP와 TourRank method에 `AsyncAzureOpenAIReranker`를
 사용합니다. `--concurrency`는 독립적인 query-method 실행을 병렬화하며,
 각 Strategy 내부의 순회 방식과 호출 수는 바꾸지 않습니다.
 
+### TourRank-r Live Smoke Snapshot
+
+아래 비교는 TourRank-r 실행 경로를 확인하기 위해 실제 live Azure로 수행한
+smoke 결과입니다. `AskUbuntuDupQuestions` query 1개만 사용했으므로 품질
+결론이 아니라 integration과 호출 수 확인 자료로 해석해야 합니다.
+
+```bash
+uv run python scripts/evaluate_mteb_reranking.py \
+  --tasks AskUbuntuDupQuestions \
+  --methods \
+    original \
+    rankgpt_sliding_window@20 \
+    prp_sliding_k@20 \
+    tourrank_r@20:r2 \
+    tourrank_r@20:r10 \
+  --output-dir benchmark-results/mteb-reranking/tourrank-smoke-20260520-121112 \
+  --max-queries 1 \
+  --max-document-chars 4000 \
+  --shuffle-candidates --shuffle-seed 13 \
+  --rankgpt-window-size 20 --rankgpt-step 10 \
+  --prp-passes 10 \
+  --concurrency 2 \
+  --input-token-price-per-1m 2.50 \
+  --output-token-price-per-1m 10.00 \
+  --allow-live
+```
+
+Scope:
+
+- Task: `AskUbuntuDupQuestions`
+- Split: `test`
+- Queries: `1`
+- Candidate order: shuffled with seed `13`
+- Max document length: `4000` characters
+- Validation: strict JSON validation, invalid outputs score `0`
+- Artifact: `benchmark-results/mteb-reranking/tourrank-smoke-20260520-121112`
+
+| Method | NDCG@10 | MRR@10 | MAP | Recall@10 | p50 latency | Invalid rate | LLM calls/query | Queries |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `original` | 0.7126 | 1.0000 | 0.7784 | 0.5000 | 0.0 ms | 0.000 | 0 | 1 |
+| `rankgpt_sliding_window@20` | 0.9337 | 1.0000 | 0.9248 | 0.7500 | 3645.6 ms | 0.000 | 1 | 1 |
+| `prp_sliding_k@20` | 0.7569 | 1.0000 | 0.8209 | 0.5833 | 198438.8 ms | 0.000 | 380 | 1 |
+| `tourrank_r@20:r2` | 0.8630 | 1.0000 | 0.8941 | 0.6667 | 9285.5 ms | 0.000 | 8 | 1 |
+| `tourrank_r@20:r10` | 0.8580 | 1.0000 | 0.8738 | 0.6667 | 41412.7 ms | 0.000 | 40 | 1 |
+
+이 smoke run에서 두 TourRank-r variant는 모두 strict JSON validation을
+통과했습니다. `tourrank_r@20:r10`은 `tourrank_r@20:r2`보다 selection 호출을
+5배 사용했으며, 이는 설정한 round 수와 일치합니다.
+
 ### PRP vs RankGPT Snapshot
 
 아래 비교는 같은 `AskUbuntuDupQuestions` 설정으로 실행했으며 결과 artifact는

@@ -439,6 +439,56 @@ PRP and TourRank methods use `AsyncAzureOpenAIReranker` in this runner.
 `--concurrency` parallelizes independent query-method executions; it does not
 change each strategy's traversal or call count.
 
+### TourRank-r live smoke snapshot
+
+The smoke comparison below is an actual live Azure run that verifies the
+TourRank-r execution path. It uses only one `AskUbuntuDupQuestions` query, so
+treat it as an integration and call accounting check, not as a quality
+conclusion.
+
+```bash
+uv run python scripts/evaluate_mteb_reranking.py \
+  --tasks AskUbuntuDupQuestions \
+  --methods \
+    original \
+    rankgpt_sliding_window@20 \
+    prp_sliding_k@20 \
+    tourrank_r@20:r2 \
+    tourrank_r@20:r10 \
+  --output-dir benchmark-results/mteb-reranking/tourrank-smoke-20260520-121112 \
+  --max-queries 1 \
+  --max-document-chars 4000 \
+  --shuffle-candidates --shuffle-seed 13 \
+  --rankgpt-window-size 20 --rankgpt-step 10 \
+  --prp-passes 10 \
+  --concurrency 2 \
+  --input-token-price-per-1m 2.50 \
+  --output-token-price-per-1m 10.00 \
+  --allow-live
+```
+
+Scope:
+
+- Task: `AskUbuntuDupQuestions`
+- Split: `test`
+- Queries: `1`
+- Candidate order: shuffled with seed `13`
+- Max document length: `4000` characters
+- Validation: strict JSON validation, invalid outputs score `0`
+- Artifact: `benchmark-results/mteb-reranking/tourrank-smoke-20260520-121112`
+
+| Method | NDCG@10 | MRR@10 | MAP | Recall@10 | p50 latency | Invalid rate | LLM calls/query | Queries |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `original` | 0.7126 | 1.0000 | 0.7784 | 0.5000 | 0.0 ms | 0.000 | 0 | 1 |
+| `rankgpt_sliding_window@20` | 0.9337 | 1.0000 | 0.9248 | 0.7500 | 3645.6 ms | 0.000 | 1 | 1 |
+| `prp_sliding_k@20` | 0.7569 | 1.0000 | 0.8209 | 0.5833 | 198438.8 ms | 0.000 | 380 | 1 |
+| `tourrank_r@20:r2` | 0.8630 | 1.0000 | 0.8941 | 0.6667 | 9285.5 ms | 0.000 | 8 | 1 |
+| `tourrank_r@20:r10` | 0.8580 | 1.0000 | 0.8738 | 0.6667 | 41412.7 ms | 0.000 | 40 | 1 |
+
+On this smoke run, both TourRank-r variants completed with valid strict JSON
+outputs. `tourrank_r@20:r10` used 5x the selection calls of
+`tourrank_r@20:r2`, matching the configured round count.
+
 ### Current MTEB snapshot
 
 The committed reference snapshot below is from
