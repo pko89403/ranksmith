@@ -224,15 +224,7 @@ def _selected_algorithms(
 ) -> tuple[Algorithm, ...]:
     if args.algorithm != "all":
         return (cast(Algorithm, args.algorithm),)
-    if all(len(case.documents) == 100 for case in cases):
-        return ALGORITHMS
-    print(
-        "Skipping tourrank_r for --algorithm all because default TourRank "
-        "stages require exactly 100 candidates. Use --algorithm tourrank_r "
-        "with 100-candidate cases.",
-        file=sys.stderr,
-    )
-    return tuple(algorithm for algorithm in ALGORITHMS if algorithm != "tourrank_r")
+    return ALGORITHMS
 
 
 def _rank_case(
@@ -255,7 +247,10 @@ def _rank_case(
     if algorithm == "prp_sliding_k":
         strategy = PairwiseStrategy(passes=passes)
     elif algorithm == "tourrank_r":
-        strategy = TourRankStrategy(rounds=tourrank_rounds)
+        strategy = TourRankStrategy(
+            rounds=tourrank_rounds,
+            stage_configs=_tourrank_stage_configs_for_count(len(case.documents)),
+        )
     else:
         strategy = ListwiseStrategy(
             algorithm=algorithm,
@@ -323,6 +318,7 @@ def _build_report(
         "stride": args.stride,
         "passes": args.passes,
         "tourrank_rounds": args.tourrank_rounds,
+        "tourrank_stage_policy": "paper_top_100_else_single_group_halving",
         "case_count": len(cases),
         "call_estimates": dict(call_estimates),
         "aggregate": list(aggregate),
@@ -399,11 +395,10 @@ def _estimate_provider_calls(
     if algorithm == "prp_sliding_k":
         return 2 * passes * max(document_count - 1, 0)
     if algorithm == "tourrank_r":
-        if document_count != 100:
-            raise SystemExit(
-                "tourrank_r default stage_configs require exactly 100 candidates."
-            )
-        return tourrank_rounds * (5 + 5 + 1 + 1 + 1)
+        return tourrank_rounds * sum(
+            stage.group_count
+            for stage in _tourrank_stage_configs_for_count(document_count)
+        )
     if document_count <= window_size:
         return 1
     start_pos = document_count - window_size
@@ -414,6 +409,35 @@ def _estimate_provider_calls(
         if start_pos == 0:
             return calls
         start_pos -= stride
+
+
+def _tourrank_stage_configs_for_count(document_count: int):
+    from ranksmith import TourRankStageConfig
+
+    if document_count < 2:
+        raise SystemExit("tourrank_r requires at least 2 candidates.")
+    if document_count == 100:
+        return (
+            TourRankStageConfig(group_count=5, group_size=20, selected_count=10),
+            TourRankStageConfig(group_count=5, group_size=10, selected_count=4),
+            TourRankStageConfig(group_count=1, group_size=20, selected_count=10),
+            TourRankStageConfig(group_count=1, group_size=10, selected_count=5),
+            TourRankStageConfig(group_count=1, group_size=5, selected_count=2),
+        )
+
+    stages = []
+    current_count = document_count
+    while current_count > 1:
+        selected_count = max(1, current_count // 2)
+        stages.append(
+            TourRankStageConfig(
+                group_count=1,
+                group_size=current_count,
+                selected_count=selected_count,
+            )
+        )
+        current_count = selected_count
+    return tuple(stages)
 
 
 if __name__ == "__main__":

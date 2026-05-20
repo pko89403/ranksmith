@@ -68,6 +68,7 @@
 - [x] fixture smoke test 추가
 - [x] example 실행 테스트 추가
 - [x] `scripts/compare_reranking.py` 비교 대상 추가
+- [x] `scripts/compare_reranking.py`: 100개 외 후보 수에는 명시 stage config 생성
 
 ### Phase 4: 완료 및 정리
 - [x] README / README.ko 업데이트
