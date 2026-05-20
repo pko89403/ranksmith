@@ -5,9 +5,10 @@
 .ruff_cache/
 .env
 .benchmark-cache/
-benchmark-results/
+benchmark-results/**/query_results.jsonl
 dist/
 build/
 *.egg-info/
 __pycache__/
 *.py[cod]
+.*.swp

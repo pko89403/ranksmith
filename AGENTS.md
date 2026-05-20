@@ -62,6 +62,29 @@
 - 새로운 주요 기능(알고리즘 등) 개발 시, 반드시 `docs/specs/TEMPLATE.md`를 복사하여 `docs/specs/spec_[feature].md` 파일을 생성한다.
 - 코딩 어시스턴트는 생성된 spec 파일의 `Task Checklist` 섹션을 활용하여 진행 상황을 `[x]`로 체크하며 개발을 진행 및 완료한다.
 
+## README / Benchmark Evidence Policy
+- `README.md`와 `README.ko.md`는 항상 같은 섹션 구조, 표 구조, 코드 예제, benchmark 숫자, 제약 설명을 유지한다.
+- README benchmark 수치를 추가하거나 수정할 때는 실제 benchmark 실행 artifact에 근거해야 한다.
+- README 수치는 `metadata.json`, `overall_summary.json`, `task_summary.json`, `result_tables.md` 같은 summary artifact에서만 옮긴다.
+- README 근거가 되는 summary artifact는 커밋 대상에 포함한다.
+- raw `query_results.jsonl`은 커밋하지 않아도 되며 `.gitignore`로 제외할 수 있다.
+- 실행하지 않은 method의 NDCG/MRR/MAP/Recall/latency/invalid rate를 표기하지 않는다.
+- 호출 수 estimate는 실제 metric과 분리하고 반드시 estimate라고 명시한다.
+- smoke/partial run은 품질 benchmark로 표현하지 않는다.
+- benchmark 설명에는 dataset, split, query 수, candidate source/count, seed, model, retry 정책을 명시한다.
+
+## Release Evidence Policy
+- GitHub/PyPI release 반영 작업은 version, tag, GitHub release, PyPI latest, README/PyPI description 반영 여부를 모두 확인한다.
+- Push 전에는 `./scripts/verify.sh`와 `twine check dist/*` 수준의 검증을 완료한다.
+- release note와 changelog는 실제 diff, commit, tag 기준으로 작성한다.
+- GitHub release 또는 PyPI에 반영했다고 말하기 전에 원격 상태를 직접 확인한다.
+
+## Automation Placement Policy
+- 반복 판단 workflow는 skill로 만든다.
+- 누락 방지나 기계적으로 검증 가능한 규칙은 hook 후보로 둔다.
+- README/README.ko 싱크, benchmark summary artifact 누락, raw `query_results.jsonl` staged 차단은 hook 후보로 본다.
+- benchmark 해석, release note 작성, README 반영 판단처럼 맥락 판단이 필요한 일은 instruction/skill로 다룬다.
+
 ## 검증
 완료를 주장하기 전에 실행한다:
 - `./scripts/verify.sh`

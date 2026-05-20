@@ -1,0 +1,71 @@
+{
+  "azure_api_version": "2024-10-21",
+  "azure_deployment": "gpt-5.4-nano",
+  "concurrency": 4,
+  "git_commit": "9e17748286125a66ce262a08b8680ff24eb6a099",
+  "max_document_chars": 4000,
+  "max_queries": null,
+  "method_configs": {
+    "original": {
+      "candidate_count": null,
+      "kind": "original",
+      "passes": null,
+      "rounds": null
+    },
+    "prp_sliding_k@20:p1": {
+      "candidate_count": 20,
+      "expected_llm_calls_per_query": 38,
+      "kind": "prp_sliding_k",
+      "passes": 1,
+      "rounds": null
+    },
+    "rankgpt_sliding_window@20": {
+      "candidate_count": 20,
+      "kind": "rankgpt_sliding_window",
+      "passes": null,
+      "rounds": null
+    },
+    "tourrank_r@20:r10": {
+      "candidate_count": 20,
+      "expected_llm_calls_per_query": 40,
+      "kind": "tourrank_r",
+      "passes": null,
+      "rounds": 10,
+      "tourrank_stage_policy": "paper_top_100_else_single_group_halving"
+    },
+    "tourrank_r@20:r2": {
+      "candidate_count": 20,
+      "expected_llm_calls_per_query": 8,
+      "kind": "tourrank_r",
+      "passes": null,
+      "rounds": 2,
+      "tourrank_stage_policy": "paper_top_100_else_single_group_halving"
+    }
+  },
+  "methods": [
+    "original",
+    "rankgpt_sliding_window@20",
+    "prp_sliding_k@20:p1",
+    "tourrank_r@20:r2",
+    "tourrank_r@20:r10"
+  ],
+  "mteb_version": "2.12.30",
+  "openai_sdk_version": "2.36.0",
+  "platform": "macOS-26.3.1-arm64-arm-64bit",
+  "prp_passes": 10,
+  "python_version": "3.12.9",
+  "rankgpt_step": 10,
+  "rankgpt_window_size": 20,
+  "ranksmith_version": "0.3.1",
+  "retry_failed_results": true,
+  "retry_invalid_outputs": 3,
+  "shuffle_candidates": true,
+  "shuffle_seed": 13,
+  "split": "test",
+  "started_at_utc": "2026-05-20T04:20:36.489418+00:00",
+  "strict_validation": true,
+  "tasks": [
+    "AskUbuntuDupQuestions"
+  ],
+  "zero_score_on_invalid": true
+}

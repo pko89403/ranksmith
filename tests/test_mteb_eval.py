@@ -17,6 +17,7 @@ from ranksmith._mteb_eval import (
     completed_result_keys,
     compute_query_metrics,
     estimate_cost,
+    estimate_prp_llm_calls,
     estimate_tourrank_llm_calls,
     normalize_method_name,
     parse_method_config,
@@ -69,6 +70,7 @@ def test_normalize_method_name_rejects_removed_direct_method() -> None:
 
 def test_normalize_method_name_accepts_prp_sliding_k() -> None:
     assert normalize_method_name("prp_sliding_k@20") == "prp_sliding_k@20"
+    assert normalize_method_name("prp_sliding_k@20:p1") == "prp_sliding_k@20:p1"
 
 
 def test_normalize_method_name_accepts_tourrank_with_rounds() -> None:
@@ -84,6 +86,15 @@ def test_parse_method_config_returns_tourrank_settings() -> None:
     assert config.candidate_count == 20
     assert config.rounds == 10
     assert config.canonical_name == "tourrank_r@20:r10"
+
+
+def test_parse_method_config_returns_prp_passes() -> None:
+    config = parse_method_config("prp_sliding_k@20:p1")
+
+    assert config.kind == "prp_sliding_k"
+    assert config.candidate_count == 20
+    assert config.passes == 1
+    assert config.canonical_name == "prp_sliding_k@20:p1"
 
 
 def test_normalize_method_name_rejects_invalid_tourrank_rounds() -> None:
@@ -104,6 +115,11 @@ def test_tourrank_stage_configs_for_non_100_mteb_candidates() -> None:
 
 def test_estimate_tourrank_llm_calls_uses_rounds_and_stage_groups() -> None:
     assert estimate_tourrank_llm_calls("tourrank_r@20:r10") == 40
+
+
+def test_estimate_prp_llm_calls_uses_method_passes_when_present() -> None:
+    assert estimate_prp_llm_calls("prp_sliding_k@20:p1", default_passes=10) == 38
+    assert estimate_prp_llm_calls("prp_sliding_k@20", default_passes=10) == 380
 
 
 def test_parse_ranking_with_failure_type_reports_duplicate() -> None:
@@ -358,6 +374,7 @@ def test_mteb_sync_llm_method_rejects_prp_method() -> None:
             rankgpt_window_size=20,
             rankgpt_step=10,
             prp_passes=3,
+            retry_invalid_outputs=0,
         )
 
 
@@ -412,6 +429,7 @@ async def test_mteb_prp_async_method_uses_async_pairwise_strategy(
         rankgpt_window_size=20,
         rankgpt_step=10,
         prp_passes=3,
+        retry_invalid_outputs=0,
     )
 
     assert ranked == ("d1", "d2")
@@ -426,6 +444,54 @@ async def test_mteb_prp_async_method_uses_async_pairwise_strategy(
     assert captured["document_ids"] == ["d1", "d2"]
 
 
+@pytest.mark.asyncio
+async def test_mteb_prp_method_passes_can_be_set_per_method(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import ranksmith
+
+    module = _load_mteb_cli_module()
+    sample = MtebRerankingSample(
+        task_name="task",
+        split="test",
+        query_id="q1",
+        query="query",
+        candidates=(
+            MtebRerankingCandidate(doc_id="d1", text="a", label=1.0),
+            MtebRerankingCandidate(doc_id="d2", text="b", label=0.0),
+        ),
+    )
+    captured: dict[str, object] = {}
+
+    class FakeAsyncReranker:
+        def __init__(self, **kwargs: object) -> None:
+            captured["strategy"] = kwargs["strategy"]
+
+        async def rerank(
+            self,
+            query: str,
+            documents: list[ranksmith.Document],
+        ) -> list[object]:
+            return [SimpleNamespace(document=document) for document in documents]
+
+    monkeypatch.setenv("AZURE_OPENAI_API_KEY", "key")
+    monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://example.openai.azure.com")
+    monkeypatch.setenv("AZURE_OPENAI_DEPLOYMENT", "deployment")
+    monkeypatch.setattr(ranksmith, "AsyncAzureOpenAIReranker", FakeAsyncReranker)
+
+    await module._run_llm_method_async(
+        sample=sample,
+        method="prp_sliding_k@2:p1",
+        rankgpt_window_size=20,
+        rankgpt_step=10,
+        prp_passes=10,
+        retry_invalid_outputs=0,
+    )
+
+    assert isinstance(captured["strategy"], ranksmith.AsyncPairwiseStrategy)
+    assert captured["strategy"].passes == 1
+
+
 def test_mteb_method_metadata_records_tourrank_settings() -> None:
     module = _load_mteb_cli_module()
 
@@ -433,8 +499,21 @@ def test_mteb_method_metadata_records_tourrank_settings() -> None:
         "kind": "tourrank_r",
         "candidate_count": 20,
         "rounds": 10,
+        "passes": None,
         "tourrank_stage_policy": "paper_top_100_else_single_group_halving",
         "expected_llm_calls_per_query": 40,
+    }
+
+
+def test_mteb_method_metadata_uses_configured_default_prp_passes() -> None:
+    module = _load_mteb_cli_module()
+
+    assert module._method_metadata("prp_sliding_k@20", default_prp_passes=1) == {
+        "kind": "prp_sliding_k",
+        "candidate_count": 20,
+        "rounds": None,
+        "passes": None,
+        "expected_llm_calls_per_query": 38,
     }
 
 
@@ -491,6 +570,7 @@ async def test_mteb_tourrank_async_method_uses_async_tourrank_strategy(
         rankgpt_window_size=20,
         rankgpt_step=10,
         prp_passes=3,
+        retry_invalid_outputs=0,
     )
 
     assert ranked == ("d1", "d2", "d3", "d4", "d5")
@@ -555,6 +635,7 @@ async def test_evaluate_pending_methods_respects_concurrency() -> None:
         rankgpt_window_size=20,
         rankgpt_step=10,
         prp_passes=1,
+        retry_invalid_outputs=0,
         concurrency=2,
         evaluate_one=fake_evaluate,
     )
@@ -615,6 +696,7 @@ async def test_evaluate_pending_methods_creates_only_worker_tasks(
         rankgpt_window_size=20,
         rankgpt_step=10,
         prp_passes=1,
+        retry_invalid_outputs=0,
         concurrency=2,
         evaluate_one=fake_evaluate,
     )
@@ -650,6 +732,28 @@ def test_mteb_aggregate_includes_llm_call_counts() -> None:
 
     assert aggregate["llm_calls_mean"] == 6.0
     assert aggregate["llm_calls_total"] == 12.0
+
+
+def test_latest_result_rows_keeps_latest_attempt_per_query_method() -> None:
+    module = _load_mteb_cli_module()
+    rows = [
+        {
+            "task": "task",
+            "split": "test",
+            "query_id": "q1",
+            "method": "rankgpt_sliding_window@20",
+            "valid": False,
+        },
+        {
+            "task": "task",
+            "split": "test",
+            "query_id": "q1",
+            "method": "rankgpt_sliding_window@20",
+            "valid": True,
+        },
+    ]
+
+    assert module._latest_result_rows(rows) == [rows[1]]
 
 
 def test_mteb_result_table_renders_llm_call_counts() -> None:
