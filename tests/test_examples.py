@@ -4,7 +4,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from ranksmith._providers import _build_selection_prompt
+from ranksmith.model import _build_selection_prompt
 from ranksmith.types import Document
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,8 +40,8 @@ def test_custom_strategy_example_runs_without_live_provider() -> None:
     assert result.returncode == 0, result.stderr
     assert "Custom Strategy example" in result.stdout
     assert "length_strategy rank=01 id=vitamin_c" in result.stdout
-    assert "provider_strategy rank=01 id=vitamin_b12" in result.stdout
-    assert "provider_error=provider timeout" in result.stdout
+    assert "model_client_strategy rank=01 id=vitamin_b12" in result.stdout
+    assert "model_client_error=provider timeout" in result.stdout
 
 
 def test_tourrank_example_runs_without_live_provider() -> None:

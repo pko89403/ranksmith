@@ -74,7 +74,7 @@ async def test_async_reranks_string_documents_and_preserves_indexes() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
     )
 
     results = await reranker.rerank("query", ["alpha", "beta", "gamma"])
@@ -91,7 +91,7 @@ async def test_async_reranks_document_objects() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
     )
     documents = [
         Document(id="a", text="first", metadata={"source": "one"}),
@@ -122,7 +122,7 @@ async def test_async_invalid_llm_ranking_fast_fails(response: str) -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
     )
 
     with pytest.raises(RerankParseError):
@@ -136,7 +136,7 @@ async def test_async_provider_errors_are_wrapped() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
     )
 
     with pytest.raises(RerankProviderError) as error:
@@ -173,7 +173,7 @@ async def test_async_rankgpt_sliding_window_bubbles_top_document_up() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
         strategy=AsyncListwiseStrategy(
             algorithm="rankgpt_sliding_window", window_size=3, stride=2
         ),
@@ -199,7 +199,7 @@ async def test_async_pairwise_prp_sliding_k_compares_and_swaps() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
         strategy=AsyncPairwiseStrategy(passes=1),
     )
 
@@ -217,7 +217,7 @@ async def test_async_pairwise_compares_pair_orders_concurrently() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
         strategy=AsyncPairwiseStrategy(passes=1),
     )
 
@@ -235,7 +235,7 @@ async def test_async_pairwise_can_disable_pair_order_parallelism() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
         strategy=AsyncPairwiseStrategy(passes=1, pair_order_parallelism=1),
     )
 
@@ -258,7 +258,7 @@ async def test_async_pairwise_invalid_winner_fast_fails() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
         strategy=AsyncPairwiseStrategy(passes=1),
     )
 
@@ -273,7 +273,7 @@ async def test_async_pairwise_strategy_rejects_provider_without_compare() -> Non
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
         strategy=AsyncPairwiseStrategy(passes=1),
     )
 

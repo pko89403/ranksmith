@@ -9,7 +9,7 @@ from ranksmith import (
     AzureOpenAIReranker,
     Document,
     ListwiseStrategy,
-    LLMProvider,
+    ModelClient,
     RerankInputError,
     RerankParseError,
     RerankProviderError,
@@ -20,17 +20,14 @@ from ranksmith import (
 
 def test_protocols_are_publicly_importable_from_root() -> None:
     from ranksmith import (  # noqa: PLC0415
-        AsyncLLMProvider,
-        AsyncPairwiseLLMProvider,
+        AsyncModelClient,
+        AsyncModelProvider,
         AsyncRerankStrategy,
-        AsyncSelectionLLMProvider,
         AsyncTourRankStrategy,
-        LLMProvider,
-        PairwiseLLMProvider,
-        Provider,
+        ModelClient,
+        ModelProvider,
         RerankStrategy,
         RerankStrategyError,
-        SelectionLLMProvider,
         TourRankStageConfig,
         TourRankStrategy,
         parse_ranking_response,
@@ -39,13 +36,10 @@ def test_protocols_are_publicly_importable_from_root() -> None:
 
     assert RerankStrategy is not None
     assert AsyncRerankStrategy is not None
-    assert LLMProvider is not None
-    assert PairwiseLLMProvider is not None
-    assert SelectionLLMProvider is not None
-    assert Provider is not None
-    assert AsyncLLMProvider is not None
-    assert AsyncPairwiseLLMProvider is not None
-    assert AsyncSelectionLLMProvider is not None
+    assert ModelClient is not None
+    assert AsyncModelClient is not None
+    assert ModelProvider is not None
+    assert AsyncModelProvider is not None
     assert TourRankStrategy is not None
     assert AsyncTourRankStrategy is not None
     assert TourRankStageConfig is not None
@@ -56,28 +50,16 @@ def test_protocols_are_publicly_importable_from_root() -> None:
 
 def test_protocols_are_publicly_importable_from_protocols_module() -> None:
     from ranksmith.protocols import (  # noqa: PLC0415
-        AsyncLLMProvider,
-        AsyncPairwiseLLMProvider,
-        AsyncProvider,
+        AsyncModelProvider,
         AsyncRerankStrategy,
-        AsyncSelectionLLMProvider,
-        LLMProvider,
-        PairwiseLLMProvider,
-        Provider,
+        ModelProvider,
         RerankStrategy,
-        SelectionLLMProvider,
     )
 
     assert RerankStrategy is not None
     assert AsyncRerankStrategy is not None
-    assert LLMProvider is not None
-    assert PairwiseLLMProvider is not None
-    assert SelectionLLMProvider is not None
-    assert Provider is not None
-    assert AsyncLLMProvider is not None
-    assert AsyncPairwiseLLMProvider is not None
-    assert AsyncSelectionLLMProvider is not None
-    assert AsyncProvider is not None
+    assert ModelProvider is not None
+    assert AsyncModelProvider is not None
 
 
 def test_parse_helper_is_importable_from_parsing_module() -> None:
@@ -157,10 +139,10 @@ class LengthDescendingStrategy:
         *,
         query: str,
         documents: Sequence[Document],
-        provider: object,
+        model_client: object,
         top_k: int | None = None,
     ) -> list[RerankResult]:
-        del query, provider
+        del query, model_client
         ordered_indexes = sorted(
             range(len(documents)),
             key=lambda index: len(documents[index].text),
@@ -191,7 +173,7 @@ def test_custom_sync_strategy_can_be_injected() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=UnusedListwiseProvider(),
+        model_client=UnusedListwiseProvider(),
         strategy=LengthDescendingStrategy(),
     )
 
@@ -224,13 +206,13 @@ class ProviderBackedStrategy:
         *,
         query: str,
         documents: Sequence[Document],
-        provider: LLMProvider,
+        model_client: ModelClient,
         top_k: int | None = None,
     ) -> list[RerankResult]:
         from ranksmith import parse_ranking_response  # noqa: PLC0415
 
         ranking = parse_ranking_response(
-            provider.rank(query, list(documents)),
+            model_client.rank(query, list(documents)),
             expected_count=len(documents),
         )
         ordered_indexes = [number - 1 for number in ranking]
@@ -254,14 +236,14 @@ class ProviderBackedStrategyWithProviderErrors(ProviderBackedStrategy):
         *,
         query: str,
         documents: Sequence[Document],
-        provider: LLMProvider,
+        model_client: ModelClient,
         top_k: int | None = None,
     ) -> list[RerankResult]:
         try:
             return super().rerank(
                 query=query,
                 documents=documents,
-                provider=provider,
+                model_client=model_client,
                 top_k=top_k,
             )
         except TimeoutError as exc:
@@ -273,7 +255,7 @@ def test_custom_strategy_can_type_provider_protocol() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=RankResponseProvider(),
+        model_client=RankResponseProvider(),
         strategy=ProviderBackedStrategy(),
     )
 
@@ -289,7 +271,7 @@ def test_provider_backed_custom_strategy_can_preserve_provider_error() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=FailingRankProvider(),
+        model_client=FailingRankProvider(),
         strategy=ProviderBackedStrategyWithProviderErrors(),
     )
 
@@ -305,10 +287,10 @@ class BrokenCustomStrategy:
         *,
         query: str,
         documents: Sequence[Document],
-        provider: object,
+        model_client: object,
         top_k: int | None = None,
     ) -> list[RerankResult]:
-        del query, documents, provider, top_k
+        del query, documents, model_client, top_k
         raise RuntimeError("custom strategy bug")
 
 
@@ -317,7 +299,7 @@ def test_custom_strategy_unexpected_error_is_not_provider_error() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=UnusedListwiseProvider(),
+        model_client=UnusedListwiseProvider(),
         strategy=BrokenCustomStrategy(),
     )
 
@@ -333,10 +315,10 @@ class BrokenListwiseSubclass(ListwiseStrategy):
         *,
         query: str,
         documents: Sequence[Document],
-        provider: object,
+        model_client: object,
         top_k: int | None = None,
     ) -> list[RerankResult]:
-        del query, documents, provider, top_k
+        del query, documents, model_client, top_k
         raise RuntimeError("subclass strategy bug")
 
 
@@ -345,7 +327,7 @@ def test_custom_subclass_unexpected_error_is_not_provider_error() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=UnusedListwiseProvider(),
+        model_client=UnusedListwiseProvider(),
         strategy=BrokenListwiseSubclass(),
     )
 
@@ -361,10 +343,10 @@ class AsyncLengthDescendingStrategy:
         *,
         query: str,
         documents: Sequence[Document],
-        provider: object,
+        model_client: object,
         top_k: int | None = None,
     ) -> list[RerankResult]:
-        del query, provider
+        del query, model_client
         ordered_indexes = sorted(
             range(len(documents)),
             key=lambda index: len(documents[index].text),
@@ -396,10 +378,10 @@ class BrokenAsyncCustomStrategy:
         *,
         query: str,
         documents: Sequence[Document],
-        provider: object,
+        model_client: object,
         top_k: int | None = None,
     ) -> list[RerankResult]:
-        del query, documents, provider, top_k
+        del query, documents, model_client, top_k
         raise RuntimeError("custom async strategy bug")
 
 
@@ -409,7 +391,7 @@ async def test_custom_async_strategy_can_be_injected() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=UnusedAsyncListwiseProvider(),
+        model_client=UnusedAsyncListwiseProvider(),
         strategy=AsyncLengthDescendingStrategy(),
     )
 
@@ -430,7 +412,7 @@ async def test_custom_async_strategy_unexpected_error_is_not_provider_error() ->
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=UnusedAsyncListwiseProvider(),
+        model_client=UnusedAsyncListwiseProvider(),
         strategy=BrokenAsyncCustomStrategy(),
     )
 

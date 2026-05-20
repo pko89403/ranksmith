@@ -12,8 +12,8 @@ sys.path.insert(0, str(ROOT / "src"))
 from ranksmith import AzureOpenAIReranker, Document, PairwiseStrategy  # noqa: E402
 
 
-class KeywordPairwiseProvider:
-    """예제용 deterministic provider. 실제 서비스에서는 Azure provider를 사용합니다."""
+class KeywordPairwiseClient:
+    """예제용 deterministic model client. 실제 서비스에서는 ModelClient를 사용합니다."""
 
     def __init__(self, query_terms: set[str]) -> None:
         self.query_terms = query_terms
@@ -63,12 +63,12 @@ def main() -> None:
             ),
         ),
     ]
-    provider = KeywordPairwiseProvider({"비타민", "결핍", "질병", "괴혈병", "빈혈"})
+    model_client = KeywordPairwiseClient({"비타민", "결핍", "질병", "괴혈병", "빈혈"})
     reranker = AzureOpenAIReranker(
         api_key="example-key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="example-deployment",
-        provider=provider,
+        model_client=model_client,
         strategy=PairwiseStrategy(passes=3),
     )
 
@@ -81,7 +81,7 @@ def main() -> None:
             f"rank={result.rank:02d} id={result.document.id} "
             f"original_index={result.original_index}"
         )
-    print(f"compare_calls={provider.compare_calls}")
+    print(f"compare_calls={model_client.compare_calls}")
 
 
 if __name__ == "__main__":

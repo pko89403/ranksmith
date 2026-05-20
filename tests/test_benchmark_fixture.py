@@ -130,7 +130,7 @@ def test_rankgpt_sliding_window_with_real_fixture_reaches_relevant_docs() -> Non
             api_key="key",
             azure_endpoint="https://example.openai.azure.com",
             azure_deployment="gpt-4o-mini",
-            provider=provider,
+            model_client=provider,
             strategy=ListwiseStrategy(
                 algorithm="rankgpt_sliding_window", window_size=3, stride=2
             ),
@@ -161,7 +161,7 @@ def test_pairwise_prp_sliding_k_with_real_fixture_reaches_relevant_docs() -> Non
             api_key="key",
             azure_endpoint="https://example.openai.azure.com",
             azure_deployment="gpt-4o-mini",
-            provider=provider,
+            model_client=provider,
             strategy=PairwiseStrategy(passes=2),
         )
         documents = [
@@ -188,7 +188,7 @@ def test_tourrank_with_real_fixture_reaches_relevant_docs() -> None:
             api_key="key",
             azure_endpoint="https://example.openai.azure.com",
             azure_deployment="gpt-4o-mini",
-            provider=provider,
+            model_client=provider,
             strategy=TourRankStrategy(
                 rounds=2,
                 stage_configs=(

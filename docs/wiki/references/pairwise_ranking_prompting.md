@@ -22,10 +22,10 @@ Pairwise Ranking Prompting(PRP)은 query와 두 문서만 LLM에 제시해 어�
 - `PRP-Sliding-K`: 뒤에서 앞으로 인접 문서 쌍을 비교하고 필요하면 swap한다. K pass를 수행해 top-K 품질을 노린다. 비용은 `O(KN)`이다.
 
 ## ranksmith 매핑
-- Strategy: 신규 `PairwiseStrategy` 후보
-- Algorithm: `prp_allpair`, `prp_sorting`, `prp_sliding_k` 후보
-- Public API 영향: 1차 구현에서 `PairwiseStrategy`와 `AsyncPairwiseStrategy`를 공개 API에 추가한다.
-- Provider 영향: 기존 `LLMProvider.rank(query, documents)`는 listwise JSON permutation 계약으로 유지하고, pairwise 전용 `compare()` 계약을 추가한다.
+- Strategy: `PairwiseStrategy`, `AsyncPairwiseStrategy`
+- Algorithm: 1차 구현은 `prp_sliding_k`만 공개한다.
+- Public API 영향: `PairwiseStrategy`와 `AsyncPairwiseStrategy`를 공개 API에 추가했다.
+- ModelClient 영향: pairwise 전용 `compare()` 도메인 계약을 `ModelClient` / `AsyncModelClient`에 둔다.
 - Error 동작: ranksmith 원칙상 invalid generation을 동률로 조용히 처리하지 않고 `RerankParseError`로 실패시키는 방향이 더 일관적이다. 단, A/B와 B/A가 모두 유효하지만 선호가 충돌하는 경우는 동률로 처리 가능하다.
 - 기본값: 1차 구현의 `prp_sliding_k`는 논문 기준과 맞춰 `passes=10`을 기본값으로 둔다.
 - 호출 수: query당 `2 * passes * max(document_count - 1, 0)`회 provider 호출이 필요하다.

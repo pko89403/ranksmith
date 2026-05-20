@@ -8,7 +8,7 @@
 
 ## 적용 영역
 - Tournament-inspired reranking
-- Selection-based provider contract
+- Selection-based ModelClient contract
 - Multi-stage group selection
 - Multi-round point aggregation
 
@@ -20,14 +20,14 @@ TourRank는 후보 문서를 토너먼트 참가자로 보고, 각 stage에서 g
 ## ranksmith 매핑
 - Strategy: `TourRankStrategy`, `AsyncTourRankStrategy`
 - Algorithm: `tourrank_r`
-- Provider contract: `select(query, documents, top_m) -> {"selected": [...]}`
-- Public API 영향: `SelectionLLMProvider`, `AsyncSelectionLLMProvider`, `TourRankStageConfig`, `parse_selection_response()`
+- ModelClient contract: `select(query, documents, top_m) -> {"selected": [...]}`
+- Public API 영향: `TourRankStrategy`, `AsyncTourRankStrategy`, `TourRankStageConfig`, `parse_selection_response()`
 - Error 동작: stage와 문서 수 불일치, invalid selection은 fast fail
 - 추가할 테스트: parser, sync/async TourRank, fixture smoke, example 실행
 
 ## 현재 설계와 충돌
 - 기존 listwise `rank()`는 전체 permutation을 반환하지만, TourRank는 group별 selected indexes가 필요하다.
-- 따라서 기존 `ListwiseStrategy.algorithm` 확장이 아니라 새 Strategy와 selection provider protocol이 필요하다.
+- 따라서 기존 `ListwiseStrategy.algorithm` 확장이 아니라 새 Strategy와 `ModelClient.select()` 계약이 필요하다.
 
 ## Do Not Copy
 - 외부 TourRank repository 구현 코드를 복사하지 않는다.
