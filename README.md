@@ -411,7 +411,12 @@ This benchmark measures reranking over fixed native MTEB candidate sets, not fir
 ```bash
 uv run python scripts/evaluate_mteb_reranking.py \
   --tasks AskUbuntuDupQuestions SciDocsRR StackOverflowDupQuestions \
-  --methods original rankgpt_sliding_window@20 prp_sliding_k@20 \
+  --methods \
+    original \
+    rankgpt_sliding_window@20 \
+    prp_sliding_k@20 \
+    tourrank_r@20:r2 \
+    tourrank_r@20:r10 \
   --output-dir benchmark-results/mteb-reranking/example \
   --max-queries 50 \
   --max-document-chars 4000 \
@@ -423,6 +428,16 @@ uv run python scripts/evaluate_mteb_reranking.py \
   --output-token-price-per-1m 10.00 \
   --allow-live
 ```
+
+TourRank methods use `tourrank_r@N:rR`, where `N` is the number of native MTEB
+candidates to rerank and `R` is the number of tournament rounds. If `:rR` is
+omitted, the runner normalizes to `:r2`. The recommended compact comparison is
+`tourrank_r@20:r2` versus `tourrank_r@20:r10`, which keeps the candidate scope
+fixed and isolates the effect of TourRank rounds.
+
+PRP and TourRank methods use `AsyncAzureOpenAIReranker` in this runner.
+`--concurrency` parallelizes independent query-method executions; it does not
+change each strategy's traversal or call count.
 
 ### Current MTEB snapshot
 

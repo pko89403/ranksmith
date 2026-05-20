@@ -589,6 +589,8 @@ Method | Best for | Candidate Scope | LLM Calls/q | Tokens/q | Cost/q | Latency/
 - `direct@20`: 낮은 latency/cost가 중요한 경우의 기본 LLM reranking 후보.
 - `rankgpt_sliding_window@20`: `direct@20`과 같은 candidate scope에서 sliding 절차 자체를 비교하는 참고값.
 - `rankgpt_sliding_window@100`: 더 넓은 candidate scope를 검사하는 품질/비용 trade-off 후보.
+- `tourrank_r@20:r2`: 같은 native candidate scope에서 TourRank-r 실용 비용 모드를 비교한다.
+- `tourrank_r@20:r10`: 같은 native candidate scope에서 TourRank-r 품질 중심 모드를 비교한다.
 
 README의 metric table은 다음 컬럼을 포함한다.
 
@@ -616,6 +618,7 @@ Compare `direct@20` and `rankgpt_sliding_window@100` only as a quality/cost trad
   - 기존 `_metrics.py`의 `ndcg_at_k`, `mrr_at_k`, `recall_at_k`는 재사용한다.
   - `map` 계산 helper는 `_metrics.py`에 추가한다.
   - 기존 `scripts/compare_reranking.py`와 env loading, live opt-in, report 구조를 맞춘다.
+  - TourRank benchmark stage config 생성은 `_mteb_eval.py` helper를 재사용해 스크립트 간 정책 중복을 피한다.
 - **추상화 방안 (Abstraction Plan)**
   - `scripts/evaluate_mteb_reranking.py`: CLI, MTEB loading, report writing.
   - `src/ranksmith/_mteb_eval.py`: private schema, adapter, method runner, metric aggregation.
@@ -635,6 +638,7 @@ Compare `direct@20` and `rankgpt_sliding_window@100` only as a quality/cost trad
 - candidate text가 비어 있음: task name, query id, doc id를 포함해 실패한다.
 - candidate text가 `max_document_chars`를 초과함: task name, query id, doc id, 길이를 포함해 실패한다.
 - invalid method string: 허용 method 목록을 출력하고 실패한다.
+- invalid TourRank method string: `tourrank_r@N:rR` 형식과 양의 정수 값을 요구하며 실패한다.
 - `step > window_size`: `RerankInputError`와 같은 의미의 CLI validation error로 실패한다.
 - multi-window method에서 한 window의 LLM output이 invalid: query-method를 failed로 기록하고 main metric은 0으로 처리한다.
 - output directory가 이미 있고 `--overwrite` 또는 `--resume`이 없으면 실패한다.
@@ -647,6 +651,8 @@ Compare `direct@20` and `rankgpt_sliding_window@100` only as a quality/cost trad
   - `direct@20`은 head만 재정렬하고 tail은 유지한다.
   - `rankgpt_sliding_window@20`은 candidate가 20개 이하일 때 LLM call 1회만 수행한다.
   - `rankgpt_sliding_window@50`과 `@100`은 예상 window 수를 기록한다.
+  - `tourrank_r@20:r2`와 `tourrank_r@20:r10`을 method로 정규화하고 실행한다.
+  - TourRank method metadata에 candidate count, rounds, stage policy, 예상 LLM calls/query를 기록한다.
   - graded label의 `ndcg@10`과 binary relevance metric을 분리 계산한다.
   - provider usage가 있으면 token/cost를 계산한다.
   - provider usage가 없으면 token/cost를 `null`로 기록하고 reason을 남긴다.
@@ -683,6 +689,7 @@ Compare `direct@20` and `rankgpt_sliding_window@100` only as a quality/cost trad
 - [x] `scripts/evaluate_mteb_reranking.py`: CLI, env loading, live opt-in, output writing 구현
 - [x] `scripts/evaluate_mteb_reranking.py`: token price 옵션과 estimated cost 계산 추가
 - [x] `scripts/evaluate_mteb_reranking.py`: `--list-tasks`, `--inspect-task-schema`, `--overwrite`, `--resume` 구현
+- [x] `scripts/evaluate_mteb_reranking.py`: `tourrank_r@N:rR` method parsing, async 실행, metadata 기록 구현
 - [x] `pyproject.toml`: MTEB dependency를 dev 또는 optional group으로 추가
 - [x] `.gitignore`: `/benchmark-results/` 추가
 
