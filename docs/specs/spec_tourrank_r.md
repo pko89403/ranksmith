@@ -12,6 +12,7 @@
   - 기존 `ListwiseStrategy` / `PairwiseStrategy` 동작을 바꾸지 않는다.
   - 기본 `rounds=2`, 기본 stage는 논문 top-100 설정이다.
   - sync `TourRankStrategy`는 기본 `group_parallelism=1`로 직렬 실행한다.
+  - sync `TourRankStrategy.group_parallelism`은 양의 정수만 허용한다.
   - async `AsyncTourRankStrategy`는 기본 `group_parallelism=None`으로 stage 내 group을 병렬 실행한다.
   - 기본 stage와 문서 수가 맞지 않으면 자동 보정하지 않고 fast fail한다.
   - provider 응답은 strict JSON `{"selected": [...]}`만 허용한다.
@@ -27,6 +28,7 @@
 - Azure provider는 기존 `rank()` / `compare()`와 별개로 `select()`를 제공한다.
 - Sync strategy는 `group_parallelism > 1`이면 같은 stage의 group calls를 thread pool로 병렬 실행한다.
 - Async strategy는 같은 stage의 group calls를 `asyncio.gather()`로 병렬 실행하고, `group_parallelism`이 지정되면 semaphore로 동시성을 제한한다.
+- Sync 병렬 실행에서 한 group이 실패해도 이미 제출된 group 호출은 진행될 수 있다.
 
 ## 5. 에러 핸들링 (Error Handling)
 - stage config와 문서 수 불일치: `RerankInputError`

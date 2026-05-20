@@ -308,6 +308,7 @@ def _build_selection_prompt(
     documents: list[Document],
     top_m: int,
 ) -> str:
+    example = ", ".join(str(index) for index in range(1, top_m + 1))
     candidates = "\n\n".join(
         [
             f"[{index}]\n{document.text}"
@@ -320,7 +321,7 @@ def _build_selection_prompt(
         f"Query:\n{query}\n\n"
         f"Candidate documents:\n{candidates}\n\n"
         "Return JSON exactly like this shape:\n"
-        '{"selected": [1, 2]}\n'
+        f'{{"selected": [{example}]}}\n'
         f"Return exactly {top_m} candidate numbers, without duplicates. "
         "Do not include any explanation."
     )

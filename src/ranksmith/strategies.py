@@ -355,6 +355,8 @@ class _TourRankConfigMixin:
             range(len(documents)),
             key=lambda index: (-scores[index], index),
         )
+        if top_k is not None:
+            ordered_indexes = ordered_indexes[:top_k]
         results = [
             RerankResult(
                 document=documents[original_index],
@@ -369,14 +371,17 @@ class _TourRankConfigMixin:
             )
             for rank, original_index in enumerate(ordered_indexes, start=1)
         ]
-        if top_k is None:
-            return results
-        return results[:top_k]
+        return results
 
 
 @dataclass(frozen=True)
 class TourRankStrategy(_TourRankConfigMixin):
-    group_parallelism: int | None = 1
+    group_parallelism: int = 1
+
+    def __post_init__(self) -> None:
+        if self.group_parallelism is None:
+            raise ValueError("group_parallelism must be greater than 0")
+        super().__post_init__()
 
     def rerank(
         self,
@@ -441,8 +446,7 @@ class TourRankStrategy(_TourRankConfigMixin):
                 next_order.extend(selected_indexes)
             return next_order
 
-        max_workers = self.group_parallelism or len(groups)
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        with ThreadPoolExecutor(max_workers=self.group_parallelism) as executor:
             selected_groups = executor.map(
                 lambda group: self._select_group(
                     query=query,

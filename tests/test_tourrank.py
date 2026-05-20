@@ -188,6 +188,8 @@ def test_tourrank_can_run_stage_groups_in_parallel() -> None:
 def test_tourrank_rejects_invalid_group_parallelism() -> None:
     with pytest.raises(ValueError, match="group_parallelism"):
         TourRankStrategy(group_parallelism=0)
+    with pytest.raises(ValueError, match="group_parallelism"):
+        TourRankStrategy(group_parallelism=None)
 
 
 def test_tourrank_fast_fails_when_stage_does_not_match_document_count() -> None:

@@ -80,7 +80,8 @@ points.
   - For other candidate counts, pass explicit `stage_configs`; ranksmith fast
     fails instead of silently deriving or trimming stages.
   - `TourRankStrategy` defaults to `group_parallelism=1` for serial sync calls.
-    Increase it to run groups in the same stage concurrently.
+    Increase it to run groups in the same stage concurrently. If one parallel
+    group fails, already-started group calls may still finish.
   - `AsyncTourRankStrategy` runs groups concurrently by default. Set
     `group_parallelism` to cap concurrent provider calls.
 
