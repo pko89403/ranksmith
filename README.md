@@ -79,6 +79,10 @@ points.
     `100 -> 50 -> 20 -> 10 -> 5 -> 2`.
   - For other candidate counts, pass explicit `stage_configs`; ranksmith fast
     fails instead of silently deriving or trimming stages.
+  - `TourRankStrategy` defaults to `group_parallelism=1` for serial sync calls.
+    Increase it to run groups in the same stage concurrently.
+  - `AsyncTourRankStrategy` runs groups concurrently by default. Set
+    `group_parallelism` to cap concurrent provider calls.
 
 ### How to Apply a Strategy
 
@@ -132,7 +136,7 @@ reranker = AzureOpenAIReranker(
     api_key="...",
     azure_endpoint="https://example.openai.azure.com",
     azure_deployment="gpt-4o-mini",
-    strategy=TourRankStrategy(rounds=2),
+    strategy=TourRankStrategy(rounds=2, group_parallelism=1),
 )
 ```
 

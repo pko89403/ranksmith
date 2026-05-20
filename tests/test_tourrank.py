@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import threading
+import time
 
 import pytest
 
@@ -54,6 +56,25 @@ class MissingSelectionProvider:
         return '{"ranking": [1, 2]}'
 
 
+class BlockingSelectionProvider(SelectionByScoreProvider):
+    def __init__(self, scores: dict[str, int]) -> None:
+        super().__init__(scores)
+        self.in_flight = 0
+        self.max_in_flight = 0
+        self._lock = threading.Lock()
+
+    def select(self, query: str, documents: list[Document], top_m: int) -> str:
+        with self._lock:
+            self.in_flight += 1
+            self.max_in_flight = max(self.max_in_flight, self.in_flight)
+        time.sleep(0.01)
+        try:
+            return super().select(query, documents, top_m)
+        finally:
+            with self._lock:
+                self.in_flight -= 1
+
+
 class AsyncSelectionByScoreProvider:
     def __init__(self, scores: dict[str, int]) -> None:
         self.scores = scores
@@ -91,6 +112,7 @@ def test_tourrank_strategy_defaults_to_tourrank_2() -> None:
 
     assert strategy.algorithm == "tourrank_r"
     assert strategy.rounds == 2
+    assert strategy.group_parallelism == 1
     assert strategy.stage_configs == (
         TourRankStageConfig(group_count=5, group_size=20, selected_count=10),
         TourRankStageConfig(group_count=5, group_size=10, selected_count=4),
@@ -123,6 +145,49 @@ def test_tourrank_selects_by_accumulated_points_and_preserves_indexes() -> None:
         {"strategy": "tourrank", "algorithm": "tourrank_r", "rounds": 2, "score": 0},
     ]
     assert len(provider.calls) == 4
+
+
+def test_tourrank_default_group_parallelism_is_serial() -> None:
+    provider = BlockingSelectionProvider(
+        {"a": 1, "b": 9, "c": 2, "d": 8, "e": 3, "f": 7}
+    )
+    reranker = AzureOpenAIReranker(
+        api_key="key",
+        azure_endpoint="https://example.openai.azure.com",
+        azure_deployment="gpt-4o-mini",
+        provider=provider,
+        strategy=TourRankStrategy(rounds=1, stage_configs=SMALL_STAGES),
+    )
+
+    reranker.rerank("query", _documents())
+
+    assert provider.max_in_flight == 1
+
+
+def test_tourrank_can_run_stage_groups_in_parallel() -> None:
+    provider = BlockingSelectionProvider(
+        {"a": 1, "b": 9, "c": 2, "d": 8, "e": 3, "f": 7}
+    )
+    reranker = AzureOpenAIReranker(
+        api_key="key",
+        azure_endpoint="https://example.openai.azure.com",
+        azure_deployment="gpt-4o-mini",
+        provider=provider,
+        strategy=TourRankStrategy(
+            rounds=1,
+            stage_configs=SMALL_STAGES,
+            group_parallelism=2,
+        ),
+    )
+
+    reranker.rerank("query", _documents())
+
+    assert provider.max_in_flight == 2
+
+
+def test_tourrank_rejects_invalid_group_parallelism() -> None:
+    with pytest.raises(ValueError, match="group_parallelism"):
+        TourRankStrategy(group_parallelism=0)
 
 
 def test_tourrank_fast_fails_when_stage_does_not_match_document_count() -> None:
@@ -200,3 +265,30 @@ async def test_async_tourrank_selects_groups_concurrently() -> None:
     assert [result.document.id for result in results] == ["b", "e", "a", "c", "d", "f"]
     assert [result.original_index for result in results] == [1, 4, 0, 2, 3, 5]
     assert provider.max_in_flight == 2
+
+
+@pytest.mark.asyncio
+async def test_async_tourrank_can_limit_group_parallelism() -> None:
+    provider = AsyncSelectionByScoreProvider(
+        {"a": 1, "b": 9, "c": 2, "d": 8, "e": 3, "f": 7}
+    )
+    reranker = AsyncAzureOpenAIReranker(
+        api_key="key",
+        azure_endpoint="https://example.openai.azure.com",
+        azure_deployment="gpt-4o-mini",
+        provider=provider,
+        strategy=AsyncTourRankStrategy(
+            rounds=1,
+            stage_configs=SMALL_STAGES,
+            group_parallelism=1,
+        ),
+    )
+
+    await reranker.rerank("query", _documents())
+
+    assert provider.max_in_flight == 1
+
+
+def test_async_tourrank_rejects_invalid_group_parallelism() -> None:
+    with pytest.raises(ValueError, match="group_parallelism"):
+        AsyncTourRankStrategy(group_parallelism=0)

@@ -4,6 +4,7 @@ import asyncio
 import json
 import random
 from collections.abc import Sequence
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Literal, cast
 
@@ -278,6 +279,7 @@ class _TourRankConfigMixin:
         default_factory=lambda: DEFAULT_TOURRANK_STAGE_CONFIGS
     )
     shuffle_seed: int = 13
+    group_parallelism: int | None = None
     max_document_chars: int = 4000
 
     def __post_init__(self) -> None:
@@ -287,6 +289,8 @@ class _TourRankConfigMixin:
             raise ValueError("rounds must be greater than 0")
         if not self.stage_configs:
             raise ValueError("stage_configs must not be empty")
+        if self.group_parallelism is not None and self.group_parallelism < 1:
+            raise ValueError("group_parallelism must be greater than 0")
         if self.max_document_chars < 1:
             raise ValueError("max_document_chars must be greater than 0")
 
@@ -372,6 +376,8 @@ class _TourRankConfigMixin:
 
 @dataclass(frozen=True)
 class TourRankStrategy(_TourRankConfigMixin):
+    group_parallelism: int | None = 1
+
     def rerank(
         self,
         *,
@@ -421,19 +427,55 @@ class TourRankStrategy(_TourRankConfigMixin):
             round_index=round_index,
             stage_index=stage_index,
         )
-        for group in groups:
-            group_documents = [documents[index] for index in group]
-            raw_response = provider.select(query, group_documents, stage.selected_count)
-            selected = parse_selection_response(
-                raw_response,
-                expected_count=len(group_documents),
-                selected_count=stage.selected_count,
+        if self.group_parallelism == 1 or len(groups) == 1:
+            for group in groups:
+                selected_indexes = self._select_group(
+                    query=query,
+                    documents=documents,
+                    provider=provider,
+                    group=group,
+                    selected_count=stage.selected_count,
+                )
+                for original_index in selected_indexes:
+                    scores[original_index] += 1
+                next_order.extend(selected_indexes)
+            return next_order
+
+        max_workers = self.group_parallelism or len(groups)
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            selected_groups = executor.map(
+                lambda group: self._select_group(
+                    query=query,
+                    documents=documents,
+                    provider=provider,
+                    group=group,
+                    selected_count=stage.selected_count,
+                ),
+                groups,
             )
-            selected_indexes = [group[number - 1] for number in selected]
-            for original_index in selected_indexes:
-                scores[original_index] += 1
-            next_order.extend(selected_indexes)
+            for selected_indexes in selected_groups:
+                for original_index in selected_indexes:
+                    scores[original_index] += 1
+                next_order.extend(selected_indexes)
         return next_order
+
+    def _select_group(
+        self,
+        *,
+        query: str,
+        documents: Sequence[Document],
+        provider: SelectionLLMProvider,
+        group: Sequence[int],
+        selected_count: int,
+    ) -> list[int]:
+        group_documents = [documents[index] for index in group]
+        raw_response = provider.select(query, group_documents, selected_count)
+        selected = parse_selection_response(
+            raw_response,
+            expected_count=len(group_documents),
+            selected_count=selected_count,
+        )
+        return [group[number - 1] for number in selected]
 
 
 @dataclass(frozen=True)
@@ -676,12 +718,20 @@ class AsyncTourRankStrategy(_TourRankConfigMixin):
             round_index=round_index,
             stage_index=stage_index,
         )
+        semaphore = (
+            asyncio.Semaphore(self.group_parallelism)
+            if self.group_parallelism is not None
+            else None
+        )
         raw_responses = await asyncio.gather(
             *(
-                provider.select(
+                self._select_group(
                     query,
-                    [documents[index] for index in group],
+                    documents,
+                    provider,
+                    group,
                     stage.selected_count,
+                    semaphore,
                 )
                 for group in groups
             )
@@ -698,6 +748,21 @@ class AsyncTourRankStrategy(_TourRankConfigMixin):
                 scores[original_index] += 1
             next_order.extend(selected_indexes)
         return next_order
+
+    async def _select_group(
+        self,
+        query: str,
+        documents: Sequence[Document],
+        provider: AsyncSelectionLLMProvider,
+        group: Sequence[int],
+        selected_count: int,
+        semaphore: asyncio.Semaphore | None,
+    ) -> str:
+        group_documents = [documents[index] for index in group]
+        if semaphore is None:
+            return await provider.select(query, group_documents, selected_count)
+        async with semaphore:
+            return await provider.select(query, group_documents, selected_count)
 
 
 def _parse_pairwise_winner(raw_response: str) -> Literal["A", "B"]:
