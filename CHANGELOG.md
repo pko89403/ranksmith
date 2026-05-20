@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.2
+
+- Streamline the PyPI README for clearer package discovery.
+- Move detailed benchmark reproduction notes into dedicated benchmark docs.
+- Use GitHub absolute links so PyPI project description links resolve correctly.
+- Add PyPI project links for documentation and benchmark notes.
+
 ## 0.2.0
 
 - Add Pairwise Ranking Prompting via `PairwiseStrategy` and `AsyncPairwiseStrategy`.
