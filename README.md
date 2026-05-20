@@ -6,10 +6,18 @@
 
 Forge better rankings from candidate documents.
 
-[한국어 문서](README.ko.md)
+[한국어 문서](https://github.com/pko89403/ranksmith/blob/main/README.ko.md)
 
 `ranksmith` is a small Python package for LLM-based reranking. Version 1 focuses
 on Azure OpenAI powered zero-shot reranking for candidate documents.
+
+Highlights:
+
+- Built-in listwise RankGPT, pairwise PRP, and tournament-style TourRank-r strategies
+- Public strategy contracts for custom reranking methods
+- Strict JSON parsing and fast-fail error behavior
+- Sync and async Azure OpenAI rerankers
+- Reproducible benchmark summaries with committed evidence artifacts
 
 ## Install
 
@@ -59,38 +67,17 @@ logic (Algorithm).
 | `tourrank_r`, `rounds=10` | `TourRankStrategy` | You are doing quality-focused offline reranking, paper-style evaluation, or final reranking where latency is acceptable. | Highest call cost among built-in methods in normal use. |
 | Custom strategy | `RerankStrategy` / `AsyncRerankStrategy` | You need deterministic business logic, a proprietary ranking process, or a new research method. | You own the ranking contract and validation behavior. |
 
-### How to Apply a Strategy
+### Applying a Strategy
 
 You can configure and inject a custom strategy into the `AzureOpenAIReranker`.
 
 ```python
-from ranksmith import AzureOpenAIReranker, ListwiseStrategy, PairwiseStrategy
+from ranksmith import AzureOpenAIReranker, ListwiseStrategy
 
-# 1. Configure the strategy and algorithm
 strategy = ListwiseStrategy(
     algorithm="rankgpt_sliding_window",
-    window_size=20,             # Number of documents evaluated at once
-    stride=10,                  # Number of overlapping documents between windows
-    max_document_chars=4000,    # Max characters allowed per document
-)
-
-# 2. Inject into the Reranker
-reranker = AzureOpenAIReranker(
-    api_key="...",
-    azure_endpoint="https://example.openai.azure.com",
-    azure_deployment="gpt-4o-mini",
-    strategy=strategy, # <-- Inject the strategy here
-)
-
-results = reranker.rerank("query", documents)
-```
-
-Pairwise PRP can be injected the same way:
-
-```python
-strategy = PairwiseStrategy(
-    algorithm="prp_sliding_k",
-    passes=10,
+    window_size=20,
+    stride=10,
     max_document_chars=4000,
 )
 
@@ -100,9 +87,11 @@ reranker = AzureOpenAIReranker(
     azure_deployment="gpt-4o-mini",
     strategy=strategy,
 )
+
+results = reranker.rerank("query", documents)
 ```
 
-TourRank-r can also be injected:
+TourRank-r uses the same injection point:
 
 ```python
 from ranksmith import AzureOpenAIReranker, TourRankStrategy
@@ -180,71 +169,10 @@ reranker = AzureOpenAIReranker(
 )
 ```
 
-A custom strategy can also use the public provider protocols directly.
-
-```python
-from collections.abc import Sequence
-
-from ranksmith import (
-    Document,
-    LLMProvider,
-    RerankResult,
-    parse_ranking_response,
-)
-
-
-class ProviderBackedStrategy:
-    def rerank(
-        self,
-        *,
-        query: str,
-        documents: Sequence[Document],
-        provider: LLMProvider,
-        top_k: int | None = None,
-    ) -> list[RerankResult]:
-        ranking = parse_ranking_response(
-            provider.rank(query, list(documents)),
-            expected_count=len(documents),
-        )
-        ordered_indexes = [number - 1 for number in ranking]
-        results = [
-            RerankResult(
-                document=documents[original_index],
-                rank=rank,
-                original_index=original_index,
-                metadata={"strategy": "provider-backed"},
-            )
-            for rank, original_index in enumerate(ordered_indexes, start=1)
-        ]
-        return results if top_k is None else results[:top_k]
-```
-
-Async strategies use the same contract with `async def rerank(...)` and can be
-typed with `AsyncRerankStrategy`. If a custom strategy fails with an unexpected
-exception, `AzureOpenAIReranker` wraps it as `RerankStrategyError`. Raise
-`RerankError` subclasses directly when the error category matters.
-
-See [`examples/custom_strategy.py`](examples/custom_strategy.py) for a runnable
-offline example that covers deterministic strategies, provider-backed
-strategies, strict ranking parsing, and provider error classification.
-
-For lower PRP wall time, use the async strategy. This preserves the
-PRP-Sliding-K method: adjacent pairs are still processed bottom-to-top, while
-only the two order-swapped calls for the same pair are concurrent.
-
-```python
-from ranksmith import AsyncAzureOpenAIReranker, AsyncPairwiseStrategy
-
-reranker = AsyncAzureOpenAIReranker(
-    api_key="...",
-    azure_endpoint="https://example.openai.azure.com",
-    azure_deployment="gpt-4o-mini",
-    strategy=AsyncPairwiseStrategy(
-        passes=10,
-        pair_order_parallelism=2,
-    ),
-)
-```
+Provider-backed and async strategies use the same public contract. See
+the [custom strategy extension guide](https://github.com/pko89403/ranksmith/blob/main/docs/wiki/08_custom_strategy_extension.md)
+and [custom strategy example](https://github.com/pko89403/ranksmith/blob/main/examples/custom_strategy.py)
+for the full extension guide.
 
 ## Async Support
 
@@ -264,81 +192,38 @@ results = await reranker.rerank("query", documents)
 
 ## Examples
 
-Ready-to-use example code for integrating the **RankGPT** algorithm into your production environment can be found in the `examples/` directory.
+Runnable examples live in the `examples/` directory.
 
-- [`examples/rankgpt_sync.py`](examples/rankgpt_sync.py): Synchronous RankGPT integration guide
-- [`examples/rankgpt_async.py`](examples/rankgpt_async.py): High-performance asynchronous RankGPT integration guide
+- [rankgpt_sync.py](https://github.com/pko89403/ranksmith/blob/main/examples/rankgpt_sync.py): synchronous RankGPT integration
+- [rankgpt_async.py](https://github.com/pko89403/ranksmith/blob/main/examples/rankgpt_async.py): async RankGPT integration
+- [pairwise_prp.py](https://github.com/pko89403/ranksmith/blob/main/examples/pairwise_prp.py): pairwise PRP strategy
+- [tourrank.py](https://github.com/pko89403/ranksmith/blob/main/examples/tourrank.py): TourRank-r with a fake provider
+- [custom_strategy.py](https://github.com/pko89403/ranksmith/blob/main/examples/custom_strategy.py): custom strategy contracts
 
 ## Benchmarking
 
-`ranksmith` includes a qrels-backed comparison runner for reranking algorithms. It
-can run against the committed smoke fixture or a local BEIR/SciFact cache. BEIR
-mode requires a first-stage candidate TSV, because qrels alone are not a valid
-reranking benchmark.
+The reference benchmark below measures reranking only. It uses the fixed native
+MTEB `AskUbuntuDupQuestions` test candidates: `361` queries, `20` candidates per
+query, shuffled with seed `13`, using Azure OpenAI deployment `gpt-5.4-nano`.
 
-Expected BEIR/SciFact cache layout:
+Full command, call accounting, run scope, and artifact links are in
+the [MTEB reranking benchmark notes](https://github.com/pko89403/ranksmith/blob/main/docs/benchmarks/mteb_reranking.md).
 
-```text
-.benchmark-cache/scifact/
-  corpus.jsonl
-  queries.jsonl
-  qrels/test.tsv
-```
+| Method | NDCG@10 | MRR@10 | MAP | Recall@10 | p50 latency | Invalid rate | LLM calls/query | Total calls | Queries |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `original` | 0.3926 | 0.4594 | 0.3711 | 0.4993 | 0.0 ms | 0.000 | 0.0 | 0 | 361 |
+| `rankgpt_sliding_window@20` | 0.6908 | 0.7470 | 0.6355 | 0.7671 | 1820.5 ms | 0.008 | 1.0 | 374 | 361 |
+| `tourrank_r@20:r2` | 0.7023 | 0.7642 | 0.6421 | 0.7785 | 8297.1 ms | 0.000 | 8.0 | 2,888 | 361 |
+| `tourrank_r@20:r10` | 0.7135 | 0.7734 | 0.6597 | 0.7836 | 39026.4 ms | 0.006 | 39.9 | 14,409 | 361 |
 
-Candidate TSV rows must start with `query_id` and `document_id`:
+`tourrank_r@20:r10` had the strongest scores in this run, while
+`tourrank_r@20:r2` stayed close with far fewer calls and lower latency. Full
+`prp_sliding_k@20` with the default `passes=10` was not run in this full-query
+benchmark; it would require `380` calls/query (`137,180` calls over all 361
+queries), so no quality or latency metrics are reported for that setting here.
 
-```text
-query_id    document_id    rank
-```
-
-Run a live Azure comparison and write a JSON artifact:
-
-```bash
-python scripts/compare_reranking.py \
-  --dataset beir-scifact \
-  --cache-dir .benchmark-cache/scifact \
-  --split test \
-  --candidates path/to/candidates.tsv \
-  --algorithm all \
-  --top-k 10 \
-  --window-size 20 \
-  --stride 10 \
-  --output benchmark-results/scifact.json \
-  --allow-live
-```
-
-The JSON report includes per-query metrics and macro-averaged NDCG@k, MRR@k,
-and Recall@k. Raw benchmark artifacts are intentionally ignored by git; publish
-only reviewed summaries. The committed smoke fixture currently verifies the
-deterministic offline RankGPT path at NDCG@3, MRR@3, and Recall@3 = `1.000`.
-
-### Call accounting
-
-`compare_reranking.py` estimates and prints the number of live LLM reranking
-calls before execution. The count depends on the number of benchmark cases, the
-selected algorithms, `window_size`, `stride`, `passes`, and candidate count per query:
-
-- `rankgpt_sliding_window`: one LLM call per back-to-front RankGPT window.
-- `prp_sliding_k`: `2 * passes * max(document_count - 1, 0)` pairwise LLM calls per query.
-- `tourrank_r`: `tourrank_rounds * sum(stage.group_count)` selection LLM
-  calls per query. The runner uses the paper top-100 stages for exactly 100
-  candidates, and an explicit single-group halving stage plan for other
-  candidate counts. With the paper top-100 stages, TourRank-2 uses 26 calls
-  per query and TourRank-10 uses 130 calls per query.
-
-The runner does **not** create first-stage candidates, embeddings, or
-communities. If your candidate TSV is produced by an upstream retrieval or
-community-building pipeline, account for those calls separately. A typical full
-pipeline has two cost surfaces:
-
-1. Candidate generation: embedding calls for corpus/query vectors, plus any LLM
-   calls used to create or summarize communities.
-2. Reranking: LLM calls made by `ranksmith` for the selected reranking
-   algorithms.
-
-Benchmark summaries should report both numbers when community retrieval is part
-of the experiment, for example: `embedding calls=<n>`, `community LLM calls=<n>`,
-and `reranking LLM calls=<n>`.
+The auxiliary `prp_sliding_k@20:p1` result is documented in the benchmark
+details as a reduced-budget call reference, not as the default PRP result.
 
 ## Result Model
 
@@ -373,57 +258,3 @@ except RerankProviderError:
 except RerankStrategyError:
     ...
 ```
-
-## MTEB Reranking Reference Evaluation
-
-This benchmark measures reranking only. It uses the fixed native MTEB candidate
-sets, not first-stage retrieval results.
-
-```bash
-UV_NATIVE_TLS=true uv run python scripts/evaluate_mteb_reranking.py \
-  --tasks AskUbuntuDupQuestions \
-  --methods \
-    original \
-    rankgpt_sliding_window@20 \
-    prp_sliding_k@20:p1 \
-    tourrank_r@20:r2 \
-    tourrank_r@20:r10 \
-  --output-dir benchmark-results/mteb-reranking/askubuntu-full-tourrank-prp-20260520 \
-  --max-document-chars 4000 \
-  --shuffle-candidates --shuffle-seed 13 \
-  --rankgpt-window-size 20 --rankgpt-step 10 \
-  --concurrency 24 \
-  --retry-invalid-outputs 1 \
-  --input-token-price-per-1m 2.50 \
-  --output-token-price-per-1m 10.00 \
-  --allow-live
-```
-
-Run scope:
-
-- Dataset: `AskUbuntuDupQuestions`, `test` split
-- Queries: `361`
-- Candidates: MTEB-provided `top_ranked` candidates, `20` per query
-- Candidate order: shuffled with seed `13`
-- Model: Azure OpenAI deployment `gpt-5.4-nano`
-- Validation: strict JSON; invalid outputs are zero-scored
-- Resume policy: failed rows were retried with `--resume --retry-failed-results`
-- Artifact: `benchmark-results/mteb-reranking/askubuntu-full-tourrank-prp-20260520`
-
-| Method | NDCG@10 | MRR@10 | MAP | Recall@10 | p50 latency | Invalid rate | LLM calls/query | Total calls | Queries |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `original` | 0.3926 | 0.4594 | 0.3711 | 0.4993 | 0.0 ms | 0.000 | 0.0 | 0 | 361 |
-| `rankgpt_sliding_window@20` | 0.6908 | 0.7470 | 0.6355 | 0.7671 | 1820.5 ms | 0.008 | 1.0 | 374 | 361 |
-| `tourrank_r@20:r2` | 0.7023 | 0.7642 | 0.6421 | 0.7785 | 8297.1 ms | 0.000 | 8.0 | 2,888 | 361 |
-| `tourrank_r@20:r10` | 0.7135 | 0.7734 | 0.6597 | 0.7836 | 39026.4 ms | 0.006 | 39.9 | 14,409 | 361 |
-
-`tourrank_r@20:r10` had the strongest scores in this run, while
-`tourrank_r@20:r2` stayed close with far fewer calls and lower latency. Full
-`prp_sliding_k@20` with the default `passes=10` was not run in this full-query
-benchmark; it would require `380` calls/query (`137,180` calls over all 361
-queries), so no quality or latency metrics are reported for that setting here.
-
-The auxiliary `prp_sliding_k@20:p1` run completed over the same 361 queries only
-as a call-budget reference near `tourrank_r@20:r10`: NDCG@10 `0.5360`, MRR@10
-`0.7261`, MAP `0.4983`, Recall@10 `0.5773`, p50 latency `19919.1 ms`,
-invalid rate `0.000`, `38.0` calls/query, `13,718` total calls.
