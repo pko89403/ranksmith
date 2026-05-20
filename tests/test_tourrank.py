@@ -131,7 +131,7 @@ def test_tourrank_selects_by_accumulated_points_and_preserves_indexes() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
         strategy=TourRankStrategy(rounds=2, stage_configs=SMALL_STAGES),
     )
 
@@ -156,7 +156,7 @@ def test_tourrank_default_group_parallelism_is_serial() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
         strategy=TourRankStrategy(rounds=1, stage_configs=SMALL_STAGES),
     )
 
@@ -173,7 +173,7 @@ def test_tourrank_can_run_stage_groups_in_parallel() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
         strategy=TourRankStrategy(
             rounds=1,
             stage_configs=SMALL_STAGES,
@@ -199,7 +199,7 @@ def test_tourrank_fast_fails_when_stage_does_not_match_document_count() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
         strategy=TourRankStrategy(rounds=1, stage_configs=SMALL_STAGES),
     )
 
@@ -214,7 +214,7 @@ def test_tourrank_rejects_provider_without_select() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=MissingSelectionProvider(),
+        model_client=MissingSelectionProvider(),
         strategy=TourRankStrategy(rounds=1, stage_configs=SMALL_STAGES),
     )
 
@@ -228,7 +228,7 @@ def test_tourrank_provider_error_is_preserved() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
         strategy=TourRankStrategy(rounds=1, stage_configs=SMALL_STAGES),
     )
 
@@ -242,7 +242,7 @@ def test_tourrank_invalid_selection_fast_fails() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
         strategy=TourRankStrategy(rounds=1, stage_configs=SMALL_STAGES),
     )
 
@@ -259,7 +259,7 @@ async def test_async_tourrank_selects_groups_concurrently() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
         strategy=AsyncTourRankStrategy(rounds=1, stage_configs=SMALL_STAGES),
     )
 
@@ -279,7 +279,7 @@ async def test_async_tourrank_can_limit_group_parallelism() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
         strategy=AsyncTourRankStrategy(
             rounds=1,
             stage_configs=SMALL_STAGES,

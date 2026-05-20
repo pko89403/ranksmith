@@ -4,21 +4,21 @@ from collections.abc import Sequence
 from typing import Any
 
 from ranksmith._providers import (
-    AsyncAzureOpenAIProvider,
-    AsyncUsageCallback,
-    AzureOpenAIProvider,
-    UsageCallback,
+    AsyncAzureAOAIProvider,
+    AzureAOAIProvider,
 )
 from ranksmith.errors import RerankError, RerankProviderError, RerankStrategyError
+from ranksmith.model import (
+    AsyncModelClient,
+    AsyncModelProvider,
+    AsyncUsageCallback,
+    ModelClient,
+    ModelProvider,
+    UsageCallback,
+)
 from ranksmith.protocols import (
-    AsyncLLMProvider,
-    AsyncPairwiseLLMProvider,
     AsyncRerankStrategy,
-    AsyncSelectionLLMProvider,
-    LLMProvider,
-    PairwiseLLMProvider,
     RerankStrategy,
-    SelectionLLMProvider,
 )
 from ranksmith.strategies import (
     AsyncListwiseStrategy,
@@ -35,26 +35,38 @@ class AzureOpenAIReranker:
     def __init__(
         self,
         *,
-        api_key: str,
-        azure_endpoint: str,
-        azure_deployment: str,
+        api_key: str | None = None,
+        azure_endpoint: str | None = None,
+        azure_deployment: str | None = None,
         api_version: str = "2024-08-01-preview",
         strategy: RerankStrategy[Any] | None = None,
-        provider: (
-            LLMProvider | PairwiseLLMProvider | SelectionLLMProvider | None
-        ) = None,
+        provider: ModelProvider | None = None,
+        model_client: ModelClient | None = None,
         timeout: float | None = None,
         on_usage: UsageCallback | None = None,
     ) -> None:
         self._strategy: RerankStrategy[Any] = strategy or ListwiseStrategy()
-        self._provider = provider or AzureOpenAIProvider(
-            api_key=api_key,
-            azure_endpoint=azure_endpoint,
-            azure_deployment=azure_deployment,
-            api_version=api_version,
-            timeout=timeout,
-            on_usage=on_usage,
-        )
+        if provider is not None and model_client is not None:
+            raise ValueError("provider and model_client cannot both be provided")
+        if model_client is not None:
+            self._model_client = model_client
+        else:
+            if api_key is None or azure_endpoint is None or azure_deployment is None:
+                raise ValueError(
+                    "api_key, azure_endpoint, and azure_deployment are required "
+                    "when model_client is not provided"
+                )
+            model_provider = provider or AzureAOAIProvider(
+                api_key=api_key,
+                azure_endpoint=azure_endpoint,
+                azure_deployment=azure_deployment,
+                api_version=api_version,
+                timeout=timeout,
+            )
+            self._model_client = ModelClient(
+                provider=model_provider,
+                on_usage=on_usage,
+            )
 
     def rerank(
         self,
@@ -68,7 +80,7 @@ class AzureOpenAIReranker:
             return self._strategy.rerank(
                 query=query,
                 documents=normalized_documents,
-                provider=self._provider,
+                model_client=self._model_client,
                 top_k=top_k,
             )
         except RerankError:
@@ -83,29 +95,38 @@ class AsyncAzureOpenAIReranker:
     def __init__(
         self,
         *,
-        api_key: str,
-        azure_endpoint: str,
-        azure_deployment: str,
+        api_key: str | None = None,
+        azure_endpoint: str | None = None,
+        azure_deployment: str | None = None,
         api_version: str = "2024-08-01-preview",
         strategy: AsyncRerankStrategy[Any] | None = None,
-        provider: (
-            AsyncLLMProvider
-            | AsyncPairwiseLLMProvider
-            | AsyncSelectionLLMProvider
-            | None
-        ) = None,
+        provider: AsyncModelProvider | None = None,
+        model_client: AsyncModelClient | None = None,
         timeout: float | None = None,
         on_usage: AsyncUsageCallback | None = None,
     ) -> None:
         self._strategy: AsyncRerankStrategy[Any] = strategy or AsyncListwiseStrategy()
-        self._provider = provider or AsyncAzureOpenAIProvider(
-            api_key=api_key,
-            azure_endpoint=azure_endpoint,
-            azure_deployment=azure_deployment,
-            api_version=api_version,
-            timeout=timeout,
-            on_usage=on_usage,
-        )
+        if provider is not None and model_client is not None:
+            raise ValueError("provider and model_client cannot both be provided")
+        if model_client is not None:
+            self._model_client = model_client
+        else:
+            if api_key is None or azure_endpoint is None or azure_deployment is None:
+                raise ValueError(
+                    "api_key, azure_endpoint, and azure_deployment are required "
+                    "when model_client is not provided"
+                )
+            model_provider = provider or AsyncAzureAOAIProvider(
+                api_key=api_key,
+                azure_endpoint=azure_endpoint,
+                azure_deployment=azure_deployment,
+                api_version=api_version,
+                timeout=timeout,
+            )
+            self._model_client = AsyncModelClient(
+                provider=model_provider,
+                on_usage=on_usage,
+            )
 
     async def rerank(
         self,
@@ -119,7 +140,7 @@ class AsyncAzureOpenAIReranker:
             return await self._strategy.rerank(
                 query=query,
                 documents=normalized_documents,
-                provider=self._provider,
+                model_client=self._model_client,
                 top_k=top_k,
             )
         except RerankError:

@@ -13,7 +13,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from ranksmith import (  # noqa: E402
     AzureOpenAIReranker,
     Document,
-    LLMProvider,
+    ModelClient,
     RerankProviderError,
     RerankResult,
     parse_ranking_response,
@@ -21,17 +21,17 @@ from ranksmith import (  # noqa: E402
 
 
 class LengthStrategy:
-    """Provider를 쓰지 않는 deterministic custom strategy 예제."""
+    """Model client를 쓰지 않는 deterministic custom strategy 예제."""
 
     def rerank(
         self,
         *,
         query: str,
         documents: Sequence[Document],
-        provider: object,
+        model_client: object,
         top_k: int | None = None,
     ) -> list[RerankResult]:
-        del query, provider
+        del query, model_client
         ordered_indexes = sorted(
             range(len(documents)),
             key=lambda index: len(documents[index].text),
@@ -45,8 +45,8 @@ class LengthStrategy:
         )
 
 
-class KeywordListwiseProvider:
-    """예제용 deterministic provider. 실제 서비스에서는 Azure provider를 사용합니다."""
+class KeywordListwiseClient:
+    """예제용 deterministic model client. 실제 서비스에서는 ModelClient를 사용합니다."""
 
     def __init__(self, query_terms: set[str]) -> None:
         self.query_terms = query_terms
@@ -75,25 +75,25 @@ class KeywordListwiseProvider:
         return exact_matches + disease_evidence, length_penalty
 
 
-class FailingListwiseProvider:
+class FailingListwiseClient:
     def rank(self, query: str, documents: list[Document]) -> str:
         del query, documents
         raise TimeoutError("provider timeout")
 
 
-class ProviderBackedStrategy:
-    """Provider JSON을 쓰는 custom strategy 예제."""
+class ModelClientBackedStrategy:
+    """ModelClient JSON을 쓰는 custom strategy 예제."""
 
     def rerank(
         self,
         *,
         query: str,
         documents: Sequence[Document],
-        provider: LLMProvider,
+        model_client: ModelClient,
         top_k: int | None = None,
     ) -> list[RerankResult]:
         try:
-            raw_response = provider.rank(query, list(documents))
+            raw_response = model_client.rank(query, list(documents))
         except TimeoutError as exc:
             raise RerankProviderError(str(exc)) from exc
 
@@ -159,7 +159,7 @@ def main() -> None:
         api_key="example-key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="example-deployment",
-        provider=KeywordListwiseProvider({"unused"}),
+        model_client=KeywordListwiseClient({"unused"}),
         strategy=LengthStrategy(),
     )
     for result in length_reranker.rerank(query, documents, top_k=2):
@@ -168,16 +168,18 @@ def main() -> None:
             f"original_index={result.original_index}"
         )
 
-    provider_reranker = AzureOpenAIReranker(
+    model_client_reranker = AzureOpenAIReranker(
         api_key="example-key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="example-deployment",
-        provider=KeywordListwiseProvider({"비타민", "결핍", "질병", "빈혈", "괴혈병"}),
-        strategy=ProviderBackedStrategy(),
+        model_client=KeywordListwiseClient(
+            {"비타민", "결핍", "질병", "빈혈", "괴혈병"}
+        ),
+        strategy=ModelClientBackedStrategy(),
     )
-    for result in provider_reranker.rerank(query, documents, top_k=2):
+    for result in model_client_reranker.rerank(query, documents, top_k=2):
         print(
-            f"provider_strategy rank={result.rank:02d} id={result.document.id} "
+            f"model_client_strategy rank={result.rank:02d} id={result.document.id} "
             f"original_index={result.original_index}"
         )
 
@@ -185,13 +187,13 @@ def main() -> None:
         api_key="example-key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="example-deployment",
-        provider=FailingListwiseProvider(),
-        strategy=ProviderBackedStrategy(),
+        model_client=FailingListwiseClient(),
+        strategy=ModelClientBackedStrategy(),
     )
     try:
         failing_reranker.rerank(query, documents)
     except RerankProviderError as exc:
-        print(f"provider_error={exc}")
+        print(f"model_client_error={exc}")
 
 
 if __name__ == "__main__":

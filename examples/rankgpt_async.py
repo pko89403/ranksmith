@@ -11,8 +11,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from openai import AsyncAzureOpenAI  # noqa: E402
-
 from ranksmith import (  # noqa: E402
     AsyncAzureOpenAIReranker,
     AsyncListwiseStrategy,
@@ -43,17 +41,12 @@ async def async_main() -> None:
         )
         sys.exit(1)
 
-    # 1. 비동기 클라이언트 직접 생성 (선택 사항: 타임아웃, Max Retries 등 설정 가능)
-    client = AsyncAzureOpenAI(
+    # 1. 비동기 Reranker 초기화
+    reranker = AsyncAzureOpenAIReranker(
         api_key=api_key,
         azure_endpoint=endpoint,
-        api_version="2024-10-21",  # 필요한 API 버전에 맞게 수정
-    )
-
-    # 2. 비동기 Reranker 초기화
-    reranker = AsyncAzureOpenAIReranker(
-        client=client,
         azure_deployment=deployment,
+        api_version="2024-10-21",  # 필요한 API 버전에 맞게 수정
         strategy=AsyncListwiseStrategy(
             algorithm="rankgpt_sliding_window",
             window_size=10,
