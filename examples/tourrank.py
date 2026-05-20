@@ -18,7 +18,9 @@ from ranksmith import (  # noqa: E402
 )
 
 
-class KeywordSelectionProvider:
+class KeywordSelectionClient:
+    """예제용 deterministic model client. 실제 서비스에서는 ModelClient를 사용합니다."""
+
     def __init__(self, query_terms: set[str]) -> None:
         self.query_terms = query_terms
         self.calls: list[list[str]] = []
@@ -58,12 +60,12 @@ def main() -> None:
         Document(id="vitamin_c", text="비타민 C 결핍은 괴혈병을 일으킨다."),
         Document(id="hydration", text="수분 섭취는 탈수 예방에 중요하다."),
     ]
-    provider = KeywordSelectionProvider({"비타민", "결핍", "질병", "빈혈", "괴혈병"})
+    model_client = KeywordSelectionClient({"비타민", "결핍", "질병", "빈혈", "괴혈병"})
     reranker = AzureOpenAIReranker(
         api_key="example-key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="example-deployment",
-        provider=provider,
+        model_client=model_client,
         strategy=TourRankStrategy(
             rounds=2,
             stage_configs=(
@@ -80,7 +82,7 @@ def main() -> None:
             f"tourrank rank={result.rank:02d} id={result.document.id} "
             f"score={result.metadata['score']} original_index={result.original_index}"
         )
-    print(f"select_calls={len(provider.calls)}")
+    print(f"select_calls={len(model_client.calls)}")
 
 
 if __name__ == "__main__":

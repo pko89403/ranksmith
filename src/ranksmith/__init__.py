@@ -1,3 +1,13 @@
+from ranksmith._providers import (
+    AnthropicProvider,
+    AsyncAnthropicProvider,
+    AsyncAzureAOAIProvider,
+    AsyncGeminiProvider,
+    AsyncOpenAIProvider,
+    AzureAOAIProvider,
+    GeminiProvider,
+    OpenAIProvider,
+)
 from ranksmith.azure import AsyncAzureOpenAIReranker, AzureOpenAIReranker
 from ranksmith.errors import (
     DocumentTooLongError,
@@ -7,19 +17,17 @@ from ranksmith.errors import (
     RerankProviderError,
     RerankStrategyError,
 )
-from ranksmith.parsing import parse_ranking_response, parse_selection_response
-from ranksmith.protocols import (
-    AsyncLLMProvider,
-    AsyncPairwiseLLMProvider,
-    AsyncProvider,
-    AsyncRerankStrategy,
-    AsyncSelectionLLMProvider,
-    LLMProvider,
-    PairwiseLLMProvider,
-    Provider,
-    RerankStrategy,
-    SelectionLLMProvider,
+from ranksmith.model import (
+    AsyncModelClient,
+    AsyncModelProvider,
+    ModelClient,
+    ModelMessage,
+    ModelProvider,
+    ModelRequest,
+    ModelResponse,
 )
+from ranksmith.parsing import parse_ranking_response, parse_selection_response
+from ranksmith.protocols import AsyncRerankStrategy, RerankStrategy
 from ranksmith.strategies import (
     AsyncListwiseStrategy,
     AsyncPairwiseStrategy,
@@ -32,23 +40,31 @@ from ranksmith.strategies import (
 from ranksmith.types import Document, RerankResult, RerankUsage
 
 __all__ = [
+    "AnthropicProvider",
+    "AsyncAnthropicProvider",
+    "AsyncAzureAOAIProvider",
     "AsyncAzureOpenAIReranker",
-    "AsyncLLMProvider",
+    "AsyncGeminiProvider",
     "AsyncListwiseStrategy",
-    "AsyncPairwiseLLMProvider",
+    "AsyncModelClient",
+    "AsyncModelProvider",
+    "AsyncOpenAIProvider",
     "AsyncPairwiseStrategy",
-    "AsyncProvider",
     "AsyncRerankStrategy",
-    "AsyncSelectionLLMProvider",
     "AsyncTourRankStrategy",
+    "AzureAOAIProvider",
     "AzureOpenAIReranker",
     "Document",
     "DocumentTooLongError",
-    "LLMProvider",
+    "GeminiProvider",
     "ListwiseStrategy",
-    "PairwiseLLMProvider",
+    "ModelClient",
+    "ModelMessage",
+    "ModelProvider",
+    "ModelRequest",
+    "ModelResponse",
+    "OpenAIProvider",
     "PairwiseStrategy",
-    "Provider",
     "RerankError",
     "RerankInputError",
     "RerankParseError",
@@ -57,7 +73,6 @@ __all__ = [
     "RerankStrategy",
     "RerankStrategyError",
     "RerankUsage",
-    "SelectionLLMProvider",
     "TourRankStageConfig",
     "TourRankStrategy",
     "parse_ranking_response",

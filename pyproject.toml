@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ranksmith"
-version = "0.3.2"
+version = "0.4.0"
 description = "Forge better rankings from candidate documents with LLM reranking."
 readme = "README.md"
 requires-python = ">=3.10"

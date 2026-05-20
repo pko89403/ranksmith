@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from typing import Any, cast
 
 from openai import AsyncAzureOpenAI, AzureOpenAI
 
 from ranksmith.errors import RerankProviderError
-from ranksmith.types import Document, RerankUsage
-
-UsageCallback = Callable[[RerankUsage], None]
-AsyncUsageCallback = Callable[[RerankUsage], Awaitable[None] | None]
+from ranksmith.model import ModelRequest, ModelResponse
+from ranksmith.types import RerankUsage
 
 
-class AzureOpenAIProvider:
+class AzureAOAIProvider:
     def __init__(
         self,
         *,
@@ -20,7 +18,6 @@ class AzureOpenAIProvider:
         azure_deployment: str,
         api_version: str,
         timeout: float | None = None,
-        on_usage: UsageCallback | None = None,
     ) -> None:
         self._azure_deployment = azure_deployment
         self._client = AzureOpenAI(
@@ -29,102 +26,25 @@ class AzureOpenAIProvider:
             api_version=api_version,
             timeout=timeout,
         )
-        self._on_usage = on_usage
 
-    def rank(self, query: str, documents: list[Document]) -> str:
+    def complete(self, request: ModelRequest) -> ModelResponse:
         try:
             response = self._client.chat.completions.create(
                 model=self._azure_deployment,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are a reranking engine. Return only JSON with "
-                            'a "ranking" array. The ranking must be a permutation '
-                            "of the candidate numbers."
-                        ),
-                    },
-                    {"role": "user", "content": _build_prompt(query, documents)},
-                ],
-                response_format={"type": "json_object"},
-                temperature=0,
+                messages=_to_openai_messages(request),
+                response_format=cast(Any, {"type": request.response_format}),
+                temperature=request.temperature,
             )
         except Exception as exc:
             raise RerankProviderError(str(exc)) from exc
 
-        _emit_usage(response, self._on_usage)
         content = response.choices[0].message.content
-        if content is None:
+        if content is None or content == "":
             raise RerankProviderError("Azure OpenAI returned an empty response.")
-        return content
-
-    def compare(
-        self,
-        query: str,
-        document_a: Document,
-        document_b: Document,
-    ) -> str:
-        try:
-            response = self._client.chat.completions.create(
-                model=self._azure_deployment,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are a pairwise reranking engine. Return only JSON "
-                            'with a "winner" value of "A" or "B".'
-                        ),
-                    },
-                    {
-                        "role": "user",
-                        "content": _build_pairwise_prompt(
-                            query, document_a, document_b
-                        ),
-                    },
-                ],
-                response_format={"type": "json_object"},
-                temperature=0,
-            )
-        except Exception as exc:
-            raise RerankProviderError(str(exc)) from exc
-
-        _emit_usage(response, self._on_usage)
-        content = response.choices[0].message.content
-        if content is None:
-            raise RerankProviderError("Azure OpenAI returned an empty response.")
-        return content
-
-    def select(self, query: str, documents: list[Document], top_m: int) -> str:
-        try:
-            response = self._client.chat.completions.create(
-                model=self._azure_deployment,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are a tournament reranking engine. Return only JSON "
-                            'with a "selected" array of candidate numbers.'
-                        ),
-                    },
-                    {
-                        "role": "user",
-                        "content": _build_selection_prompt(query, documents, top_m),
-                    },
-                ],
-                response_format={"type": "json_object"},
-                temperature=0,
-            )
-        except Exception as exc:
-            raise RerankProviderError(str(exc)) from exc
-
-        _emit_usage(response, self._on_usage)
-        content = response.choices[0].message.content
-        if content is None:
-            raise RerankProviderError("Azure OpenAI returned an empty response.")
-        return content
+        return ModelResponse(content=content, usage=_extract_usage(response))
 
 
-class AsyncAzureOpenAIProvider:
+class AsyncAzureAOAIProvider:
     def __init__(
         self,
         *,
@@ -133,7 +53,6 @@ class AsyncAzureOpenAIProvider:
         azure_deployment: str,
         api_version: str,
         timeout: float | None = None,
-        on_usage: AsyncUsageCallback | None = None,
     ) -> None:
         self._azure_deployment = azure_deployment
         self._client = AsyncAzureOpenAI(
@@ -142,99 +61,58 @@ class AsyncAzureOpenAIProvider:
             api_version=api_version,
             timeout=timeout,
         )
-        self._on_usage = on_usage
 
-    async def rank(self, query: str, documents: list[Document]) -> str:
+    async def complete(self, request: ModelRequest) -> ModelResponse:
         try:
             response = await self._client.chat.completions.create(
                 model=self._azure_deployment,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are a reranking engine. Return only JSON with "
-                            'a "ranking" array. The ranking must be a permutation '
-                            "of the candidate numbers."
-                        ),
-                    },
-                    {"role": "user", "content": _build_prompt(query, documents)},
-                ],
-                response_format={"type": "json_object"},
-                temperature=0,
+                messages=_to_openai_messages(request),
+                response_format=cast(Any, {"type": request.response_format}),
+                temperature=request.temperature,
             )
         except Exception as exc:
             raise RerankProviderError(str(exc)) from exc
 
-        await _emit_usage_async(response, self._on_usage)
         content = response.choices[0].message.content
-        if content is None:
+        if content is None or content == "":
             raise RerankProviderError("Azure OpenAI returned an empty response.")
-        return content
+        return ModelResponse(content=content, usage=_extract_usage(response))
 
-    async def compare(
-        self,
-        query: str,
-        document_a: Document,
-        document_b: Document,
-    ) -> str:
-        try:
-            response = await self._client.chat.completions.create(
-                model=self._azure_deployment,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are a pairwise reranking engine. Return only JSON "
-                            'with a "winner" value of "A" or "B".'
-                        ),
-                    },
-                    {
-                        "role": "user",
-                        "content": _build_pairwise_prompt(
-                            query, document_a, document_b
-                        ),
-                    },
-                ],
-                response_format={"type": "json_object"},
-                temperature=0,
-            )
-        except Exception as exc:
-            raise RerankProviderError(str(exc)) from exc
 
-        await _emit_usage_async(response, self._on_usage)
-        content = response.choices[0].message.content
-        if content is None:
-            raise RerankProviderError("Azure OpenAI returned an empty response.")
-        return content
+class OpenAIProvider:
+    def complete(self, request: ModelRequest) -> ModelResponse:
+        del request
+        raise RerankProviderError("OpenAI provider is not implemented yet.")
 
-    async def select(self, query: str, documents: list[Document], top_m: int) -> str:
-        try:
-            response = await self._client.chat.completions.create(
-                model=self._azure_deployment,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are a tournament reranking engine. Return only JSON "
-                            'with a "selected" array of candidate numbers.'
-                        ),
-                    },
-                    {
-                        "role": "user",
-                        "content": _build_selection_prompt(query, documents, top_m),
-                    },
-                ],
-                response_format={"type": "json_object"},
-                temperature=0,
-            )
-        except Exception as exc:
-            raise RerankProviderError(str(exc)) from exc
 
-        await _emit_usage_async(response, self._on_usage)
-        content = response.choices[0].message.content
-        if content is None:
-            raise RerankProviderError("Azure OpenAI returned an empty response.")
-        return content
+class AsyncOpenAIProvider:
+    async def complete(self, request: ModelRequest) -> ModelResponse:
+        del request
+        raise RerankProviderError("OpenAI provider is not implemented yet.")
+
+
+class AnthropicProvider:
+    def complete(self, request: ModelRequest) -> ModelResponse:
+        del request
+        raise RerankProviderError("Anthropic provider is not implemented yet.")
+
+
+class AsyncAnthropicProvider:
+    async def complete(self, request: ModelRequest) -> ModelResponse:
+        del request
+        raise RerankProviderError("Anthropic provider is not implemented yet.")
+
+
+class GeminiProvider:
+    def complete(self, request: ModelRequest) -> ModelResponse:
+        del request
+        raise RerankProviderError("Gemini provider is not implemented yet.")
+
+
+class AsyncGeminiProvider:
+    async def complete(self, request: ModelRequest) -> ModelResponse:
+        del request
+        raise RerankProviderError("Gemini provider is not implemented yet.")
 
 
 def _extract_usage(response: object) -> RerankUsage | None:
@@ -248,80 +126,8 @@ def _extract_usage(response: object) -> RerankUsage | None:
     )
 
 
-def _emit_usage(response: object, callback: UsageCallback | None) -> None:
-    if callback is None:
-        return
-    usage = _extract_usage(response)
-    if usage is not None:
-        callback(usage)
-
-
-async def _emit_usage_async(
-    response: object, callback: AsyncUsageCallback | None
-) -> None:
-    if callback is None:
-        return
-    usage = _extract_usage(response)
-    if usage is None:
-        return
-    result = callback(usage)
-    if isinstance(result, Awaitable):
-        await result
-
-
-def _build_prompt(query: str, documents: list[Document]) -> str:
-    candidates = "\n\n".join(
-        [
-            f"[{index}]\n{document.text}"
-            for index, document in enumerate(documents, start=1)
-        ]
-    )
-    return (
-        "Rank the candidate documents by relevance to the query.\n\n"
-        f"Query:\n{query}\n\n"
-        f"Candidate documents:\n{candidates}\n\n"
-        "Return JSON exactly like this shape:\n"
-        '{"ranking": [1, 2, 3]}\n'
-        "Use each candidate number exactly once."
-    )
-
-
-def _build_pairwise_prompt(
-    query: str,
-    document_a: Document,
-    document_b: Document,
-) -> str:
-    return (
-        "Given a query, choose which passage is more relevant to the query.\n\n"
-        f"Query:\n{query}\n\n"
-        f"Passage A:\n{document_a.text}\n\n"
-        f"Passage B:\n{document_b.text}\n\n"
-        "Return JSON exactly like this shape:\n"
-        '{"winner": "A"}\n\n'
-        'Use "A" if Passage A is more relevant. '
-        'Use "B" if Passage B is more relevant.'
-    )
-
-
-def _build_selection_prompt(
-    query: str,
-    documents: list[Document],
-    top_m: int,
-) -> str:
-    example = ", ".join(str(index) for index in range(1, top_m + 1))
-    candidates = "\n\n".join(
-        [
-            f"[{index}]\n{document.text}"
-            for index, document in enumerate(documents, start=1)
-        ]
-    )
-    return (
-        "Given a query and candidate documents, select the most relevant "
-        f"{top_m} candidate documents.\n\n"
-        f"Query:\n{query}\n\n"
-        f"Candidate documents:\n{candidates}\n\n"
-        "Return JSON exactly like this shape:\n"
-        f'{{"selected": [{example}]}}\n'
-        f"Return exactly {top_m} candidate numbers, without duplicates. "
-        "Do not include any explanation."
-    )
+def _to_openai_messages(request: ModelRequest) -> Any:
+    return [
+        {"role": message.role, "content": message.content}
+        for message in request.messages
+    ]

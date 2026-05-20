@@ -3,7 +3,7 @@
 ## D001 Package 이름
 Decision: `ranksmith`
 
-Status: accepted
+Status: superseded by D011
 
 Reason: 기억하기 쉽고 ranking과 관련 있으며, 프로젝트 시작 시점에 사용 가능했다.
 
@@ -56,16 +56,23 @@ Status: accepted
 
 Reason: PRP는 listwise permutation이 아니라 pairwise comparison을 비교 단위로 사용하므로, `ListwiseStrategy`에 억지로 넣으면 provider 계약과 알고리즘 의미가 흐려진다.
 
-## D009 Pairwise provider contract
-Decision: keep `LLMProvider.rank()` for listwise ranking and add pairwise `compare()`.
+## D009 Pairwise comparison semantics
+Decision: keep listwise `rank()` semantics and add pairwise `compare()` semantics.
+
+Status: superseded by D011
+
+Reason: 기존 JSON permutation 계약을 유지하면서 PRP의 binary choice prompt와 strict winner parsing을 분리한다. 현재 구조에서는 이 도메인 계약을 `ModelClient`가 소유한다.
+
+## D010 TourRank selection semantics
+Decision: add selection `select()` semantics and implement TourRank as a separate Strategy.
+
+Status: superseded by D011
+
+Reason: TourRank는 전체 permutation이나 pairwise winner가 아니라 group 안의 top-m selected indexes를 필요로 하므로, 기존 listwise/pairwise 계약에 끼워 넣으면 비교 단위와 오류 정책이 흐려진다. 현재 구조에서는 이 도메인 계약을 `ModelClient`가 소유한다.
+
+## D011 ModelClient / ModelProvider 경계
+Decision: replace the old `LLMProvider` family with `ModelClient` and `ModelProvider`.
 
 Status: accepted
 
-Reason: 기존 JSON permutation 계약을 유지하면서 PRP의 binary choice prompt와 strict winner parsing을 분리한다.
-
-## D010 TourRank provider contract
-Decision: add selection `select()` provider contract and implement TourRank as a separate Strategy.
-
-Status: accepted
-
-Reason: TourRank는 전체 permutation이나 pairwise winner가 아니라 group 안의 top-m selected indexes를 필요로 하므로, 기존 listwise/pairwise 계약에 끼워 넣으면 비교 단위와 오류 정책이 흐려진다.
+Reason: Strategy는 ranksmith 도메인 메서드(`rank`, `compare`, `select`)만 알아야 하고, vendor별 SDK 호출 차이는 `ModelProvider.complete()` adapter에 격리해야 한다.

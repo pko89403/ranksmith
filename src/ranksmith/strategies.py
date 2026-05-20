@@ -9,17 +9,8 @@ from dataclasses import dataclass, field
 from typing import Literal, cast
 
 from ranksmith.errors import DocumentTooLongError, RerankInputError, RerankParseError
+from ranksmith.model import AsyncModelClient, ModelClient
 from ranksmith.parsing import parse_ranking_response, parse_selection_response
-from ranksmith.protocols import (
-    AsyncLLMProvider,
-    AsyncPairwiseLLMProvider,
-    AsyncProvider,
-    AsyncSelectionLLMProvider,
-    LLMProvider,
-    PairwiseLLMProvider,
-    Provider,
-    SelectionLLMProvider,
-)
 from ranksmith.types import Document, RerankResult
 
 Algorithm = Literal["rankgpt_sliding_window"]
@@ -98,19 +89,19 @@ class ListwiseStrategy(_ListwiseConfigMixin):
         *,
         query: str,
         documents: Sequence[Document],
-        provider: Provider,
+        model_client: ModelClient,
         top_k: int | None = None,
     ) -> list[RerankResult]:
         self._validate_documents(documents)
         if not documents:
             return []
 
-        provider = _ensure_listwise_provider(provider)
+        model_client = _ensure_listwise_provider(model_client)
         if len(documents) <= self.window_size:
-            ordered_indexes = self._rank_window(query, documents, provider)
+            ordered_indexes = self._rank_window(query, documents, model_client)
         else:
             ordered_indexes = self._rank_rankgpt_sliding_windows(
-                query, documents, provider
+                query, documents, model_client
             )
 
         results = [
@@ -132,9 +123,9 @@ class ListwiseStrategy(_ListwiseConfigMixin):
         self,
         query: str,
         documents: Sequence[Document],
-        provider: LLMProvider,
+        model_client: ModelClient,
     ) -> list[int]:
-        raw_response = provider.rank(query, list(documents))
+        raw_response = model_client.rank(query, list(documents))
         ranking = parse_ranking_response(raw_response, expected_count=len(documents))
         return [number - 1 for number in ranking]
 
@@ -142,7 +133,7 @@ class ListwiseStrategy(_ListwiseConfigMixin):
         self,
         query: str,
         documents: Sequence[Document],
-        provider: LLMProvider,
+        model_client: ModelClient,
     ) -> list[int]:
         document_count = len(documents)
         current_order = list(range(document_count))
@@ -154,7 +145,7 @@ class ListwiseStrategy(_ListwiseConfigMixin):
             window_indices = current_order[start_pos : start_pos + self.window_size]
             window_documents = [documents[i] for i in window_indices]
 
-            raw_response = provider.rank(query, window_documents)
+            raw_response = model_client.rank(query, window_documents)
             ranking = parse_ranking_response(
                 raw_response,
                 expected_count=len(window_documents),
@@ -205,15 +196,15 @@ class PairwiseStrategy(_PairwiseConfigMixin):
         *,
         query: str,
         documents: Sequence[Document],
-        provider: Provider,
+        model_client: ModelClient,
         top_k: int | None = None,
     ) -> list[RerankResult]:
         self._validate_documents(documents)
         if not documents:
             return []
 
-        provider = _ensure_pairwise_provider(provider)
-        ordered_indexes = self._rank_prp_sliding_k(query, documents, provider)
+        model_client = _ensure_pairwise_provider(model_client)
+        ordered_indexes = self._rank_prp_sliding_k(query, documents, model_client)
 
         results = [
             RerankResult(
@@ -234,7 +225,7 @@ class PairwiseStrategy(_PairwiseConfigMixin):
         self,
         query: str,
         documents: Sequence[Document],
-        provider: PairwiseLLMProvider,
+        model_client: ModelClient,
     ) -> list[int]:
         current_order = list(range(len(documents)))
 
@@ -245,14 +236,14 @@ class PairwiseStrategy(_PairwiseConfigMixin):
                 right_index = current_order[right_pos]
 
                 first = _parse_pairwise_winner(
-                    provider.compare(
+                    model_client.compare(
                         query,
                         documents[left_index],
                         documents[right_index],
                     )
                 )
                 second = _parse_pairwise_winner(
-                    provider.compare(
+                    model_client.compare(
                         query,
                         documents[right_index],
                         documents[left_index],
@@ -388,7 +379,7 @@ class TourRankStrategy(_TourRankConfigMixin):
         *,
         query: str,
         documents: Sequence[Document],
-        provider: Provider,
+        model_client: ModelClient,
         top_k: int | None = None,
     ) -> list[RerankResult]:
         self._validate_documents(documents)
@@ -396,7 +387,7 @@ class TourRankStrategy(_TourRankConfigMixin):
             return []
         self._validate_stage_pipeline(len(documents))
 
-        provider = _ensure_selection_provider(provider)
+        model_client = _ensure_selection_provider(model_client)
         scores = [0 for _ in documents]
         for round_index in range(self.rounds):
             current_order = list(range(len(documents)))
@@ -404,7 +395,7 @@ class TourRankStrategy(_TourRankConfigMixin):
                 current_order = self._run_selection_stage(
                     query=query,
                     documents=documents,
-                    provider=provider,
+                    model_client=model_client,
                     current_order=current_order,
                     stage=stage,
                     round_index=round_index,
@@ -418,7 +409,7 @@ class TourRankStrategy(_TourRankConfigMixin):
         *,
         query: str,
         documents: Sequence[Document],
-        provider: SelectionLLMProvider,
+        model_client: ModelClient,
         current_order: Sequence[int],
         stage: TourRankStageConfig,
         round_index: int,
@@ -437,7 +428,7 @@ class TourRankStrategy(_TourRankConfigMixin):
                 selected_indexes = self._select_group(
                     query=query,
                     documents=documents,
-                    provider=provider,
+                    model_client=model_client,
                     group=group,
                     selected_count=stage.selected_count,
                 )
@@ -451,7 +442,7 @@ class TourRankStrategy(_TourRankConfigMixin):
                 lambda group: self._select_group(
                     query=query,
                     documents=documents,
-                    provider=provider,
+                    model_client=model_client,
                     group=group,
                     selected_count=stage.selected_count,
                 ),
@@ -468,12 +459,12 @@ class TourRankStrategy(_TourRankConfigMixin):
         *,
         query: str,
         documents: Sequence[Document],
-        provider: SelectionLLMProvider,
+        model_client: ModelClient,
         group: Sequence[int],
         selected_count: int,
     ) -> list[int]:
         group_documents = [documents[index] for index in group]
-        raw_response = provider.select(query, group_documents, selected_count)
+        raw_response = model_client.select(query, group_documents, selected_count)
         selected = parse_selection_response(
             raw_response,
             expected_count=len(group_documents),
@@ -489,19 +480,19 @@ class AsyncListwiseStrategy(_ListwiseConfigMixin):
         *,
         query: str,
         documents: Sequence[Document],
-        provider: AsyncProvider,
+        model_client: AsyncModelClient,
         top_k: int | None = None,
     ) -> list[RerankResult]:
         self._validate_documents(documents)
         if not documents:
             return []
 
-        provider = _ensure_async_listwise_provider(provider)
+        model_client = _ensure_async_listwise_provider(model_client)
         if len(documents) <= self.window_size:
-            ordered_indexes = await self._rank_window(query, documents, provider)
+            ordered_indexes = await self._rank_window(query, documents, model_client)
         else:
             ordered_indexes = await self._rank_rankgpt_sliding_windows(
-                query, documents, provider
+                query, documents, model_client
             )
 
         results = [
@@ -523,9 +514,9 @@ class AsyncListwiseStrategy(_ListwiseConfigMixin):
         self,
         query: str,
         documents: Sequence[Document],
-        provider: AsyncLLMProvider,
+        model_client: AsyncModelClient,
     ) -> list[int]:
-        raw_response = await provider.rank(query, list(documents))
+        raw_response = await model_client.rank(query, list(documents))
         ranking = parse_ranking_response(raw_response, expected_count=len(documents))
         return [number - 1 for number in ranking]
 
@@ -533,7 +524,7 @@ class AsyncListwiseStrategy(_ListwiseConfigMixin):
         self,
         query: str,
         documents: Sequence[Document],
-        provider: AsyncLLMProvider,
+        model_client: AsyncModelClient,
     ) -> list[int]:
         document_count = len(documents)
         current_order = list(range(document_count))
@@ -545,7 +536,7 @@ class AsyncListwiseStrategy(_ListwiseConfigMixin):
             window_indices = current_order[start_pos : start_pos + self.window_size]
             window_documents = [documents[i] for i in window_indices]
 
-            raw_response = await provider.rank(query, window_documents)
+            raw_response = await model_client.rank(query, window_documents)
             ranking = parse_ranking_response(
                 raw_response,
                 expected_count=len(window_documents),
@@ -576,15 +567,15 @@ class AsyncPairwiseStrategy(_PairwiseConfigMixin):
         *,
         query: str,
         documents: Sequence[Document],
-        provider: AsyncProvider,
+        model_client: AsyncModelClient,
         top_k: int | None = None,
     ) -> list[RerankResult]:
         self._validate_documents(documents)
         if not documents:
             return []
 
-        provider = _ensure_async_pairwise_provider(provider)
-        ordered_indexes = await self._rank_prp_sliding_k(query, documents, provider)
+        model_client = _ensure_async_pairwise_provider(model_client)
+        ordered_indexes = await self._rank_prp_sliding_k(query, documents, model_client)
 
         results = [
             RerankResult(
@@ -605,7 +596,7 @@ class AsyncPairwiseStrategy(_PairwiseConfigMixin):
         self,
         query: str,
         documents: Sequence[Document],
-        provider: AsyncPairwiseLLMProvider,
+        model_client: AsyncModelClient,
     ) -> list[int]:
         current_order = list(range(len(documents)))
 
@@ -618,7 +609,7 @@ class AsyncPairwiseStrategy(_PairwiseConfigMixin):
                 first_raw, second_raw = await self._compare_pair_orders(
                     query=query,
                     documents=documents,
-                    provider=provider,
+                    model_client=model_client,
                     left_index=left_index,
                     right_index=right_index,
                 )
@@ -641,17 +632,17 @@ class AsyncPairwiseStrategy(_PairwiseConfigMixin):
         *,
         query: str,
         documents: Sequence[Document],
-        provider: AsyncPairwiseLLMProvider,
+        model_client: AsyncModelClient,
         left_index: int,
         right_index: int,
     ) -> tuple[str, str]:
         if self.pair_order_parallelism == 1:
-            first_raw = await provider.compare(
+            first_raw = await model_client.compare(
                 query,
                 documents[left_index],
                 documents[right_index],
             )
-            second_raw = await provider.compare(
+            second_raw = await model_client.compare(
                 query,
                 documents[right_index],
                 documents[left_index],
@@ -659,12 +650,12 @@ class AsyncPairwiseStrategy(_PairwiseConfigMixin):
             return first_raw, second_raw
 
         return await asyncio.gather(
-            provider.compare(
+            model_client.compare(
                 query,
                 documents[left_index],
                 documents[right_index],
             ),
-            provider.compare(
+            model_client.compare(
                 query,
                 documents[right_index],
                 documents[left_index],
@@ -679,7 +670,7 @@ class AsyncTourRankStrategy(_TourRankConfigMixin):
         *,
         query: str,
         documents: Sequence[Document],
-        provider: AsyncProvider,
+        model_client: AsyncModelClient,
         top_k: int | None = None,
     ) -> list[RerankResult]:
         self._validate_documents(documents)
@@ -687,7 +678,7 @@ class AsyncTourRankStrategy(_TourRankConfigMixin):
             return []
         self._validate_stage_pipeline(len(documents))
 
-        provider = _ensure_async_selection_provider(provider)
+        model_client = _ensure_async_selection_provider(model_client)
         scores = [0 for _ in documents]
         for round_index in range(self.rounds):
             current_order = list(range(len(documents)))
@@ -695,7 +686,7 @@ class AsyncTourRankStrategy(_TourRankConfigMixin):
                 current_order = await self._run_selection_stage(
                     query=query,
                     documents=documents,
-                    provider=provider,
+                    model_client=model_client,
                     current_order=current_order,
                     stage=stage,
                     round_index=round_index,
@@ -709,7 +700,7 @@ class AsyncTourRankStrategy(_TourRankConfigMixin):
         *,
         query: str,
         documents: Sequence[Document],
-        provider: AsyncSelectionLLMProvider,
+        model_client: AsyncModelClient,
         current_order: Sequence[int],
         stage: TourRankStageConfig,
         round_index: int,
@@ -732,7 +723,7 @@ class AsyncTourRankStrategy(_TourRankConfigMixin):
                 self._select_group(
                     query,
                     documents,
-                    provider,
+                    model_client,
                     group,
                     stage.selected_count,
                     semaphore,
@@ -757,16 +748,16 @@ class AsyncTourRankStrategy(_TourRankConfigMixin):
         self,
         query: str,
         documents: Sequence[Document],
-        provider: AsyncSelectionLLMProvider,
+        model_client: AsyncModelClient,
         group: Sequence[int],
         selected_count: int,
         semaphore: asyncio.Semaphore | None,
     ) -> str:
         group_documents = [documents[index] for index in group]
         if semaphore is None:
-            return await provider.select(query, group_documents, selected_count)
+            return await model_client.select(query, group_documents, selected_count)
         async with semaphore:
-            return await provider.select(query, group_documents, selected_count)
+            return await model_client.select(query, group_documents, selected_count)
 
 
 def _parse_pairwise_winner(raw_response: str) -> Literal["A", "B"]:
@@ -784,47 +775,47 @@ def _parse_pairwise_winner(raw_response: str) -> Literal["A", "B"]:
     return cast(Literal["A", "B"], winner)
 
 
-def _ensure_listwise_provider(provider: object) -> LLMProvider:
+def _ensure_listwise_provider(provider: object) -> ModelClient:
     rank = getattr(provider, "rank", None)
     if not callable(rank):
         raise RerankInputError("provider must support listwise rank()")
-    return cast(LLMProvider, provider)
+    return cast(ModelClient, provider)
 
 
-def _ensure_async_listwise_provider(provider: object) -> AsyncLLMProvider:
+def _ensure_async_listwise_provider(provider: object) -> AsyncModelClient:
     rank = getattr(provider, "rank", None)
     if not callable(rank):
         raise RerankInputError("provider must support listwise rank()")
-    return cast(AsyncLLMProvider, provider)
+    return cast(AsyncModelClient, provider)
 
 
-def _ensure_pairwise_provider(provider: object) -> PairwiseLLMProvider:
+def _ensure_pairwise_provider(provider: object) -> ModelClient:
     compare = getattr(provider, "compare", None)
     if not callable(compare):
         raise RerankInputError("provider must support pairwise compare()")
-    return cast(PairwiseLLMProvider, provider)
+    return cast(ModelClient, provider)
 
 
-def _ensure_selection_provider(provider: object) -> SelectionLLMProvider:
+def _ensure_selection_provider(provider: object) -> ModelClient:
     select = getattr(provider, "select", None)
     if not callable(select):
         raise RerankInputError("provider must support selection select()")
-    return cast(SelectionLLMProvider, provider)
+    return cast(ModelClient, provider)
 
 
 def _ensure_async_pairwise_provider(
     provider: object,
-) -> AsyncPairwiseLLMProvider:
+) -> AsyncModelClient:
     compare = getattr(provider, "compare", None)
     if not callable(compare):
         raise RerankInputError("provider must support pairwise compare()")
-    return cast(AsyncPairwiseLLMProvider, provider)
+    return cast(AsyncModelClient, provider)
 
 
 def _ensure_async_selection_provider(
     provider: object,
-) -> AsyncSelectionLLMProvider:
+) -> AsyncModelClient:
     select = getattr(provider, "select", None)
     if not callable(select):
         raise RerankInputError("provider must support selection select()")
-    return cast(AsyncSelectionLLMProvider, provider)
+    return cast(AsyncModelClient, provider)
