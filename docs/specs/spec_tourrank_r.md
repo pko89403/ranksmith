@@ -11,6 +11,7 @@
 - **제약 사항**:
   - 기존 `ListwiseStrategy` / `PairwiseStrategy` 동작을 바꾸지 않는다.
   - 기본 `rounds=2`, 기본 stage는 논문 top-100 설정이다.
+  - 품질 중심 평가와 논문식 재현은 `rounds=10`을 명시하도록 문서에서 강하게 안내한다.
   - sync `TourRankStrategy`는 기본 `group_parallelism=1`로 직렬 실행한다.
   - sync `TourRankStrategy.group_parallelism`은 양의 정수만 허용한다.
   - async `AsyncTourRankStrategy`는 기본 `group_parallelism=None`으로 stage 내 group을 병렬 실행한다.

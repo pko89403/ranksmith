@@ -74,7 +74,9 @@ points.
 
 - **`tourrank_r` Algorithm**
   - Default `rounds=2` for a practical cost/performance trade-off.
-  - Use `rounds=10` when you want the paper's higher-quality setting.
+  - Prefer `rounds=10` for quality-focused evaluation, paper-style
+    reproduction, or final offline reranking when the extra LLM calls are
+    acceptable.
   - Default stages assume exactly 100 candidate documents:
     `100 -> 50 -> 20 -> 10 -> 5 -> 2`.
   - For other candidate counts, pass explicit `stage_configs`; ranksmith fast
@@ -138,6 +140,17 @@ reranker = AzureOpenAIReranker(
     azure_endpoint="https://example.openai.azure.com",
     azure_deployment="gpt-4o-mini",
     strategy=TourRankStrategy(rounds=2, group_parallelism=1),
+)
+```
+
+For quality-focused runs, explicitly switch to TourRank-10:
+
+```python
+reranker = AzureOpenAIReranker(
+    api_key="...",
+    azure_endpoint="https://example.openai.azure.com",
+    azure_deployment="gpt-4o-mini",
+    strategy=TourRankStrategy(rounds=10),
 )
 ```
 
@@ -338,7 +351,8 @@ selected algorithms, `window_size`, `stride`, `passes`, and candidate count per 
 - `tourrank_r`: `tourrank_rounds * sum(stage.group_count)` selection LLM
   calls per query. The runner uses the paper top-100 stages for exactly 100
   candidates, and an explicit single-group halving stage plan for other
-  candidate counts.
+  candidate counts. With the paper top-100 stages, TourRank-2 uses 26 calls
+  per query and TourRank-10 uses 130 calls per query.
 
 The runner does **not** create first-stage candidates, embeddings, or
 communities. If your candidate TSV is produced by an upstream retrieval or

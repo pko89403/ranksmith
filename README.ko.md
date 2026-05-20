@@ -73,7 +73,8 @@ top-`m` 문서를 선택합니다. 선택된 문서는 다음 stage로 진출하
 
 - **`tourrank_r` 알고리즘**
   - 기본값은 비용과 품질 균형을 위한 `rounds=2`입니다.
-  - 논문식 고품질 설정이 필요하면 `rounds=10`을 명시합니다.
+  - 품질 중심 평가, 논문식 재현, 최종 offline reranking처럼 추가 LLM 호출을
+    감수할 수 있는 경우에는 `rounds=10`을 우선 권장합니다.
   - 기본 stage는 정확히 100개 후보 문서를 가정합니다:
     `100 -> 50 -> 20 -> 10 -> 5 -> 2`.
   - 다른 후보 수에서는 `stage_configs`를 명시해야 하며, ranksmith는 자동 보정이나 조용한 truncation을 하지 않습니다.
@@ -133,6 +134,17 @@ reranker = AzureOpenAIReranker(
     azure_endpoint="https://example.openai.azure.com",
     azure_deployment="gpt-4o-mini",
     strategy=TourRankStrategy(rounds=2, group_parallelism=1),
+)
+```
+
+품질 중심 실행에서는 TourRank-10을 명시합니다.
+
+```python
+reranker = AzureOpenAIReranker(
+    api_key="...",
+    azure_endpoint="https://example.openai.azure.com",
+    azure_deployment="gpt-4o-mini",
+    strategy=TourRankStrategy(rounds=10),
 )
 ```
 
@@ -288,7 +300,9 @@ results = await reranker.rerank("query", documents)
 - `prp_sliding_k`: query마다 `2 * passes * max(document_count - 1, 0)` pairwise LLM 호출
 - `tourrank_r`: query마다 `tourrank_rounds * sum(stage.group_count)` selection
   LLM 호출. 후보가 정확히 100개이면 논문 top-100 stage를 쓰고, 그 외 후보
-  수에는 명시적인 single-group halving stage를 생성해 실행합니다.
+  수에는 명시적인 single-group halving stage를 생성해 실행합니다. 논문
+  top-100 stage 기준 TourRank-2는 query당 26회, TourRank-10은 query당
+  130회 호출합니다.
 
 비교 스크립트는 first-stage candidate, embedding, community를 생성하지
 않습니다. candidate TSV를 embedding retrieval이나 community-building
