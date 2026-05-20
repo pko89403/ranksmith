@@ -4,7 +4,8 @@
 LLM 기반 reranking을 위한 작고 신뢰성 있는 Python 패키지를 만든다.
 
 ## 현재 범위
-- Azure OpenAI provider만 지원한다.
+- Azure OpenAI provider만 실제 호출을 지원한다.
+- OpenAI, Anthropic, Gemini provider는 향후 구현을 위한 public stub만 제공한다.
 - Zero-shot listwise reranking과 pairwise PRP reranking을 지원한다.
 - `rankgpt_sliding_window`, `prp_sliding_k`, `tourrank_r` algorithm을 지원한다.
 - indexing은 하지 않는다.
@@ -20,9 +21,27 @@ LLM 기반 reranking을 위한 작고 신뢰성 있는 Python 패키지를 만�
 
 ## Public API
 - `AzureOpenAIReranker`
+- `AsyncAzureOpenAIReranker`
+- `AzureAOAIProvider`
+- `AsyncAzureAOAIProvider`
+- `OpenAIProvider`
+- `AsyncOpenAIProvider`
+- `AnthropicProvider`
+- `AsyncAnthropicProvider`
+- `GeminiProvider`
+- `AsyncGeminiProvider`
+- `ModelClient`
+- `AsyncModelClient`
+- `ModelProvider`
+- `AsyncModelProvider`
+- `ModelMessage`
+- `ModelRequest`
+- `ModelResponse`
 - `Document`
 - `RerankResult`
 - `ListwiseStrategy`
+- `PairwiseStrategy`
+- `TourRankStrategy`
 - `RerankError`
 - `RerankInputError`
 - `RerankParseError`

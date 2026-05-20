@@ -48,7 +48,7 @@ def test_reranks_string_documents_and_preserves_original_indexes() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
     )
 
     results = reranker.rerank("query", ["alpha", "beta", "gamma"])
@@ -64,7 +64,7 @@ def test_reranks_document_objects_and_preserves_metadata() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
     )
     documents = [
         Document(id="a", text="first", metadata={"source": "one"}),
@@ -96,7 +96,7 @@ def test_invalid_llm_ranking_fast_fails(response: str) -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
     )
 
     with pytest.raises(RerankParseError):
@@ -109,7 +109,7 @@ def test_long_document_fast_fails_without_truncating() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
         strategy=ListwiseStrategy(max_document_chars=3),
     )
 
@@ -142,7 +142,7 @@ def test_negative_top_k_is_input_error_not_provider_error() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
     )
 
     with pytest.raises(RerankInputError):
@@ -155,7 +155,7 @@ def test_provider_errors_are_wrapped() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
     )
 
     with pytest.raises(RerankProviderError) as error:
@@ -175,7 +175,7 @@ def test_rankgpt_sliding_window_bubbles_top_document_up() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
         strategy=ListwiseStrategy(
             algorithm="rankgpt_sliding_window", window_size=3, stride=2
         ),
@@ -212,7 +212,7 @@ def test_pairwise_prp_sliding_k_compares_from_bottom_and_swaps() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
         strategy=PairwiseStrategy(passes=1),
     )
 
@@ -235,7 +235,7 @@ def test_pairwise_prp_sliding_k_keeps_order_on_conflicting_preference() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
         strategy=PairwiseStrategy(passes=1),
     )
 
@@ -261,7 +261,7 @@ def test_pairwise_invalid_winner_fast_fails(response: str) -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
         strategy=PairwiseStrategy(passes=1),
     )
 
@@ -275,7 +275,7 @@ def test_pairwise_strategy_rejects_provider_without_compare() -> None:
         api_key="key",
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
-        provider=provider,
+        model_client=provider,
         strategy=PairwiseStrategy(passes=1),
     )
 

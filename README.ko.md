@@ -15,6 +15,7 @@ Azure OpenAI 기반 zero-shot reranking에 집중합니다.
 
 - listwise RankGPT, pairwise PRP, tournament 방식 TourRank-r built-in Strategy
 - 커스텀 reranking 메소드를 위한 public Strategy contract
+- vendor 독립 LLM 호출을 위한 `ModelClient` / `ModelProvider` 경계
 - 엄격한 JSON parsing과 fast-fail 오류 정책
 - sync/async Azure OpenAI reranker
 - 근거 artifact가 커밋된 재현 가능한 benchmark 요약
@@ -90,6 +91,19 @@ reranker = AzureOpenAIReranker(
 results = reranker.rerank("query", documents)
 ```
 
+Pairwise PRP도 같은 reranker facade에 다른 Strategy를 주입해서 사용합니다.
+
+```python
+from ranksmith import AzureOpenAIReranker, PairwiseStrategy
+
+reranker = AzureOpenAIReranker(
+    api_key="...",
+    azure_endpoint="https://example.openai.azure.com",
+    azure_deployment="gpt-4o-mini",
+    strategy=PairwiseStrategy(passes=3),
+)
+```
+
 TourRank-r도 같은 주입 지점을 사용합니다.
 
 ```python
@@ -120,7 +134,7 @@ reranker = AzureOpenAIReranker(
 
 커스텀 reranking 메소드는 `ListwiseStrategy.algorithm`에 새 문자열 값을 추가하는
 방식보다, 새 Strategy 클래스로 구현하는 방식을 권장합니다. Strategy는 정규화된
-`Document` 목록, provider, 선택적 `top_k`를 받아 `RerankResult` 목록을 반환합니다.
+`Document` 목록, model client, 선택적 `top_k`를 받아 `RerankResult` 목록을 반환합니다.
 
 ```python
 from collections.abc import Sequence
@@ -138,10 +152,10 @@ class LengthStrategy:
         *,
         query: str,
         documents: Sequence[Document],
-        provider: object,
+        model_client: object,
         top_k: int | None = None,
     ) -> list[RerankResult]:
-        del query, provider
+        del query, model_client
         ordered_indexes = sorted(
             range(len(documents)),
             key=lambda index: len(documents[index].text),
@@ -167,11 +181,48 @@ reranker = AzureOpenAIReranker(
 )
 ```
 
-provider-backed Strategy와 async Strategy도 같은 public contract를 따릅니다.
+model-backed Strategy와 async Strategy도 같은 public contract를 따릅니다.
 자세한 확장 가이드는
 [커스텀 Strategy 확장 가이드](https://github.com/pko89403/ranksmith/blob/main/docs/wiki/08_custom_strategy_extension.md)와
 [custom strategy 예제](https://github.com/pko89403/ranksmith/blob/main/examples/custom_strategy.py)를
 참고하세요.
+
+## Model Provider Architecture
+
+`ModelClient`는 ranksmith 도메인의 prompt와 `rank` / `compare` / `select`
+계약을 담당합니다. `ModelProvider`는 vendor별 JSON completion 호출만 담당합니다.
+
+| Layer | 책임 | Public methods |
+| --- | --- | --- |
+| `Strategy` | 최종 reranking 순서를 만든다. | `rerank(...)` |
+| `ModelClient` | ranksmith prompt 생성, ranking 도메인 계약, usage 전달을 담당한다. | `rank(...)`, `compare(...)`, `select(...)` |
+| `ModelProvider` | vendor SDK를 호출하고 JSON completion text를 반환한다. | `complete(...)` |
+
+```python
+from ranksmith import AzureAOAIProvider, ModelClient
+
+provider = AzureAOAIProvider(
+    api_key="...",
+    azure_endpoint="https://example.openai.azure.com",
+    azure_deployment="gpt-4o-mini",
+    api_version="2024-08-01-preview",
+)
+model_client = ModelClient(provider=provider)
+```
+
+같은 `ModelClient`는 모든 built-in Strategy에 사용할 수 있습니다.
+
+```python
+from ranksmith import AzureOpenAIReranker, PairwiseStrategy
+
+reranker = AzureOpenAIReranker(
+    model_client=model_client,
+    strategy=PairwiseStrategy(passes=3),
+)
+```
+
+`OpenAIProvider`, `AnthropicProvider`, `GeminiProvider`는 향후 SDK 구현을 위한
+public stub입니다. 호출하면 `RerankProviderError`로 fast fail 합니다.
 
 ## 비동기 지원 (Async Support)
 

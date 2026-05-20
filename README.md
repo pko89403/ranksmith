@@ -15,6 +15,7 @@ Highlights:
 
 - Built-in listwise RankGPT, pairwise PRP, and tournament-style TourRank-r strategies
 - Public strategy contracts for custom reranking methods
+- `ModelClient` / `ModelProvider` boundary for vendor-independent LLM calls
 - Strict JSON parsing and fast-fail error behavior
 - Sync and async Azure OpenAI rerankers
 - Reproducible benchmark summaries with committed evidence artifacts
@@ -91,6 +92,19 @@ reranker = AzureOpenAIReranker(
 results = reranker.rerank("query", documents)
 ```
 
+Pairwise PRP uses the same reranker facade with a different strategy:
+
+```python
+from ranksmith import AzureOpenAIReranker, PairwiseStrategy
+
+reranker = AzureOpenAIReranker(
+    api_key="...",
+    azure_endpoint="https://example.openai.azure.com",
+    azure_deployment="gpt-4o-mini",
+    strategy=PairwiseStrategy(passes=3),
+)
+```
+
 TourRank-r uses the same injection point:
 
 ```python
@@ -121,8 +135,8 @@ reranker = AzureOpenAIReranker(
 
 Custom reranking methods should be implemented as new strategy classes instead
 of adding new string values to `ListwiseStrategy.algorithm`. A strategy receives
-the normalized `Document` objects, a provider, and optional `top_k`, then returns
-`RerankResult` objects.
+the normalized `Document` objects, a model client, and optional `top_k`, then
+returns `RerankResult` objects.
 
 ```python
 from collections.abc import Sequence
@@ -140,10 +154,10 @@ class LengthStrategy:
         *,
         query: str,
         documents: Sequence[Document],
-        provider: object,
+        model_client: object,
         top_k: int | None = None,
     ) -> list[RerankResult]:
-        del query, provider
+        del query, model_client
         ordered_indexes = sorted(
             range(len(documents)),
             key=lambda index: len(documents[index].text),
@@ -169,10 +183,49 @@ reranker = AzureOpenAIReranker(
 )
 ```
 
-Provider-backed and async strategies use the same public contract. See
+Model-backed and async strategies use the same public contract. See
 the [custom strategy extension guide](https://github.com/pko89403/ranksmith/blob/main/docs/wiki/08_custom_strategy_extension.md)
 and [custom strategy example](https://github.com/pko89403/ranksmith/blob/main/examples/custom_strategy.py)
 for the full extension guide.
+
+## Model Provider Architecture
+
+`ModelClient` owns ranksmith's domain prompts and `rank` / `compare` / `select`
+contracts. `ModelProvider` only executes vendor-specific JSON completion
+requests.
+
+| Layer | Responsibility | Public methods |
+| --- | --- | --- |
+| `Strategy` | Build the final reranking order. | `rerank(...)` |
+| `ModelClient` | Build ranksmith prompts, enforce the ranking domain contract, and emit usage. | `rank(...)`, `compare(...)`, `select(...)` |
+| `ModelProvider` | Call a vendor SDK and return JSON completion text. | `complete(...)` |
+
+```python
+from ranksmith import AzureAOAIProvider, ModelClient
+
+provider = AzureAOAIProvider(
+    api_key="...",
+    azure_endpoint="https://example.openai.azure.com",
+    azure_deployment="gpt-4o-mini",
+    api_version="2024-08-01-preview",
+)
+model_client = ModelClient(provider=provider)
+```
+
+The same `ModelClient` can power all built-in strategies:
+
+```python
+from ranksmith import AzureOpenAIReranker, PairwiseStrategy
+
+reranker = AzureOpenAIReranker(
+    model_client=model_client,
+    strategy=PairwiseStrategy(passes=3),
+)
+```
+
+`OpenAIProvider`, `AnthropicProvider`, and `GeminiProvider` are reserved public
+stubs for future SDK-backed implementations. Calling them fails fast with
+`RerankProviderError`.
 
 ## Async Support
 
