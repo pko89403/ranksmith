@@ -65,6 +65,7 @@ class LengthStrategy:
 
 ## Provider를 쓰는 Strategy
 provider JSON ranking은 반드시 `parse_ranking_response()`로 검증한다.
+selection 기반 provider JSON은 반드시 `parse_selection_response()`로 검증한다.
 
 ```python
 from ranksmith import LLMProvider, RerankProviderError, parse_ranking_response
@@ -127,6 +128,7 @@ provider를 await해야 한다면 async provider protocol을 사용한다.
 - public import가 되는가.
 - provider 없이 동작하는 Strategy는 provider를 호출하지 않는가.
 - provider-backed Strategy는 `parse_ranking_response()`를 쓰는가.
+- selection-based Strategy는 `parse_selection_response()`를 쓰는가.
 - provider 실패를 `RerankProviderError`로 분류하는가.
 - Strategy 내부 버그가 `RerankStrategyError`로 분류되는가.
 - sync와 async 경로가 같은 계약을 지키는가.

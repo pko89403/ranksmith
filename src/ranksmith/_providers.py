@@ -94,6 +94,35 @@ class AzureOpenAIProvider:
             raise RerankProviderError("Azure OpenAI returned an empty response.")
         return content
 
+    def select(self, query: str, documents: list[Document], top_m: int) -> str:
+        try:
+            response = self._client.chat.completions.create(
+                model=self._azure_deployment,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a tournament reranking engine. Return only JSON "
+                            'with a "selected" array of candidate numbers.'
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": _build_selection_prompt(query, documents, top_m),
+                    },
+                ],
+                response_format={"type": "json_object"},
+                temperature=0,
+            )
+        except Exception as exc:
+            raise RerankProviderError(str(exc)) from exc
+
+        _emit_usage(response, self._on_usage)
+        content = response.choices[0].message.content
+        if content is None:
+            raise RerankProviderError("Azure OpenAI returned an empty response.")
+        return content
+
 
 class AsyncAzureOpenAIProvider:
     def __init__(
@@ -178,6 +207,35 @@ class AsyncAzureOpenAIProvider:
             raise RerankProviderError("Azure OpenAI returned an empty response.")
         return content
 
+    async def select(self, query: str, documents: list[Document], top_m: int) -> str:
+        try:
+            response = await self._client.chat.completions.create(
+                model=self._azure_deployment,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a tournament reranking engine. Return only JSON "
+                            'with a "selected" array of candidate numbers.'
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": _build_selection_prompt(query, documents, top_m),
+                    },
+                ],
+                response_format={"type": "json_object"},
+                temperature=0,
+            )
+        except Exception as exc:
+            raise RerankProviderError(str(exc)) from exc
+
+        await _emit_usage_async(response, self._on_usage)
+        content = response.choices[0].message.content
+        if content is None:
+            raise RerankProviderError("Azure OpenAI returned an empty response.")
+        return content
+
 
 def _extract_usage(response: object) -> RerankUsage | None:
     usage = getattr(response, "usage", None)
@@ -242,4 +300,28 @@ def _build_pairwise_prompt(
         '{"winner": "A"}\n\n'
         'Use "A" if Passage A is more relevant. '
         'Use "B" if Passage B is more relevant.'
+    )
+
+
+def _build_selection_prompt(
+    query: str,
+    documents: list[Document],
+    top_m: int,
+) -> str:
+    example = ", ".join(str(index) for index in range(1, top_m + 1))
+    candidates = "\n\n".join(
+        [
+            f"[{index}]\n{document.text}"
+            for index, document in enumerate(documents, start=1)
+        ]
+    )
+    return (
+        "Given a query and candidate documents, select the most relevant "
+        f"{top_m} candidate documents.\n\n"
+        f"Query:\n{query}\n\n"
+        f"Candidate documents:\n{candidates}\n\n"
+        "Return JSON exactly like this shape:\n"
+        f'{{"selected": [{example}]}}\n'
+        f"Return exactly {top_m} candidate numbers, without duplicates. "
+        "Do not include any explanation."
     )

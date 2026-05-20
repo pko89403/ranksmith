@@ -6,7 +6,14 @@ from typing import TypedDict, cast
 
 import pytest
 
-from ranksmith import AzureOpenAIReranker, Document, ListwiseStrategy, PairwiseStrategy
+from ranksmith import (
+    AzureOpenAIReranker,
+    Document,
+    ListwiseStrategy,
+    PairwiseStrategy,
+    TourRankStageConfig,
+    TourRankStrategy,
+)
 from ranksmith._metrics import mrr_at_k, ndcg_at_k, recall_at_k
 
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "reranking_smoke_fixture.jsonl"
@@ -59,6 +66,22 @@ class PairwiseRelevanceProvider:
         if self.qrels.get(id_a, 0) >= self.qrels.get(id_b, 0):
             return json.dumps({"winner": "A"})
         return json.dumps({"winner": "B"})
+
+
+class SelectionRelevanceProvider:
+    def __init__(self, qrels: dict[str, int]) -> None:
+        self.qrels = qrels
+        self.calls: list[list[str]] = []
+
+    def select(self, query: str, documents: list[Document], top_m: int) -> str:
+        del query
+        ids = [document.id or "" for document in documents]
+        self.calls.append(ids)
+        selected = sorted(
+            range(len(documents)),
+            key=lambda index: (-self.qrels.get(ids[index], 0), index),
+        )[:top_m]
+        return json.dumps({"selected": [index + 1 for index in selected]})
 
 
 def test_reranking_smoke_fixture_schema_is_valid() -> None:
@@ -156,6 +179,42 @@ def test_pairwise_prp_sliding_k_with_real_fixture_reaches_relevant_docs() -> Non
         assert mrr_at_k(ranked_ids, case["qrels"], 3) == pytest.approx(1.0)
         assert recall_at_k(ranked_ids, case["qrels"], 3) == pytest.approx(1.0)
         assert len(provider.calls) == 2 * 2 * (len(documents) - 1)
+
+
+def test_tourrank_with_real_fixture_reaches_relevant_docs() -> None:
+    for case in _load_fixture_cases():
+        provider = SelectionRelevanceProvider(case["qrels"])
+        reranker = AzureOpenAIReranker(
+            api_key="key",
+            azure_endpoint="https://example.openai.azure.com",
+            azure_deployment="gpt-4o-mini",
+            provider=provider,
+            strategy=TourRankStrategy(
+                rounds=2,
+                stage_configs=(
+                    TourRankStageConfig(
+                        group_count=1,
+                        group_size=len(case["documents"]),
+                        selected_count=2,
+                    ),
+                ),
+            ),
+        )
+        documents = [
+            Document(
+                id=document["id"],
+                text=f"{document['title']}\n\n{document['text']}",
+            )
+            for document in case["documents"]
+        ]
+
+        results = reranker.rerank(case["query"], documents)
+        ranked_ids = [result.document.id or "" for result in results]
+
+        assert ndcg_at_k(ranked_ids, case["qrels"], 3) == pytest.approx(1.0)
+        assert mrr_at_k(ranked_ids, case["qrels"], 3) == pytest.approx(1.0)
+        assert recall_at_k(ranked_ids, case["qrels"], 3) == pytest.approx(1.0)
+        assert len(provider.calls) == 2
 
 
 def _load_fixture_cases() -> list[FixtureCase]:

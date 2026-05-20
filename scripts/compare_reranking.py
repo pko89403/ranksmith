@@ -23,16 +23,21 @@ from ranksmith._benchmark import (  # noqa: E402
     load_beir_cases,
     load_fixture_cases,
 )
+from ranksmith._mteb_eval import (  # noqa: E402
+    tourrank_stage_configs_for_candidate_count,
+)
 
 Algorithm = Literal[
     "rankgpt_sliding_window",
     "prp_sliding_k",
+    "tourrank_r",
 ]
 Dataset = Literal["fixture", "beir-scifact"]
 DEFAULT_FIXTURE = ROOT / "tests/fixtures/reranking_smoke_fixture.jsonl"
 ALGORITHMS: tuple[Algorithm, ...] = (
     "rankgpt_sliding_window",
     "prp_sliding_k",
+    "tourrank_r",
 )
 
 
@@ -43,10 +48,8 @@ def main() -> None:
     if not args.allow_live:
         raise SystemExit("Refusing live Azure calls without --allow-live.")
 
-    algorithms = (
-        ALGORITHMS if args.algorithm == "all" else (cast(Algorithm, args.algorithm),)
-    )
     cases = _load_cases(args)
+    algorithms = _selected_algorithms(args, cases)
     call_estimates = {
         algorithm: sum(
             _estimate_provider_calls(
@@ -55,6 +58,7 @@ def main() -> None:
                 args.window_size,
                 args.stride,
                 args.passes,
+                args.tourrank_rounds,
             )
             for case in cases
         )
@@ -76,6 +80,7 @@ def main() -> None:
                 window_size=args.window_size,
                 stride=args.stride,
                 passes=args.passes,
+                tourrank_rounds=args.tourrank_rounds,
             ),
             top_k=args.top_k,
         )
@@ -150,6 +155,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--window-size", type=int, default=3)
     parser.add_argument("--stride", type=int, default=2)
     parser.add_argument("--passes", type=int, default=10)
+    parser.add_argument("--tourrank-rounds", type=int, default=2)
     parser.add_argument("--top-k", type=int, default=3)
     parser.add_argument("--output", type=Path)
     parser.add_argument(
@@ -167,7 +173,14 @@ def _parse_args() -> argparse.Namespace:
 
 
 def _validate_args(args: argparse.Namespace) -> None:
-    for name in ("window_size", "stride", "passes", "top_k", "candidate_count"):
+    for name in (
+        "window_size",
+        "stride",
+        "passes",
+        "tourrank_rounds",
+        "top_k",
+        "candidate_count",
+    ):
         if getattr(args, name) < 1:
             raise SystemExit(f"--{name.replace('_', '-')} must be greater than 0.")
     if args.max_cases is not None and args.max_cases < 1:
@@ -208,6 +221,15 @@ def _load_cases(args: argparse.Namespace) -> list[BenchmarkCase]:
     )
 
 
+def _selected_algorithms(
+    args: argparse.Namespace,
+    cases: Sequence[BenchmarkCase],
+) -> tuple[Algorithm, ...]:
+    if args.algorithm != "all":
+        return (cast(Algorithm, args.algorithm),)
+    return ALGORITHMS
+
+
 def _rank_case(
     *,
     case: BenchmarkCase,
@@ -215,16 +237,25 @@ def _rank_case(
     window_size: int,
     stride: int,
     passes: int,
+    tourrank_rounds: int,
 ) -> tuple[str, ...]:
     from ranksmith import (
         AzureOpenAIReranker,
         Document,
         ListwiseStrategy,
         PairwiseStrategy,
+        TourRankStrategy,
     )
 
     if algorithm == "prp_sliding_k":
         strategy = PairwiseStrategy(passes=passes)
+    elif algorithm == "tourrank_r":
+        strategy = TourRankStrategy(
+            rounds=tourrank_rounds,
+            stage_configs=tourrank_stage_configs_for_candidate_count(
+                len(case.documents)
+            ),
+        )
     else:
         strategy = ListwiseStrategy(
             algorithm=algorithm,
@@ -291,6 +322,8 @@ def _build_report(
         "window_size": args.window_size,
         "stride": args.stride,
         "passes": args.passes,
+        "tourrank_rounds": args.tourrank_rounds,
+        "tourrank_stage_policy": "paper_top_100_else_single_group_halving",
         "case_count": len(cases),
         "call_estimates": dict(call_estimates),
         "aggregate": list(aggregate),
@@ -362,9 +395,15 @@ def _estimate_provider_calls(
     window_size: int,
     stride: int,
     passes: int = 10,
+    tourrank_rounds: int = 2,
 ) -> int:
     if algorithm == "prp_sliding_k":
         return 2 * passes * max(document_count - 1, 0)
+    if algorithm == "tourrank_r":
+        return tourrank_rounds * sum(
+            stage.group_count
+            for stage in tourrank_stage_configs_for_candidate_count(document_count)
+        )
     if document_count <= window_size:
         return 1
     start_pos = document_count - window_size

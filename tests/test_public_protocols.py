@@ -23,23 +23,35 @@ def test_protocols_are_publicly_importable_from_root() -> None:
         AsyncLLMProvider,
         AsyncPairwiseLLMProvider,
         AsyncRerankStrategy,
+        AsyncSelectionLLMProvider,
+        AsyncTourRankStrategy,
         LLMProvider,
         PairwiseLLMProvider,
         Provider,
         RerankStrategy,
         RerankStrategyError,
+        SelectionLLMProvider,
+        TourRankStageConfig,
+        TourRankStrategy,
         parse_ranking_response,
+        parse_selection_response,
     )
 
     assert RerankStrategy is not None
     assert AsyncRerankStrategy is not None
     assert LLMProvider is not None
     assert PairwiseLLMProvider is not None
+    assert SelectionLLMProvider is not None
     assert Provider is not None
     assert AsyncLLMProvider is not None
     assert AsyncPairwiseLLMProvider is not None
+    assert AsyncSelectionLLMProvider is not None
+    assert TourRankStrategy is not None
+    assert AsyncTourRankStrategy is not None
+    assert TourRankStageConfig is not None
     assert RerankStrategyError is not None
     assert parse_ranking_response is not None
+    assert parse_selection_response is not None
 
 
 def test_protocols_are_publicly_importable_from_protocols_module() -> None:
@@ -48,26 +60,34 @@ def test_protocols_are_publicly_importable_from_protocols_module() -> None:
         AsyncPairwiseLLMProvider,
         AsyncProvider,
         AsyncRerankStrategy,
+        AsyncSelectionLLMProvider,
         LLMProvider,
         PairwiseLLMProvider,
         Provider,
         RerankStrategy,
+        SelectionLLMProvider,
     )
 
     assert RerankStrategy is not None
     assert AsyncRerankStrategy is not None
     assert LLMProvider is not None
     assert PairwiseLLMProvider is not None
+    assert SelectionLLMProvider is not None
     assert Provider is not None
     assert AsyncLLMProvider is not None
     assert AsyncPairwiseLLMProvider is not None
+    assert AsyncSelectionLLMProvider is not None
     assert AsyncProvider is not None
 
 
 def test_parse_helper_is_importable_from_parsing_module() -> None:
-    from ranksmith.parsing import parse_ranking_response  # noqa: PLC0415
+    from ranksmith.parsing import (  # noqa: PLC0415
+        parse_ranking_response,
+        parse_selection_response,
+    )
 
     assert parse_ranking_response is not None
+    assert parse_selection_response is not None
 
 
 def test_parse_ranking_response_fast_fails_invalid_ranking() -> None:
@@ -82,6 +102,53 @@ def test_parse_ranking_response_rejects_negative_expected_count() -> None:
 
     with pytest.raises(RerankInputError):
         parse_ranking_response('{"ranking": []}', expected_count=-1)
+
+
+def test_parse_selection_response_accepts_selected_indexes() -> None:
+    from ranksmith import parse_selection_response  # noqa: PLC0415
+
+    assert parse_selection_response(
+        '{"selected": [3, 1]}',
+        expected_count=3,
+        selected_count=2,
+    ) == [3, 1]
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        "not json",
+        "{}",
+        '{"selected": [1, 1]}',
+        '{"selected": [1]}',
+        '{"selected": [1, 4]}',
+        '{"selected": ["1", "2"]}',
+    ],
+)
+def test_parse_selection_response_fast_fails_invalid_selection(
+    response: str,
+) -> None:
+    from ranksmith import parse_selection_response  # noqa: PLC0415
+
+    with pytest.raises(RerankParseError):
+        parse_selection_response(response, expected_count=3, selected_count=2)
+
+
+def test_parse_selection_response_rejects_negative_counts() -> None:
+    from ranksmith import parse_selection_response  # noqa: PLC0415
+
+    with pytest.raises(RerankInputError):
+        parse_selection_response(
+            '{"selected": []}',
+            expected_count=-1,
+            selected_count=0,
+        )
+    with pytest.raises(RerankInputError):
+        parse_selection_response(
+            '{"selected": []}',
+            expected_count=0,
+            selected_count=-1,
+        )
 
 
 class LengthDescendingStrategy:
