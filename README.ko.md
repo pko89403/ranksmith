@@ -362,7 +362,12 @@ except RerankStrategyError:
 ```bash
 uv run python scripts/evaluate_mteb_reranking.py \
   --tasks AskUbuntuDupQuestions SciDocsRR StackOverflowDupQuestions \
-  --methods original rankgpt_sliding_window@20 prp_sliding_k@20 \
+  --methods \
+    original \
+    rankgpt_sliding_window@20 \
+    prp_sliding_k@20 \
+    tourrank_r@20:r2 \
+    tourrank_r@20:r10 \
   --output-dir benchmark-results/mteb-reranking/example \
   --max-queries 50 \
   --max-document-chars 4000 \
@@ -375,10 +380,15 @@ uv run python scripts/evaluate_mteb_reranking.py \
   --allow-live
 ```
 
-MTEB runner는 PRP method에 `AsyncAzureOpenAIReranker`와
-`AsyncPairwiseStrategy`를 사용합니다. 따라서 `--concurrency`는 독립적인
-query-method 실행만 병렬화하며, PRP-Sliding-K의 순회 방식과 호출 수는
-바꾸지 않습니다.
+TourRank method는 `tourrank_r@N:rR` 형식을 사용합니다. `N`은 rerank할
+native MTEB 후보 수이고, `R`은 tournament round 수입니다. `:rR`을 생략하면
+runner가 `:r2`로 정규화합니다. 권장하는 간결한 비교는
+`tourrank_r@20:r2`와 `tourrank_r@20:r10`이며, candidate scope를 고정한 채
+TourRank round 효과만 비교합니다.
+
+MTEB runner는 PRP와 TourRank method에 `AsyncAzureOpenAIReranker`를
+사용합니다. `--concurrency`는 독립적인 query-method 실행을 병렬화하며,
+각 Strategy 내부의 순회 방식과 호출 수는 바꾸지 않습니다.
 
 ### PRP vs RankGPT Snapshot
 

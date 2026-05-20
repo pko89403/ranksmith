@@ -23,6 +23,9 @@ from ranksmith._benchmark import (  # noqa: E402
     load_beir_cases,
     load_fixture_cases,
 )
+from ranksmith._mteb_eval import (  # noqa: E402
+    tourrank_stage_configs_for_candidate_count,
+)
 
 Algorithm = Literal[
     "rankgpt_sliding_window",
@@ -249,7 +252,9 @@ def _rank_case(
     elif algorithm == "tourrank_r":
         strategy = TourRankStrategy(
             rounds=tourrank_rounds,
-            stage_configs=_tourrank_stage_configs_for_count(len(case.documents)),
+            stage_configs=tourrank_stage_configs_for_candidate_count(
+                len(case.documents)
+            ),
         )
     else:
         strategy = ListwiseStrategy(
@@ -397,7 +402,7 @@ def _estimate_provider_calls(
     if algorithm == "tourrank_r":
         return tourrank_rounds * sum(
             stage.group_count
-            for stage in _tourrank_stage_configs_for_count(document_count)
+            for stage in tourrank_stage_configs_for_candidate_count(document_count)
         )
     if document_count <= window_size:
         return 1
@@ -409,35 +414,6 @@ def _estimate_provider_calls(
         if start_pos == 0:
             return calls
         start_pos -= stride
-
-
-def _tourrank_stage_configs_for_count(document_count: int):
-    from ranksmith import TourRankStageConfig
-
-    if document_count < 2:
-        raise SystemExit("tourrank_r requires at least 2 candidates.")
-    if document_count == 100:
-        return (
-            TourRankStageConfig(group_count=5, group_size=20, selected_count=10),
-            TourRankStageConfig(group_count=5, group_size=10, selected_count=4),
-            TourRankStageConfig(group_count=1, group_size=20, selected_count=10),
-            TourRankStageConfig(group_count=1, group_size=10, selected_count=5),
-            TourRankStageConfig(group_count=1, group_size=5, selected_count=2),
-        )
-
-    stages = []
-    current_count = document_count
-    while current_count > 1:
-        selected_count = max(1, current_count // 2)
-        stages.append(
-            TourRankStageConfig(
-                group_count=1,
-                group_size=current_count,
-                selected_count=selected_count,
-            )
-        )
-        current_count = selected_count
-    return tuple(stages)
 
 
 if __name__ == "__main__":

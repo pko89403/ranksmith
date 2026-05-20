@@ -5,6 +5,7 @@ import importlib.util
 from pathlib import Path
 
 from ranksmith._benchmark import BenchmarkCase, BenchmarkDocument
+from ranksmith._mteb_eval import tourrank_stage_configs_for_candidate_count
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location(
@@ -77,7 +78,7 @@ def test_compare_explicit_tourrank_is_preserved_for_non_100_candidate_cases() ->
 
 
 def test_compare_builds_tourrank_stages_for_non_100_candidate_cases() -> None:
-    stage_configs = compare_reranking._tourrank_stage_configs_for_count(5)
+    stage_configs = tourrank_stage_configs_for_candidate_count(5)
 
     assert [(s.group_count, s.group_size, s.selected_count) for s in stage_configs] == [
         (1, 5, 2),
