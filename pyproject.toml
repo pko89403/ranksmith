@@ -27,6 +27,8 @@ dependencies = ["openai>=1.0.0"]
 [project.urls]
 Homepage = "https://github.com/pko89403/ranksmith"
 Repository = "https://github.com/pko89403/ranksmith"
+Documentation = "https://github.com/pko89403/ranksmith#readme"
+Benchmarks = "https://github.com/pko89403/ranksmith/blob/main/docs/benchmarks/mteb_reranking.md"
 Issues = "https://github.com/pko89403/ranksmith/issues"
 
 [dependency-groups]
