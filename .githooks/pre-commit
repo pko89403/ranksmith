@@ -1,5 +1,29 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+staged_files="$(git diff --cached --name-only)"
+
+if grep -Eq '^benchmark-results/.*/query_results\.jsonl$' <<<"$staged_files"; then
+  echo "Do not commit raw benchmark query_results.jsonl files."
+  echo "Commit summary artifacts instead: metadata.json, overall_summary.json, task_summary.json, result_tables.md."
+  exit 1
+fi
+
+readme_changed=0
+readme_ko_changed=0
+
+if grep -qx 'README.md' <<<"$staged_files"; then
+  readme_changed=1
+fi
+
+if grep -qx 'README.ko.md' <<<"$staged_files"; then
+  readme_ko_changed=1
+fi
+
+if [[ "$readme_changed" -ne "$readme_ko_changed" ]]; then
+  echo "README.md and README.ko.md must be updated together."
+  exit 1
+fi
+
 uv run ruff check .
 uv run ruff format --check .

@@ -9,7 +9,7 @@ Forge better rankings from candidate documents.
 [한국어 문서](README.ko.md)
 
 `ranksmith` is a small Python package for LLM-based reranking. Version 1 focuses
-on Azure OpenAI powered zero-shot listwise reranking for candidate documents.
+on Azure OpenAI powered zero-shot reranking for candidate documents.
 
 ## Install
 
@@ -46,46 +46,69 @@ the input list.
 
 ## Supported Strategies & Algorithms
 
-`ranksmith` separates the evaluation methodology (Strategy) from its specific execution logic (Algorithm). Version 1 supports listwise reranking and pairwise PRP reranking.
+`ranksmith` separates the evaluation methodology (Strategy) from its execution
+logic (Algorithm).
 
-### 1. ListwiseStrategy (RankGPT)
-This strategy places multiple documents into a single prompt and asks the LLM to rank them all at once.
+### Recommended Use Cases
 
-- **`rankgpt_sliding_window` Algorithm (Default)**
-  - Implements the RankGPT-style back-to-first sliding window with bubble-up behavior.
-  - Useful when you want RankGPT's window traversal semantics while keeping ranksmith's strict JSON output validation.
+| Method | Strategy | Recommended when | Trade-off | Details |
+| --- | --- | --- | --- | --- |
+| `rankgpt_sliding_window` | `ListwiseStrategy` | You need the default, lowest-friction LLM reranker for production or evaluation. | Low call count, but each prompt asks for a full ordered list and can be sensitive to output format. | [RankGPT listwise](#rankgpt-listwise) |
+| `prp_sliding_k` | `PairwiseStrategy` | You need pairwise preference comparisons or want to reproduce PRP-style behavior. | Many LLM calls; default `passes=10` is expensive. | [PRP pairwise](#prp-pairwise) |
+| `tourrank_r`, `rounds=2` | `TourRankStrategy` | You want stronger quality than listwise on a moderate call budget. | More calls than RankGPT, much fewer than TourRank-10. | [TourRank-r](#tourrank-r) |
+| `tourrank_r`, `rounds=10` | `TourRankStrategy` | You are doing quality-focused offline reranking, paper-style evaluation, or final reranking where latency is acceptable. | Highest call cost among built-in methods in normal use. | [TourRank-r](#tourrank-r) |
+| Custom strategy | `RerankStrategy` / `AsyncRerankStrategy` | You need deterministic business logic, a proprietary ranking process, or a new research method. | You own the ranking contract and validation behavior. | [Custom Strategies](#custom-strategies) |
 
-### 2. PairwiseStrategy (PRP)
-This strategy compares two documents at a time using Pairwise Ranking Prompting.
+### Strategy Details
 
-- **`prp_sliding_k` Algorithm**
-  - Starts from the bottom of the current ranking and compares adjacent pairs.
-  - Calls the provider twice per pair, swapping A/B order to reduce position bias.
-  - Conflicting valid comparisons are treated as ties and keep the current order.
-  - Default `passes=10`, matching the PRP-Sliding-10 setting from the reference paper.
-  - Expected provider calls per query: `2 * passes * max(document_count - 1, 0)`.
-  - `AsyncPairwiseStrategy` can run each pair's A/B and B/A calls concurrently with `pair_order_parallelism=2` without changing PRP traversal or call count.
+#### RankGPT Listwise
 
-### 3. TourRankStrategy (TourRank-r)
-This strategy treats candidate documents as tournament participants. In each
-stage, the provider selects the top-`m` documents from each group; selected
+`ListwiseStrategy` places multiple documents into one prompt and asks the LLM to
+rank them together.
+
+`rankgpt_sliding_window` is the default algorithm. It implements the
+RankGPT-style back-to-first sliding window with bubble-up behavior while keeping
+ranksmith's strict JSON output validation.
+
+#### PRP Pairwise
+
+`PairwiseStrategy` compares two documents at a time using Pairwise Ranking
+Prompting.
+
+`prp_sliding_k` starts from the bottom of the current ranking and compares
+adjacent pairs. It calls the provider twice per pair, swapping A/B order to
+reduce position bias. Conflicting valid comparisons are treated as ties and keep
+the current order.
+
+Default `passes=10`, matching the PRP-Sliding-10 setting from the reference
+paper. Expected provider calls per query:
+`2 * passes * max(document_count - 1, 0)`.
+
+`AsyncPairwiseStrategy` can run each pair's A/B and B/A calls concurrently with
+`pair_order_parallelism=2` without changing PRP traversal or call count.
+
+#### TourRank-r
+
+`TourRankStrategy` treats candidate documents as tournament participants. In
+each stage, the provider selects the top-`m` documents from each group; selected
 documents advance and earn points. The final ranking is sorted by accumulated
 points.
 
-- **`tourrank_r` Algorithm**
-  - Default `rounds=2` for a practical cost/performance trade-off.
-  - Prefer `rounds=10` for quality-focused evaluation, paper-style
-    reproduction, or final offline reranking when the extra LLM calls are
-    acceptable.
-  - Default stages assume exactly 100 candidate documents:
-    `100 -> 50 -> 20 -> 10 -> 5 -> 2`.
-  - For other candidate counts, pass explicit `stage_configs`; ranksmith fast
-    fails instead of silently deriving or trimming stages.
-  - `TourRankStrategy` defaults to `group_parallelism=1` for serial sync calls.
-    Increase it to run groups in the same stage concurrently. If one parallel
-    group fails, already-started group calls may still finish.
-  - `AsyncTourRankStrategy` runs groups concurrently by default. Set
-    `group_parallelism` to cap concurrent provider calls.
+`rounds=2` is the default practical setting. Prefer `rounds=10` for
+quality-focused evaluation, paper-style reproduction, or final offline
+reranking when the extra LLM calls are acceptable.
+
+Default stages assume exactly 100 candidate documents:
+`100 -> 50 -> 20 -> 10 -> 5 -> 2`. For other candidate counts, pass explicit
+`stage_configs`; ranksmith fast fails instead of silently deriving or trimming
+stages.
+
+`TourRankStrategy` defaults to `group_parallelism=1` for serial sync calls.
+Increase it to run groups in the same stage concurrently. If one parallel group
+fails, already-started group calls may still finish.
+
+`AsyncTourRankStrategy` runs groups concurrently by default. Set
+`group_parallelism` to cap concurrent provider calls.
 
 ### How to Apply a Strategy
 
@@ -404,135 +427,54 @@ except RerankStrategyError:
 
 ## MTEB Reranking Reference Evaluation
 
-These results are intended as practical reference points, not a universal ranking.
-Results depend on dataset, model, candidate count, latency budget, and invalid output rate.
-This benchmark measures reranking over fixed native MTEB candidate sets, not first-stage retrieval.
+This benchmark measures reranking only. It uses the fixed native MTEB candidate
+sets, not first-stage retrieval results.
 
 ```bash
-uv run python scripts/evaluate_mteb_reranking.py \
-  --tasks AskUbuntuDupQuestions SciDocsRR StackOverflowDupQuestions \
-  --methods \
-    original \
-    rankgpt_sliding_window@20 \
-    prp_sliding_k@20 \
-    tourrank_r@20:r2 \
-    tourrank_r@20:r10 \
-  --output-dir benchmark-results/mteb-reranking/example \
-  --max-queries 50 \
-  --max-document-chars 4000 \
-  --shuffle-candidates --shuffle-seed 13 \
-  --rankgpt-window-size 20 --rankgpt-step 10 \
-  --prp-passes 10 \
-  --concurrency 4 \
-  --input-token-price-per-1m 2.50 \
-  --output-token-price-per-1m 10.00 \
-  --allow-live
-```
-
-TourRank methods use `tourrank_r@N:rR`, where `N` is the number of native MTEB
-candidates to rerank and `R` is the number of tournament rounds. If `:rR` is
-omitted, the runner normalizes to `:r2`. The recommended compact comparison is
-`tourrank_r@20:r2` versus `tourrank_r@20:r10`, which keeps the candidate scope
-fixed and isolates the effect of TourRank rounds.
-
-PRP and TourRank methods use `AsyncAzureOpenAIReranker` in this runner.
-`--concurrency` parallelizes independent query-method executions; it does not
-change each strategy's traversal or call count.
-
-### TourRank-r live smoke snapshot
-
-The smoke comparison below is an actual live Azure run that verifies the
-TourRank-r execution path. It uses only one `AskUbuntuDupQuestions` query, so
-treat it as an integration and call accounting check, not as a quality
-conclusion.
-
-```bash
-uv run python scripts/evaluate_mteb_reranking.py \
+UV_NATIVE_TLS=true uv run python scripts/evaluate_mteb_reranking.py \
   --tasks AskUbuntuDupQuestions \
   --methods \
     original \
     rankgpt_sliding_window@20 \
-    prp_sliding_k@20 \
+    prp_sliding_k@20:p1 \
     tourrank_r@20:r2 \
     tourrank_r@20:r10 \
-  --output-dir benchmark-results/mteb-reranking/tourrank-smoke-20260520-121112 \
-  --max-queries 1 \
+  --output-dir benchmark-results/mteb-reranking/askubuntu-full-tourrank-prp-20260520 \
   --max-document-chars 4000 \
   --shuffle-candidates --shuffle-seed 13 \
   --rankgpt-window-size 20 --rankgpt-step 10 \
-  --prp-passes 10 \
-  --concurrency 2 \
+  --concurrency 24 \
+  --retry-invalid-outputs 1 \
   --input-token-price-per-1m 2.50 \
   --output-token-price-per-1m 10.00 \
   --allow-live
 ```
 
-Scope:
+Run scope:
 
-- Task: `AskUbuntuDupQuestions`
-- Split: `test`
-- Queries: `1`
+- Dataset: `AskUbuntuDupQuestions`, `test` split
+- Queries: `361`
+- Candidates: MTEB-provided `top_ranked` candidates, `20` per query
 - Candidate order: shuffled with seed `13`
-- Max document length: `4000` characters
-- Validation: strict JSON validation, invalid outputs score `0`
-- Artifact: `benchmark-results/mteb-reranking/tourrank-smoke-20260520-121112`
+- Model: Azure OpenAI deployment `gpt-5.4-nano`
+- Validation: strict JSON; invalid outputs are zero-scored
+- Resume policy: failed rows were retried with `--resume --retry-failed-results`
+- Artifact: `benchmark-results/mteb-reranking/askubuntu-full-tourrank-prp-20260520`
 
-| Method | NDCG@10 | MRR@10 | MAP | Recall@10 | p50 latency | Invalid rate | LLM calls/query | Queries |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `original` | 0.7126 | 1.0000 | 0.7784 | 0.5000 | 0.0 ms | 0.000 | 0 | 1 |
-| `rankgpt_sliding_window@20` | 0.9337 | 1.0000 | 0.9248 | 0.7500 | 3645.6 ms | 0.000 | 1 | 1 |
-| `prp_sliding_k@20` | 0.7569 | 1.0000 | 0.8209 | 0.5833 | 198438.8 ms | 0.000 | 380 | 1 |
-| `tourrank_r@20:r2` | 0.8630 | 1.0000 | 0.8941 | 0.6667 | 9285.5 ms | 0.000 | 8 | 1 |
-| `tourrank_r@20:r10` | 0.8580 | 1.0000 | 0.8738 | 0.6667 | 41412.7 ms | 0.000 | 40 | 1 |
+| Method | NDCG@10 | MRR@10 | MAP | Recall@10 | p50 latency | Invalid rate | LLM calls/query | Total calls | Queries |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `original` | 0.3926 | 0.4594 | 0.3711 | 0.4993 | 0.0 ms | 0.000 | 0.0 | 0 | 361 |
+| `rankgpt_sliding_window@20` | 0.6908 | 0.7470 | 0.6355 | 0.7671 | 1820.5 ms | 0.008 | 1.0 | 374 | 361 |
+| `tourrank_r@20:r2` | 0.7023 | 0.7642 | 0.6421 | 0.7785 | 8297.1 ms | 0.000 | 8.0 | 2,888 | 361 |
+| `tourrank_r@20:r10` | 0.7135 | 0.7734 | 0.6597 | 0.7836 | 39026.4 ms | 0.006 | 39.9 | 14,409 | 361 |
 
-On this smoke run, both TourRank-r variants completed with valid strict JSON
-outputs. `tourrank_r@20:r10` used 5x the selection calls of
-`tourrank_r@20:r2`, matching the configured round count.
+`tourrank_r@20:r10` had the strongest scores in this run, while
+`tourrank_r@20:r2` stayed close with far fewer calls and lower latency. Full
+`prp_sliding_k@20` with the default `passes=10` was not run in this full-query
+benchmark; it would require `380` calls/query (`137,180` calls over all 361
+queries), so no quality or latency metrics are reported for that setting here.
 
-### Current MTEB snapshot
-
-The committed reference snapshot below is from
-`benchmark-results/mteb-reranking/n30-ask-fixed`.
-
-Scope:
-
-- Task: `AskUbuntuDupQuestions`
-- Split: `test`
-- Queries: `30`
-- Candidate order: shuffled with seed `13`
-- Max document length: `4000` characters
-- Validation: strict JSON validation, invalid outputs score `0`
-- Measured methods: `original`, `rankgpt_sliding_window@20`
-
-| Method | NDCG@10 | MRR@10 | MAP | Recall@10 | p50 latency | p95 latency | Invalid rate | Queries |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `original` | 0.4431 | 0.5668 | 0.3895 | 0.5871 | 0.0 ms | 0.0 ms | 0.000 | 30 |
-| `rankgpt_sliding_window@20` | 0.6825 | 0.6753 | 0.6424 | 0.7870 | 1953.3 ms | 2893.9 ms | 0.000 | 30 |
-
-On this small snapshot, `rankgpt_sliding_window@20` improved NDCG@10 and
-Recall@10 over the original candidate order. This is not a general claim about
-all datasets; it is a smoke-sized reference result for this task and
-configuration.
-
-### PRP vs RankGPT Snapshot
-
-The PRP comparison run below uses the same `AskUbuntuDupQuestions` setup and is
-saved under `benchmark-results/mteb-reranking/n30-prp-vs-rankgpt-rerun`.
-This is a native MTEB candidate-set benchmark: this task exposes 20 candidates
-per query, so it is **not** the standard top-100 RankGPT setting.
-
-| Method | NDCG@10 | MRR@10 | MAP | Recall@10 | p50 latency | p95 latency | Invalid rate | LLM calls/query | Total LLM calls | Mean cost/query | Queries |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `original` | 0.4431 | 0.5668 | 0.3895 | 0.5871 | 0.0 ms | 0.0 ms | 0.000 | 0 | 0 | - | 30 |
-| `rankgpt_sliding_window@20` | 0.6830 | 0.6834 | 0.6400 | 0.7706 | 1842.6 ms | 2542.6 ms | 0.033 | 1 | 30 | $0.001530 | 30 |
-| `prp_sliding_k@20` | 0.6714 | 0.7837 | 0.6132 | 0.7451 | 213583.6 ms | 230670.9 ms | 0.000 | 380 | 11,400 | $0.172772 | 30 |
-
-RankGPT listwise led on NDCG@10, MAP, Recall@10, latency, and cost. PRP led on
-MRR@10, but it required about 380 pairwise LLM calls per query with `passes=10`
-and 20 candidates. Strict validation is applied: the RankGPT row includes one
-invalid LLM output scored as zero.
-
-For the common top-100 RankGPT setup with `window_size=20` and `step=10`,
-`rankgpt_sliding_window@100` would use 9 listwise LLM calls per query. The
-matching `prp_sliding_k@100` setting would use
-`2 * 10 * (100 - 1) = 1,980` pairwise LLM calls per query.
+The auxiliary `prp_sliding_k@20:p1` run completed over the same 361 queries only
+as a call-budget reference near `tourrank_r@20:r10`: NDCG@10 `0.5360`, MRR@10
+`0.7261`, MAP `0.4983`, Recall@10 `0.5773`, p50 latency `19919.1 ms`,
+invalid rate `0.000`, `38.0` calls/query, `13,718` total calls.

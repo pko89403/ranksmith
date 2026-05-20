@@ -25,6 +25,7 @@ from ranksmith._mteb_eval import (  # noqa: E402
     PriceConfig,
     compute_query_metrics,
     estimate_cost,
+    estimate_prp_llm_calls,
     estimate_tourrank_llm_calls,
     mean,
     normalize_method_name,
@@ -52,6 +53,8 @@ def main() -> None:
         raise SystemExit("Token prices must be greater than or equal to 0.")
     if args.prp_passes < 1:
         raise SystemExit("--prp-passes must be greater than 0.")
+    if args.retry_invalid_outputs < 0:
+        raise SystemExit("--retry-invalid-outputs must be greater than or equal to 0.")
     if args.concurrency < 1:
         raise SystemExit("--concurrency must be greater than 0.")
     if args.max_document_chars < 1:
@@ -123,14 +126,8 @@ def main() -> None:
                 continue
             row = json.loads(line)
             rows.append(row)
-            already_done.add(
-                (
-                    str(row["task"]),
-                    str(row["split"]),
-                    str(row["query_id"]),
-                    str(row["method"]),
-                )
-            )
+            if bool(row.get("valid")) or not args.retry_failed_results:
+                already_done.add(_result_key(row))
 
     with query_results_path.open("a", encoding="utf-8") as handle:
         total_pairs = len(samples) * len(normalized_methods)
@@ -158,6 +155,7 @@ def main() -> None:
                     rankgpt_window_size=args.rankgpt_window_size,
                     rankgpt_step=args.rankgpt_step,
                     prp_passes=args.prp_passes,
+                    retry_invalid_outputs=args.retry_invalid_outputs,
                     concurrency=args.concurrency,
                     on_row=on_row,
                 )
@@ -166,10 +164,26 @@ def main() -> None:
 
     _write_summaries(
         output_dir=output_dir,
-        rows=rows,
+        rows=_latest_result_rows(rows),
         methods=normalized_methods,
         args=args,
     )
+
+
+def _result_key(row: dict[str, Any]) -> tuple[str, str, str, str]:
+    return (
+        str(row["task"]),
+        str(row["split"]),
+        str(row["query_id"]),
+        str(row["method"]),
+    )
+
+
+def _latest_result_rows(rows: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
+    latest: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+    for row in rows:
+        latest[_result_key(row)] = row
+    return list(latest.values())
 
 
 def _evaluate_sample_method(
@@ -180,6 +194,7 @@ def _evaluate_sample_method(
     rankgpt_window_size: int,
     rankgpt_step: int,
     prp_passes: int,
+    retry_invalid_outputs: int,
 ) -> dict[str, Any]:
     start = time.perf_counter()
     ranked_doc_ids: tuple[str, ...] | None
@@ -198,6 +213,7 @@ def _evaluate_sample_method(
             rankgpt_window_size=rankgpt_window_size,
             rankgpt_step=rankgpt_step,
             prp_passes=prp_passes,
+            retry_invalid_outputs=retry_invalid_outputs,
         )
 
     elapsed_ms = (time.perf_counter() - start) * 1000.0
@@ -231,6 +247,7 @@ async def _evaluate_sample_method_async(
     rankgpt_window_size: int,
     rankgpt_step: int,
     prp_passes: int,
+    retry_invalid_outputs: int,
 ) -> dict[str, Any]:
     method_config = parse_method_config(method)
     if method_config.kind not in {"prp_sliding_k", "tourrank_r"}:
@@ -242,6 +259,7 @@ async def _evaluate_sample_method_async(
             rankgpt_window_size=rankgpt_window_size,
             rankgpt_step=rankgpt_step,
             prp_passes=prp_passes,
+            retry_invalid_outputs=retry_invalid_outputs,
         )
 
     start = time.perf_counter()
@@ -258,6 +276,7 @@ async def _evaluate_sample_method_async(
         rankgpt_window_size=rankgpt_window_size,
         rankgpt_step=rankgpt_step,
         prp_passes=prp_passes,
+        retry_invalid_outputs=retry_invalid_outputs,
     )
     elapsed_ms = (time.perf_counter() - start) * 1000.0
     metrics = compute_query_metrics(
@@ -291,6 +310,7 @@ async def _evaluate_pending_methods(
     rankgpt_window_size: int,
     rankgpt_step: int,
     prp_passes: int,
+    retry_invalid_outputs: int,
     concurrency: int,
     evaluate_one: Callable[
         ...,
@@ -325,6 +345,7 @@ async def _evaluate_pending_methods(
                     rankgpt_window_size=rankgpt_window_size,
                     rankgpt_step=rankgpt_step,
                     prp_passes=prp_passes,
+                    retry_invalid_outputs=retry_invalid_outputs,
                 )
                 rows.append(row)
                 if on_row is not None:
@@ -349,6 +370,7 @@ def _run_llm_method(
     rankgpt_window_size: int,
     rankgpt_step: int,
     prp_passes: int,
+    retry_invalid_outputs: int,
 ) -> tuple[
     tuple[str, ...] | None,
     bool,
@@ -407,26 +429,32 @@ def _run_llm_method(
         Document(id=candidate.doc_id, text=candidate.text)
         for candidate in sample.candidates[:rank_end]
     ]
-    try:
-        results = reranker.rerank(sample.query, documents)
-    except RerankParseError as exc:
-        return (
-            None,
-            False,
-            "llm_output_invalid",
-            _read_usage(totals),
-            totals["calls"],
-            str(exc),
-        )
-    except (RerankProviderError, APIError) as exc:
-        return (
-            None,
-            False,
-            "provider_error",
-            _read_usage(totals),
-            totals["calls"],
-            str(exc),
-        )
+    last_parse_error: RerankParseError | None = None
+    for attempt in range(retry_invalid_outputs + 1):
+        try:
+            results = reranker.rerank(sample.query, documents)
+            break
+        except RerankParseError as exc:
+            last_parse_error = exc
+            if attempt < retry_invalid_outputs:
+                continue
+            return (
+                None,
+                False,
+                "llm_output_invalid",
+                _read_usage(totals),
+                totals["calls"],
+                str(last_parse_error),
+            )
+        except (RerankProviderError, APIError) as exc:
+            return (
+                None,
+                False,
+                "provider_error",
+                _read_usage(totals),
+                totals["calls"],
+                str(exc),
+            )
     ranked = tuple(result.document.id or "" for result in results)
     return ranked, True, None, _read_usage(totals), totals["calls"], None
 
@@ -438,6 +466,7 @@ async def _run_llm_method_async(
     rankgpt_window_size: int,
     rankgpt_step: int,
     prp_passes: int,
+    retry_invalid_outputs: int,
 ) -> tuple[
     tuple[str, ...] | None,
     bool,
@@ -471,8 +500,11 @@ async def _run_llm_method_async(
         totals["completion_tokens"] += usage.completion_tokens
         totals["calls"] += 1
 
+    method_prp_passes = (
+        method_config.passes if method_config.passes is not None else prp_passes
+    )
     if method_config.kind == "prp_sliding_k":
-        strategy = AsyncPairwiseStrategy(passes=prp_passes)
+        strategy = AsyncPairwiseStrategy(passes=method_prp_passes)
     else:
         if method_config.rounds is None:
             raise ValueError("TourRank method config is missing rounds")
@@ -499,26 +531,32 @@ async def _run_llm_method_async(
         Document(id=candidate.doc_id, text=candidate.text)
         for candidate in sample.candidates[:rank_end]
     ]
-    try:
-        results = await reranker.rerank(sample.query, documents)
-    except RerankParseError as exc:
-        return (
-            None,
-            False,
-            "llm_output_invalid",
-            _read_usage(totals),
-            totals["calls"],
-            str(exc),
-        )
-    except (RerankProviderError, APIError) as exc:
-        return (
-            None,
-            False,
-            "provider_error",
-            _read_usage(totals),
-            totals["calls"],
-            str(exc),
-        )
+    last_parse_error: RerankParseError | None = None
+    for attempt in range(retry_invalid_outputs + 1):
+        try:
+            results = await reranker.rerank(sample.query, documents)
+            break
+        except RerankParseError as exc:
+            last_parse_error = exc
+            if attempt < retry_invalid_outputs:
+                continue
+            return (
+                None,
+                False,
+                "llm_output_invalid",
+                _read_usage(totals),
+                totals["calls"],
+                str(last_parse_error),
+            )
+        except (RerankProviderError, APIError) as exc:
+            return (
+                None,
+                False,
+                "provider_error",
+                _read_usage(totals),
+                totals["calls"],
+                str(exc),
+            )
     ranked = tuple(result.document.id or "" for result in results)
     return ranked, True, None, _read_usage(totals), totals["calls"], None
 
@@ -584,7 +622,12 @@ def _collect_metadata(
         "rankgpt_window_size": args.rankgpt_window_size,
         "rankgpt_step": args.rankgpt_step,
         "prp_passes": args.prp_passes,
-        "method_configs": {method: _method_metadata(method) for method in methods},
+        "retry_invalid_outputs": args.retry_invalid_outputs,
+        "retry_failed_results": args.retry_failed_results,
+        "method_configs": {
+            method: _method_metadata(method, default_prp_passes=args.prp_passes)
+            for method in methods
+        },
         "concurrency": args.concurrency,
         "azure_deployment": os.environ.get("AZURE_OPENAI_LLM_DEPLOYMENT")
         or os.environ.get("AZURE_OPENAI_DEPLOYMENT"),
@@ -600,13 +643,19 @@ def _collect_metadata(
     }
 
 
-def _method_metadata(method: str) -> dict[str, Any]:
+def _method_metadata(method: str, *, default_prp_passes: int = 10) -> dict[str, Any]:
     method_config = parse_method_config(method)
     metadata: dict[str, Any] = {
         "kind": method_config.kind,
         "candidate_count": method_config.candidate_count,
         "rounds": method_config.rounds,
+        "passes": method_config.passes,
     }
+    if method_config.kind == "prp_sliding_k":
+        metadata["expected_llm_calls_per_query"] = estimate_prp_llm_calls(
+            method,
+            default_passes=default_prp_passes,
+        )
     if method_config.kind == "tourrank_r":
         metadata["tourrank_stage_policy"] = "paper_top_100_else_single_group_halving"
         metadata["expected_llm_calls_per_query"] = estimate_tourrank_llm_calls(method)
@@ -906,6 +955,23 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--rankgpt-window-size", type=int, default=20)
     parser.add_argument("--rankgpt-step", type=int, default=10)
     parser.add_argument("--prp-passes", type=int, default=10)
+    parser.add_argument(
+        "--retry-invalid-outputs",
+        type=int,
+        default=0,
+        help=(
+            "Retry a query-method result this many times after strict JSON parse "
+            "failures."
+        ),
+    )
+    parser.add_argument(
+        "--retry-failed-results",
+        action="store_true",
+        help=(
+            "With --resume, treat invalid rows in query_results.jsonl as pending. "
+            "New attempts are appended, and summaries use the latest row per key."
+        ),
+    )
     parser.add_argument("--concurrency", type=int, default=1)
     return parser.parse_args()
 

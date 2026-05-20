@@ -9,7 +9,7 @@
 [English README](README.md)
 
 `ranksmith`는 LLM 기반 reranking을 위한 작은 Python 패키지입니다. v1은
-Azure OpenAI 기반 zero-shot listwise reranking에 집중합니다.
+Azure OpenAI 기반 zero-shot reranking에 집중합니다.
 
 ## 설치
 
@@ -46,40 +46,62 @@ for result in results:
 
 ## 지원하는 전략 및 알고리즘 (Strategy & Algorithm)
 
-`ranksmith`는 평가 방식(Strategy)과 그 방식을 풀어내는 세부 구현체(Algorithm)를 분리하여 제공합니다. v1에서는 listwise reranking과 pairwise PRP reranking을 지원합니다.
+`ranksmith`는 평가 방식(Strategy)과 실행 절차(Algorithm)를 분리합니다.
 
-### 1. ListwiseStrategy (RankGPT)
-프롬프트에 여러 문서를 한 번에 넣고 LLM에게 전체 순위를 매기도록 요청하는 전략입니다.
+### 추천 사용 시나리오
 
-- **`rankgpt_sliding_window` 알고리즘 (기본값)**
-  - RankGPT 방식의 뒤에서 앞으로(back-to-first) 이동하는 sliding window와 bubble-up 동작을 구현합니다.
-  - RankGPT의 윈도우 순회 방식을 쓰면서도 ranksmith의 엄격한 JSON 출력 검증을 유지하고 싶을 때 적합합니다.
+| Method | Strategy | 추천 상황 | Trade-off | 상세 |
+| --- | --- | --- | --- | --- |
+| `rankgpt_sliding_window` | `ListwiseStrategy` | production 또는 evaluation에서 기본 LLM reranker가 필요할 때 | 호출 수가 적지만, 한 번에 전체 순위를 출력해야 하므로 output format에 민감할 수 있음 | [RankGPT listwise](#rankgpt-listwise) |
+| `prp_sliding_k` | `PairwiseStrategy` | pairwise preference 비교가 필요하거나 PRP 방식 재현이 필요할 때 | LLM 호출 수가 많고, 기본 `passes=10`은 비용이 큼 | [PRP pairwise](#prp-pairwise) |
+| `tourrank_r`, `rounds=2` | `TourRankStrategy` | 중간 수준 호출 예산에서 listwise보다 강한 품질을 원할 때 | RankGPT보다 호출 수가 많지만 TourRank-10보다 훨씬 가벼움 | [TourRank-r](#tourrank-r) |
+| `tourrank_r`, `rounds=10` | `TourRankStrategy` | 품질 중심 offline reranking, 논문식 평가, 최종 reranking처럼 latency를 감수할 수 있을 때 | 일반 사용 기준 built-in 중 호출 비용이 가장 큼 | [TourRank-r](#tourrank-r) |
+| Custom strategy | `RerankStrategy` / `AsyncRerankStrategy` | deterministic business logic, proprietary ranking, 새 research method가 필요할 때 | ranking contract와 validation을 직접 책임져야 함 | [커스텀 Strategy](#커스텀-strategy) |
 
-### 2. PairwiseStrategy (PRP)
-두 문서씩 비교하는 Pairwise Ranking Prompting 전략입니다.
+### Strategy 상세
 
-- **`prp_sliding_k` 알고리즘**
-  - 현재 순위의 아래쪽부터 인접 문서 쌍을 비교합니다.
-  - 위치 편향을 줄이기 위해 같은 쌍을 A/B, B/A 순서로 두 번 호출합니다.
-  - 두 유효 비교가 충돌하면 동률로 보고 현재 순서를 유지합니다.
-  - 기본 `passes=10`이며, reference 논문의 PRP-Sliding-10 설정과 맞춥니다.
-  - query당 예상 provider 호출 수는 `2 * passes * max(document_count - 1, 0)`입니다.
-  - `AsyncPairwiseStrategy`는 `pair_order_parallelism=2`로 같은 pair의 A/B, B/A 호출만 병렬 실행할 수 있으며, PRP 순회 방식과 호출 수는 바꾸지 않습니다.
+#### RankGPT Listwise
 
-### 3. TourRankStrategy (TourRank-r)
-후보 문서를 토너먼트 참가자처럼 보고, 각 stage의 group 안에서 provider가
-top-`m` 문서를 선택합니다. 선택된 문서는 다음 stage로 진출하고 점수를 얻으며,
-최종 순위는 누적 점수 내림차순으로 정렬합니다.
+`ListwiseStrategy`는 프롬프트에 여러 문서를 한 번에 넣고 LLM에게 전체 순위를
+매기도록 요청하는 전략입니다.
 
-- **`tourrank_r` 알고리즘**
-  - 기본값은 비용과 품질 균형을 위한 `rounds=2`입니다.
-  - 품질 중심 평가, 논문식 재현, 최종 offline reranking처럼 추가 LLM 호출을
-    감수할 수 있는 경우에는 `rounds=10`을 우선 권장합니다.
-  - 기본 stage는 정확히 100개 후보 문서를 가정합니다:
-    `100 -> 50 -> 20 -> 10 -> 5 -> 2`.
-  - 다른 후보 수에서는 `stage_configs`를 명시해야 하며, ranksmith는 자동 보정이나 조용한 truncation을 하지 않습니다.
-  - `TourRankStrategy`는 sync 호출 안정성을 위해 기본 `group_parallelism=1`입니다. 같은 stage의 group을 병렬 실행하려면 값을 높입니다. 병렬 실행 중 한 group이 실패해도 이미 시작된 group 호출은 끝까지 진행될 수 있습니다.
-  - `AsyncTourRankStrategy`는 기본적으로 group을 병렬 실행합니다. `group_parallelism`을 지정하면 동시 provider 호출 수를 제한합니다.
+`rankgpt_sliding_window`는 기본 알고리즘입니다. RankGPT 방식의 뒤에서 앞으로
+(back-to-first) 이동하는 sliding window와 bubble-up 동작을 구현하면서,
+ranksmith의 엄격한 JSON 출력 검증을 유지합니다.
+
+#### PRP Pairwise
+
+`PairwiseStrategy`는 두 문서씩 비교하는 Pairwise Ranking Prompting 전략입니다.
+
+`prp_sliding_k`는 현재 순위의 아래쪽부터 인접 문서 쌍을 비교합니다. 위치
+편향을 줄이기 위해 같은 쌍을 A/B, B/A 순서로 두 번 호출합니다. 두 유효 비교가
+충돌하면 동률로 보고 현재 순서를 유지합니다.
+
+기본 `passes=10`이며, reference 논문의 PRP-Sliding-10 설정과 맞춥니다.
+query당 예상 provider 호출 수는 `2 * passes * max(document_count - 1, 0)`입니다.
+
+`AsyncPairwiseStrategy`는 `pair_order_parallelism=2`로 같은 pair의 A/B, B/A
+호출만 병렬 실행할 수 있으며, PRP 순회 방식과 호출 수는 바꾸지 않습니다.
+
+#### TourRank-r
+
+`TourRankStrategy`는 후보 문서를 토너먼트 참가자처럼 봅니다. 각 stage의 group
+안에서 provider가 top-`m` 문서를 선택하고, 선택된 문서는 다음 stage로 진출하며
+점수를 얻습니다. 최종 순위는 누적 점수 내림차순으로 정렬합니다.
+
+`rounds=2`는 기본 실용 설정입니다. 품질 중심 평가, 논문식 재현, 최종 offline
+reranking처럼 추가 LLM 호출을 감수할 수 있으면 `rounds=10`을 우선 고려합니다.
+
+기본 stage는 정확히 100개 후보 문서를 가정합니다:
+`100 -> 50 -> 20 -> 10 -> 5 -> 2`. 다른 후보 수에서는 `stage_configs`를
+명시해야 하며, ranksmith는 자동 보정이나 조용한 truncation을 하지 않습니다.
+
+`TourRankStrategy`는 sync 호출 안정성을 위해 기본 `group_parallelism=1`입니다.
+같은 stage의 group을 병렬 실행하려면 값을 높입니다. 병렬 실행 중 한 group이
+실패해도 이미 시작된 group 호출은 끝까지 진행될 수 있습니다.
+
+`AsyncTourRankStrategy`는 기본적으로 group을 병렬 실행합니다. `group_parallelism`을
+지정하면 동시 provider 호출 수를 제한합니다.
 
 ### 전략 적용 방법
 
@@ -355,109 +377,54 @@ except RerankStrategyError:
 
 ## MTEB Reranking 참고 측정
 
-아래 결과는 참고 기준점이며 보편적 leaderboard가 아닙니다.
-점수는 dataset, model, candidate 수, latency 예산, invalid output 비율에 따라 달라지며,
-이 벤치마크는 native MTEB 후보 집합 위의 재랭킹만 측정합니다 (first-stage retrieval 미포함).
+이 벤치마크는 재랭킹만 측정합니다. first-stage retrieval은 포함하지 않고,
+MTEB가 제공하는 고정 후보 집합을 그대로 사용합니다.
 
 ```bash
-uv run python scripts/evaluate_mteb_reranking.py \
-  --tasks AskUbuntuDupQuestions SciDocsRR StackOverflowDupQuestions \
-  --methods \
-    original \
-    rankgpt_sliding_window@20 \
-    prp_sliding_k@20 \
-    tourrank_r@20:r2 \
-    tourrank_r@20:r10 \
-  --output-dir benchmark-results/mteb-reranking/example \
-  --max-queries 50 \
-  --max-document-chars 4000 \
-  --shuffle-candidates --shuffle-seed 13 \
-  --rankgpt-window-size 20 --rankgpt-step 10 \
-  --prp-passes 10 \
-  --concurrency 4 \
-  --input-token-price-per-1m 2.50 \
-  --output-token-price-per-1m 10.00 \
-  --allow-live
-```
-
-TourRank method는 `tourrank_r@N:rR` 형식을 사용합니다. `N`은 rerank할
-native MTEB 후보 수이고, `R`은 tournament round 수입니다. `:rR`을 생략하면
-runner가 `:r2`로 정규화합니다. 권장하는 간결한 비교는
-`tourrank_r@20:r2`와 `tourrank_r@20:r10`이며, candidate scope를 고정한 채
-TourRank round 효과만 비교합니다.
-
-MTEB runner는 PRP와 TourRank method에 `AsyncAzureOpenAIReranker`를
-사용합니다. `--concurrency`는 독립적인 query-method 실행을 병렬화하며,
-각 Strategy 내부의 순회 방식과 호출 수는 바꾸지 않습니다.
-
-### TourRank-r Live Smoke Snapshot
-
-아래 비교는 TourRank-r 실행 경로를 확인하기 위해 실제 live Azure로 수행한
-smoke 결과입니다. `AskUbuntuDupQuestions` query 1개만 사용했으므로 품질
-결론이 아니라 integration과 호출 수 확인 자료로 해석해야 합니다.
-
-```bash
-uv run python scripts/evaluate_mteb_reranking.py \
+UV_NATIVE_TLS=true uv run python scripts/evaluate_mteb_reranking.py \
   --tasks AskUbuntuDupQuestions \
   --methods \
     original \
     rankgpt_sliding_window@20 \
-    prp_sliding_k@20 \
+    prp_sliding_k@20:p1 \
     tourrank_r@20:r2 \
     tourrank_r@20:r10 \
-  --output-dir benchmark-results/mteb-reranking/tourrank-smoke-20260520-121112 \
-  --max-queries 1 \
+  --output-dir benchmark-results/mteb-reranking/askubuntu-full-tourrank-prp-20260520 \
   --max-document-chars 4000 \
   --shuffle-candidates --shuffle-seed 13 \
   --rankgpt-window-size 20 --rankgpt-step 10 \
-  --prp-passes 10 \
-  --concurrency 2 \
+  --concurrency 24 \
+  --retry-invalid-outputs 1 \
   --input-token-price-per-1m 2.50 \
   --output-token-price-per-1m 10.00 \
   --allow-live
 ```
 
-Scope:
+측정 범위:
 
-- Task: `AskUbuntuDupQuestions`
-- Split: `test`
-- Queries: `1`
-- Candidate order: shuffled with seed `13`
-- Max document length: `4000` characters
-- Validation: strict JSON validation, invalid outputs score `0`
-- Artifact: `benchmark-results/mteb-reranking/tourrank-smoke-20260520-121112`
+- Dataset: `AskUbuntuDupQuestions`, `test` split
+- Queries: `361`
+- Candidates: MTEB가 제공하는 `top_ranked` 후보, query당 `20`개
+- Candidate order: seed `13`으로 shuffled
+- Model: Azure OpenAI deployment `gpt-5.4-nano`
+- Validation: strict JSON, invalid output은 zero-scored
+- Resume policy: failed row는 `--resume --retry-failed-results`로 재시도
+- Artifact: `benchmark-results/mteb-reranking/askubuntu-full-tourrank-prp-20260520`
 
-| Method | NDCG@10 | MRR@10 | MAP | Recall@10 | p50 latency | Invalid rate | LLM calls/query | Queries |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `original` | 0.7126 | 1.0000 | 0.7784 | 0.5000 | 0.0 ms | 0.000 | 0 | 1 |
-| `rankgpt_sliding_window@20` | 0.9337 | 1.0000 | 0.9248 | 0.7500 | 3645.6 ms | 0.000 | 1 | 1 |
-| `prp_sliding_k@20` | 0.7569 | 1.0000 | 0.8209 | 0.5833 | 198438.8 ms | 0.000 | 380 | 1 |
-| `tourrank_r@20:r2` | 0.8630 | 1.0000 | 0.8941 | 0.6667 | 9285.5 ms | 0.000 | 8 | 1 |
-| `tourrank_r@20:r10` | 0.8580 | 1.0000 | 0.8738 | 0.6667 | 41412.7 ms | 0.000 | 40 | 1 |
+| Method | NDCG@10 | MRR@10 | MAP | Recall@10 | p50 latency | Invalid rate | LLM calls/query | Total calls | Queries |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `original` | 0.3926 | 0.4594 | 0.3711 | 0.4993 | 0.0 ms | 0.000 | 0.0 | 0 | 361 |
+| `rankgpt_sliding_window@20` | 0.6908 | 0.7470 | 0.6355 | 0.7671 | 1820.5 ms | 0.008 | 1.0 | 374 | 361 |
+| `tourrank_r@20:r2` | 0.7023 | 0.7642 | 0.6421 | 0.7785 | 8297.1 ms | 0.000 | 8.0 | 2,888 | 361 |
+| `tourrank_r@20:r10` | 0.7135 | 0.7734 | 0.6597 | 0.7836 | 39026.4 ms | 0.006 | 39.9 | 14,409 | 361 |
 
-이 smoke run에서 두 TourRank-r variant는 모두 strict JSON validation을
-통과했습니다. `tourrank_r@20:r10`은 `tourrank_r@20:r2`보다 selection 호출을
-5배 사용했으며, 이는 설정한 round 수와 일치합니다.
+이 run에서는 `tourrank_r@20:r10`이 가장 높은 점수를 냈습니다.
+`tourrank_r@20:r2`는 더 적은 호출과 낮은 latency로 근접한 결과를 냈습니다.
+기본 `passes=10`의 `prp_sliding_k@20`은 이 full-query benchmark에서 실행하지
+않았습니다. query당 `380`회, 전체 `137,180`회 호출이 필요하므로 이 설정의
+품질/latency metric은 여기서 보고하지 않습니다.
 
-### PRP vs RankGPT Snapshot
-
-아래 비교는 같은 `AskUbuntuDupQuestions` 설정으로 실행했으며 결과 artifact는
-`benchmark-results/mteb-reranking/n30-prp-vs-rankgpt-rerun`에 저장되어 있습니다.
-이 결과는 native MTEB candidate set 기준입니다. 해당 task는 query당 후보를
-20개만 제공하므로, 표준적인 top-100 RankGPT 설정은 아닙니다.
-
-| Method | NDCG@10 | MRR@10 | MAP | Recall@10 | p50 latency | p95 latency | Invalid rate | LLM calls/query | Total LLM calls | Mean cost/query | Queries |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `original` | 0.4431 | 0.5668 | 0.3895 | 0.5871 | 0.0 ms | 0.0 ms | 0.000 | 0 | 0 | - | 30 |
-| `rankgpt_sliding_window@20` | 0.6830 | 0.6834 | 0.6400 | 0.7706 | 1842.6 ms | 2542.6 ms | 0.033 | 1 | 30 | $0.001530 | 30 |
-| `prp_sliding_k@20` | 0.6714 | 0.7837 | 0.6132 | 0.7451 | 213583.6 ms | 230670.9 ms | 0.000 | 380 | 11,400 | $0.172772 | 30 |
-
-RankGPT listwise가 NDCG@10, MAP, Recall@10, latency, cost에서 앞섰습니다.
-PRP는 MRR@10에서 앞섰지만, `passes=10`과 후보 20개 기준 query마다 약 380회의
-pairwise LLM 호출이 필요했습니다. Strict validation 정책에 따라 RankGPT의
-invalid LLM output 1건은 zero-score로 집계했습니다.
-
-일반적인 top-100 RankGPT 설정에서 `window_size=20`, `step=10`을 쓰면
-`rankgpt_sliding_window@100`은 query당 listwise LLM 호출 9회가 필요합니다.
-같은 후보 100개를 `prp_sliding_k@100`으로 비교하면
-`2 * 10 * (100 - 1) = 1,980`회의 pairwise LLM 호출이 필요합니다.
+보조 측정인 `prp_sliding_k@20:p1`은 `tourrank_r@20:r10`과 비슷한 호출 예산을
+보기 위해 같은 361개 query에서만 실행했습니다: NDCG@10 `0.5360`, MRR@10
+`0.7261`, MAP `0.4983`, Recall@10 `0.5773`, p50 latency `19919.1 ms`,
+invalid rate `0.000`, query당 `38.0`회, 전체 `13,718`회 호출.

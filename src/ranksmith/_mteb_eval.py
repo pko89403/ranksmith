@@ -56,6 +56,7 @@ class MethodConfig:
     kind: MethodKind
     candidate_count: int | None
     rounds: int | None
+    passes: int | None
     canonical_name: str
 
 
@@ -65,28 +66,45 @@ def normalize_method_name(method: str) -> str:
 
 def parse_method_config(method: str) -> MethodConfig:
     if method == "original":
-        return MethodConfig("original", None, None, "original")
+        return MethodConfig("original", None, None, None, "original")
     if method.startswith("rankgpt_sliding_window@"):
         candidate_count = _parse_positive_suffix(method, "rankgpt_sliding_window@")
         return MethodConfig(
             "rankgpt_sliding_window",
             candidate_count,
             None,
+            None,
             f"rankgpt_sliding_window@{candidate_count}",
         )
     if method.startswith("prp_sliding_k@"):
-        candidate_count = _parse_positive_suffix(method, "prp_sliding_k@")
-        return MethodConfig(
-            "prp_sliding_k",
-            candidate_count,
-            None,
-            f"prp_sliding_k@{candidate_count}",
-        )
+        return _parse_prp_method(method)
     if method.startswith("tourrank_r@"):
         return _parse_tourrank_method(method)
     raise ValueError(
         "method must be original, rankgpt_sliding_window@N, prp_sliding_k@N, "
-        "or tourrank_r@N:rR"
+        "prp_sliding_k@N:pP, or tourrank_r@N:rR"
+    )
+
+
+def _parse_prp_method(method: str) -> MethodConfig:
+    prefix = "prp_sliding_k@"
+    suffix = method.removeprefix(prefix)
+    count_text, separator, passes_text = suffix.partition(":p")
+    if count_text == "" or (separator and passes_text == ""):
+        raise ValueError("PRP method must use prp_sliding_k@N or prp_sliding_k@N:pP")
+    candidate_count = _parse_positive_int(count_text, method)
+    if candidate_count < 1:
+        raise ValueError("PRP candidate count must be greater than 0")
+    passes = _parse_positive_int(passes_text, method) if separator else None
+    if passes is not None and passes < 1:
+        raise ValueError("PRP passes must be greater than 0")
+    suffix_text = f":p{passes}" if passes is not None else ""
+    return MethodConfig(
+        "prp_sliding_k",
+        candidate_count=candidate_count,
+        rounds=None,
+        passes=passes,
+        canonical_name=f"prp_sliding_k@{candidate_count}{suffix_text}",
     )
 
 
@@ -108,6 +126,7 @@ def _parse_tourrank_method(method: str) -> MethodConfig:
         "tourrank_r",
         candidate_count=candidate_count,
         rounds=rounds,
+        passes=None,
         canonical_name=f"tourrank_r@{candidate_count}:r{rounds}",
     )
 
@@ -295,6 +314,16 @@ def estimate_tourrank_llm_calls(method: str) -> int:
         stage.group_count
         for stage in tourrank_stage_configs_for_candidate_count(config.candidate_count)
     )
+
+
+def estimate_prp_llm_calls(method: str, *, default_passes: int) -> int:
+    config = parse_method_config(method)
+    if config.kind != "prp_sliding_k" or config.candidate_count is None:
+        raise ValueError("method must be prp_sliding_k@N or prp_sliding_k@N:pP")
+    passes = config.passes if config.passes is not None else default_passes
+    if passes < 1:
+        raise ValueError("PRP passes must be greater than 0")
+    return 2 * passes * max(config.candidate_count - 1, 0)
 
 
 def _parse_positive_suffix(method: str, prefix: str) -> int:
