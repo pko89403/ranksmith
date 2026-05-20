@@ -286,6 +286,9 @@ results = await reranker.rerank("query", documents)
 
 - `rankgpt_sliding_window`: RankGPT back-to-front window마다 LLM 1회 호출
 - `prp_sliding_k`: query마다 `2 * passes * max(document_count - 1, 0)` pairwise LLM 호출
+- `tourrank_r`: query마다 `tourrank_rounds * sum(stage.group_count)` selection
+  LLM 호출. 후보가 정확히 100개이면 논문 top-100 stage를 쓰고, 그 외 후보
+  수에는 명시적인 single-group halving stage를 생성해 실행합니다.
 
 비교 스크립트는 first-stage candidate, embedding, community를 생성하지
 않습니다. candidate TSV를 embedding retrieval이나 community-building

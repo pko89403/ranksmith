@@ -17,9 +17,7 @@ assert SPEC.loader is not None
 SPEC.loader.exec_module(compare_reranking)
 
 
-def test_compare_all_skips_tourrank_when_cases_are_not_100_candidates(
-    capsys,
-) -> None:
+def test_compare_all_includes_tourrank_for_non_100_candidate_cases() -> None:
     args = argparse.Namespace(algorithm="all")
     cases = [
         BenchmarkCase(
@@ -39,8 +37,11 @@ def test_compare_all_skips_tourrank_when_cases_are_not_100_candidates(
 
     algorithms = compare_reranking._selected_algorithms(args, cases)
 
-    assert algorithms == ("rankgpt_sliding_window", "prp_sliding_k")
-    assert "Skipping tourrank_r" in capsys.readouterr().err
+    assert algorithms == (
+        "rankgpt_sliding_window",
+        "prp_sliding_k",
+        "tourrank_r",
+    )
 
 
 def test_compare_all_includes_tourrank_for_100_candidate_cases() -> None:
@@ -73,3 +74,25 @@ def test_compare_explicit_tourrank_is_preserved_for_non_100_candidate_cases() ->
     cases: list[BenchmarkCase] = []
 
     assert compare_reranking._selected_algorithms(args, cases) == ("tourrank_r",)
+
+
+def test_compare_builds_tourrank_stages_for_non_100_candidate_cases() -> None:
+    stage_configs = compare_reranking._tourrank_stage_configs_for_count(5)
+
+    assert [(s.group_count, s.group_size, s.selected_count) for s in stage_configs] == [
+        (1, 5, 2),
+        (1, 2, 1),
+    ]
+
+
+def test_compare_estimates_tourrank_calls_from_generated_stages() -> None:
+    assert (
+        compare_reranking._estimate_provider_calls(
+            5,
+            "tourrank_r",
+            window_size=3,
+            stride=2,
+            tourrank_rounds=2,
+        )
+        == 4
+    )

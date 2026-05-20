@@ -335,6 +335,10 @@ selected algorithms, `window_size`, `stride`, `passes`, and candidate count per 
 
 - `rankgpt_sliding_window`: one LLM call per back-to-front RankGPT window.
 - `prp_sliding_k`: `2 * passes * max(document_count - 1, 0)` pairwise LLM calls per query.
+- `tourrank_r`: `tourrank_rounds * sum(stage.group_count)` selection LLM
+  calls per query. The runner uses the paper top-100 stages for exactly 100
+  candidates, and an explicit single-group halving stage plan for other
+  candidate counts.
 
 The runner does **not** create first-stage candidates, embeddings, or
 communities. If your candidate TSV is produced by an upstream retrieval or
