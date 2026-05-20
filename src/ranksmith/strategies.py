@@ -4,43 +4,22 @@ import asyncio
 import json
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Literal, Protocol, TypeAlias, cast
+from typing import Literal, cast
 
-from ranksmith._providers import (
+from ranksmith.errors import DocumentTooLongError, RerankInputError, RerankParseError
+from ranksmith.parsing import parse_ranking_response
+from ranksmith.protocols import (
     AsyncLLMProvider,
     AsyncPairwiseLLMProvider,
+    AsyncProvider,
     LLMProvider,
     PairwiseLLMProvider,
+    Provider,
 )
-from ranksmith.errors import DocumentTooLongError, RerankInputError, RerankParseError
 from ranksmith.types import Document, RerankResult
 
 Algorithm = Literal["rankgpt_sliding_window"]
 PairwiseAlgorithm = Literal["prp_sliding_k"]
-Provider: TypeAlias = LLMProvider | PairwiseLLMProvider
-AsyncProvider: TypeAlias = AsyncLLMProvider | AsyncPairwiseLLMProvider
-
-
-class RerankStrategy(Protocol):
-    def rerank(
-        self,
-        *,
-        query: str,
-        documents: Sequence[Document],
-        provider: Provider,
-        top_k: int | None = None,
-    ) -> list[RerankResult]: ...
-
-
-class AsyncRerankStrategy(Protocol):
-    async def rerank(
-        self,
-        *,
-        query: str,
-        documents: Sequence[Document],
-        provider: AsyncProvider,
-        top_k: int | None = None,
-    ) -> list[RerankResult]: ...
 
 
 @dataclass(frozen=True)
@@ -125,7 +104,7 @@ class ListwiseStrategy(_ListwiseConfigMixin):
         provider: LLMProvider,
     ) -> list[int]:
         raw_response = provider.rank(query, list(documents))
-        ranking = _parse_ranking(raw_response, expected_count=len(documents))
+        ranking = parse_ranking_response(raw_response, expected_count=len(documents))
         return [number - 1 for number in ranking]
 
     def _rank_rankgpt_sliding_windows(
@@ -145,7 +124,10 @@ class ListwiseStrategy(_ListwiseConfigMixin):
             window_documents = [documents[i] for i in window_indices]
 
             raw_response = provider.rank(query, window_documents)
-            ranking = _parse_ranking(raw_response, expected_count=len(window_documents))
+            ranking = parse_ranking_response(
+                raw_response,
+                expected_count=len(window_documents),
+            )
 
             new_window_indices = [window_indices[idx - 1] for idx in ranking]
             current_order[start_pos : start_pos + self.window_size] = new_window_indices
@@ -302,7 +284,7 @@ class AsyncListwiseStrategy(_ListwiseConfigMixin):
         provider: AsyncLLMProvider,
     ) -> list[int]:
         raw_response = await provider.rank(query, list(documents))
-        ranking = _parse_ranking(raw_response, expected_count=len(documents))
+        ranking = parse_ranking_response(raw_response, expected_count=len(documents))
         return [number - 1 for number in ranking]
 
     async def _rank_rankgpt_sliding_windows(
@@ -322,7 +304,10 @@ class AsyncListwiseStrategy(_ListwiseConfigMixin):
             window_documents = [documents[i] for i in window_indices]
 
             raw_response = await provider.rank(query, window_documents)
-            ranking = _parse_ranking(raw_response, expected_count=len(window_documents))
+            ranking = parse_ranking_response(
+                raw_response,
+                expected_count=len(window_documents),
+            )
 
             new_window_indices = [window_indices[idx - 1] for idx in ranking]
             current_order[start_pos : start_pos + self.window_size] = new_window_indices
@@ -443,36 +428,6 @@ class AsyncPairwiseStrategy(_PairwiseConfigMixin):
                 documents[left_index],
             ),
         )
-
-
-def _parse_ranking(raw_response: str, *, expected_count: int) -> list[int]:
-    try:
-        data = json.loads(raw_response)
-    except json.JSONDecodeError as exc:
-        raise RerankParseError("LLM response is not valid JSON.", raw_response) from exc
-
-    ranking = data.get("ranking") if isinstance(data, dict) else None
-    if not isinstance(ranking, list):
-        raise RerankParseError(
-            'LLM response must contain a "ranking" list.',
-            raw_response,
-        )
-    if not all(isinstance(item, int) for item in ranking):
-        raise RerankParseError("ranking must contain only integers.", raw_response)
-
-    expected = set(range(1, expected_count + 1))
-    actual = set(ranking)
-    if len(ranking) != expected_count:
-        raise RerankParseError(
-            f"ranking must contain exactly {expected_count} items.",
-            raw_response,
-        )
-    if actual != expected:
-        raise RerankParseError(
-            f"ranking must be a permutation of 1..{expected_count}.",
-            raw_response,
-        )
-    return ranking
 
 
 def _parse_pairwise_winner(raw_response: str) -> Literal["A", "B"]:
