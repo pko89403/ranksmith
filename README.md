@@ -66,6 +66,20 @@ This strategy compares two documents at a time using Pairwise Ranking Prompting.
   - Expected provider calls per query: `2 * passes * max(document_count - 1, 0)`.
   - `AsyncPairwiseStrategy` can run each pair's A/B and B/A calls concurrently with `pair_order_parallelism=2` without changing PRP traversal or call count.
 
+### 3. TourRankStrategy (TourRank-r)
+This strategy treats candidate documents as tournament participants. In each
+stage, the provider selects the top-`m` documents from each group; selected
+documents advance and earn points. The final ranking is sorted by accumulated
+points.
+
+- **`tourrank_r` Algorithm**
+  - Default `rounds=2` for a practical cost/performance trade-off.
+  - Use `rounds=10` when you want the paper's higher-quality setting.
+  - Default stages assume exactly 100 candidate documents:
+    `100 -> 50 -> 20 -> 10 -> 5 -> 2`.
+  - For other candidate counts, pass explicit `stage_configs`; ranksmith fast
+    fails instead of silently deriving or trimming stages.
+
 ### How to Apply a Strategy
 
 You can configure and inject a custom strategy into the `AzureOpenAIReranker`.
@@ -109,7 +123,20 @@ reranker = AzureOpenAIReranker(
 )
 ```
 
-> **Note**: If `strategy` is not provided, it defaults to `ListwiseStrategy(algorithm="rankgpt_sliding_window")`. Pairwise PRP uses many more LLM calls than listwise reranking, so check call estimates before live benchmarks.
+TourRank-r can also be injected:
+
+```python
+from ranksmith import AzureOpenAIReranker, TourRankStrategy
+
+reranker = AzureOpenAIReranker(
+    api_key="...",
+    azure_endpoint="https://example.openai.azure.com",
+    azure_deployment="gpt-4o-mini",
+    strategy=TourRankStrategy(rounds=2),
+)
+```
+
+> **Note**: If `strategy` is not provided, it defaults to `ListwiseStrategy(algorithm="rankgpt_sliding_window")`. Pairwise PRP and TourRank-r use more LLM calls than listwise reranking, so check call estimates before live benchmarks.
 
 ## Custom Strategies
 

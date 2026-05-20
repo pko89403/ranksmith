@@ -62,3 +62,10 @@ Decision: keep `LLMProvider.rank()` for listwise ranking and add pairwise `compa
 Status: accepted
 
 Reason: 기존 JSON permutation 계약을 유지하면서 PRP의 binary choice prompt와 strict winner parsing을 분리한다.
+
+## D010 TourRank provider contract
+Decision: add selection `select()` provider contract and implement TourRank as a separate Strategy.
+
+Status: accepted
+
+Reason: TourRank는 전체 permutation이나 pairwise winner가 아니라 group 안의 top-m selected indexes를 필요로 하므로, 기존 listwise/pairwise 계약에 끼워 넣으면 비교 단위와 오류 정책이 흐려진다.

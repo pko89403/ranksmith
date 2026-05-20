@@ -14,15 +14,19 @@ from ranksmith.protocols import (
     AsyncLLMProvider,
     AsyncPairwiseLLMProvider,
     AsyncRerankStrategy,
+    AsyncSelectionLLMProvider,
     LLMProvider,
     PairwiseLLMProvider,
     RerankStrategy,
+    SelectionLLMProvider,
 )
 from ranksmith.strategies import (
     AsyncListwiseStrategy,
     AsyncPairwiseStrategy,
+    AsyncTourRankStrategy,
     ListwiseStrategy,
     PairwiseStrategy,
+    TourRankStrategy,
 )
 from ranksmith.types import Document, RerankResult
 
@@ -36,7 +40,9 @@ class AzureOpenAIReranker:
         azure_deployment: str,
         api_version: str = "2024-08-01-preview",
         strategy: RerankStrategy[Any] | None = None,
-        provider: LLMProvider | PairwiseLLMProvider | None = None,
+        provider: (
+            LLMProvider | PairwiseLLMProvider | SelectionLLMProvider | None
+        ) = None,
         timeout: float | None = None,
         on_usage: UsageCallback | None = None,
     ) -> None:
@@ -82,7 +88,12 @@ class AsyncAzureOpenAIReranker:
         azure_deployment: str,
         api_version: str = "2024-08-01-preview",
         strategy: AsyncRerankStrategy[Any] | None = None,
-        provider: AsyncLLMProvider | AsyncPairwiseLLMProvider | None = None,
+        provider: (
+            AsyncLLMProvider
+            | AsyncPairwiseLLMProvider
+            | AsyncSelectionLLMProvider
+            | None
+        ) = None,
         timeout: float | None = None,
         on_usage: AsyncUsageCallback | None = None,
     ) -> None:
@@ -120,11 +131,15 @@ class AsyncAzureOpenAIReranker:
 
 
 def _is_builtin_sync_strategy(strategy: object) -> bool:
-    return type(strategy) in {ListwiseStrategy, PairwiseStrategy}
+    return type(strategy) in {ListwiseStrategy, PairwiseStrategy, TourRankStrategy}
 
 
 def _is_builtin_async_strategy(strategy: object) -> bool:
-    return type(strategy) in {AsyncListwiseStrategy, AsyncPairwiseStrategy}
+    return type(strategy) in {
+        AsyncListwiseStrategy,
+        AsyncPairwiseStrategy,
+        AsyncTourRankStrategy,
+    }
 
 
 def _normalize_documents(documents: Sequence[str | Document]) -> list[Document]:
