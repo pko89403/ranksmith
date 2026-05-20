@@ -6,7 +6,7 @@ LLM 기반 reranking을 위한 작고 신뢰성 있는 Python 패키지를 만�
 ## 현재 범위
 - Azure OpenAI provider만 지원한다.
 - Zero-shot listwise reranking과 pairwise PRP reranking을 지원한다.
-- `rankgpt_sliding_window`, `prp_sliding_k` algorithm만 지원한다.
+- `rankgpt_sliding_window`, `prp_sliding_k`, `tourrank_r` algorithm을 지원한다.
 - indexing은 하지 않는다.
 - vector search는 하지 않는다.
 - LangChain/LlamaIndex adapter는 아직 만들지 않는다.
@@ -42,6 +42,8 @@ LLM 기반 reranking을 위한 작고 신뢰성 있는 Python 패키지를 만�
 - `max_document_chars`: `4000`
 - `PairwiseStrategy.algorithm`: `prp_sliding_k`
 - `passes`: `10`
+- `TourRankStrategy.algorithm`: `tourrank_r`
+- `rounds`: `2`
 
 ## Codex 읽기 순서
 1. `docs/wiki/00_context.md`

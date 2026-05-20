@@ -17,11 +17,14 @@ from ranksmith._mteb_eval import (
     completed_result_keys,
     compute_query_metrics,
     estimate_cost,
+    estimate_tourrank_llm_calls,
     normalize_method_name,
+    parse_method_config,
     parse_ranking_with_failure_type,
     percentile,
     rankgpt_window_ranges,
     stable_seed,
+    tourrank_stage_configs_for_candidate_count,
     write_jsonl,
 )
 
@@ -66,6 +69,41 @@ def test_normalize_method_name_rejects_removed_direct_method() -> None:
 
 def test_normalize_method_name_accepts_prp_sliding_k() -> None:
     assert normalize_method_name("prp_sliding_k@20") == "prp_sliding_k@20"
+
+
+def test_normalize_method_name_accepts_tourrank_with_rounds() -> None:
+    assert normalize_method_name("tourrank_r@20") == "tourrank_r@20:r2"
+    assert normalize_method_name("tourrank_r@20:r2") == "tourrank_r@20:r2"
+    assert normalize_method_name("tourrank_r@20:r10") == "tourrank_r@20:r10"
+
+
+def test_parse_method_config_returns_tourrank_settings() -> None:
+    config = parse_method_config("tourrank_r@20:r10")
+
+    assert config.kind == "tourrank_r"
+    assert config.candidate_count == 20
+    assert config.rounds == 10
+    assert config.canonical_name == "tourrank_r@20:r10"
+
+
+def test_normalize_method_name_rejects_invalid_tourrank_rounds() -> None:
+    with pytest.raises(ValueError, match="greater than 0"):
+        normalize_method_name("tourrank_r@20:r0")
+
+
+def test_tourrank_stage_configs_for_non_100_mteb_candidates() -> None:
+    stage_configs = tourrank_stage_configs_for_candidate_count(20)
+
+    assert [(s.group_count, s.group_size, s.selected_count) for s in stage_configs] == [
+        (1, 20, 10),
+        (1, 10, 5),
+        (1, 5, 2),
+        (1, 2, 1),
+    ]
+
+
+def test_estimate_tourrank_llm_calls_uses_rounds_and_stage_groups() -> None:
+    assert estimate_tourrank_llm_calls("tourrank_r@20:r10") == 40
 
 
 def test_parse_ranking_with_failure_type_reports_duplicate() -> None:
@@ -313,7 +351,7 @@ def test_mteb_sync_llm_method_rejects_prp_method() -> None:
         ),
     )
 
-    with pytest.raises(ValueError, match="PRP methods require async execution"):
+    with pytest.raises(ValueError, match="require async execution"):
         module._run_llm_method(
             sample=sample,
             method="prp_sliding_k@2",
@@ -386,6 +424,88 @@ async def test_mteb_prp_async_method_uses_async_pairwise_strategy(
     assert captured["strategy"].passes == 3
     assert captured["strategy"].pair_order_parallelism == 2
     assert captured["document_ids"] == ["d1", "d2"]
+
+
+def test_mteb_method_metadata_records_tourrank_settings() -> None:
+    module = _load_mteb_cli_module()
+
+    assert module._method_metadata("tourrank_r@20:r10") == {
+        "kind": "tourrank_r",
+        "candidate_count": 20,
+        "rounds": 10,
+        "tourrank_stage_policy": "paper_top_100_else_single_group_halving",
+        "expected_llm_calls_per_query": 40,
+    }
+
+
+@pytest.mark.asyncio
+async def test_mteb_tourrank_async_method_uses_async_tourrank_strategy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import ranksmith
+
+    module = _load_mteb_cli_module()
+    sample = MtebRerankingSample(
+        task_name="task",
+        split="test",
+        query_id="q1",
+        query="query",
+        candidates=(
+            MtebRerankingCandidate(doc_id="d1", text="a", label=1.0),
+            MtebRerankingCandidate(doc_id="d2", text="b", label=0.0),
+            MtebRerankingCandidate(doc_id="d3", text="c", label=0.0),
+            MtebRerankingCandidate(doc_id="d4", text="d", label=0.0),
+            MtebRerankingCandidate(doc_id="d5", text="e", label=0.0),
+        ),
+    )
+    captured: dict[str, object] = {}
+
+    class FakeAsyncReranker:
+        def __init__(self, **kwargs: object) -> None:
+            captured["strategy"] = kwargs["strategy"]
+
+        async def rerank(
+            self,
+            query: str,
+            documents: list[ranksmith.Document],
+        ) -> list[object]:
+            captured["query"] = query
+            captured["document_ids"] = [document.id for document in documents]
+            return [SimpleNamespace(document=document) for document in documents]
+
+    monkeypatch.setenv("AZURE_OPENAI_API_KEY", "key")
+    monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://example.openai.azure.com")
+    monkeypatch.setenv("AZURE_OPENAI_DEPLOYMENT", "deployment")
+    monkeypatch.setattr(ranksmith, "AsyncAzureOpenAIReranker", FakeAsyncReranker)
+
+    (
+        ranked,
+        valid,
+        failure,
+        usage,
+        llm_calls,
+        error,
+    ) = await module._run_llm_method_async(
+        sample=sample,
+        method="tourrank_r@5:r10",
+        rankgpt_window_size=20,
+        rankgpt_step=10,
+        prp_passes=3,
+    )
+
+    assert ranked == ("d1", "d2", "d3", "d4", "d5")
+    assert valid is True
+    assert failure is None
+    assert usage is None
+    assert llm_calls == 0
+    assert error is None
+    assert isinstance(captured["strategy"], ranksmith.AsyncTourRankStrategy)
+    assert captured["strategy"].rounds == 10
+    assert [
+        (stage.group_count, stage.group_size, stage.selected_count)
+        for stage in captured["strategy"].stage_configs
+    ] == [(1, 5, 2), (1, 2, 1)]
+    assert captured["document_ids"] == ["d1", "d2", "d3", "d4", "d5"]
 
 
 @pytest.mark.asyncio

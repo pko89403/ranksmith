@@ -7,22 +7,27 @@ from ranksmith.errors import (
     RerankProviderError,
     RerankStrategyError,
 )
-from ranksmith.parsing import parse_ranking_response
+from ranksmith.parsing import parse_ranking_response, parse_selection_response
 from ranksmith.protocols import (
     AsyncLLMProvider,
     AsyncPairwiseLLMProvider,
     AsyncProvider,
     AsyncRerankStrategy,
+    AsyncSelectionLLMProvider,
     LLMProvider,
     PairwiseLLMProvider,
     Provider,
     RerankStrategy,
+    SelectionLLMProvider,
 )
 from ranksmith.strategies import (
     AsyncListwiseStrategy,
     AsyncPairwiseStrategy,
+    AsyncTourRankStrategy,
     ListwiseStrategy,
     PairwiseStrategy,
+    TourRankStageConfig,
+    TourRankStrategy,
 )
 from ranksmith.types import Document, RerankResult, RerankUsage
 
@@ -34,6 +39,8 @@ __all__ = [
     "AsyncPairwiseStrategy",
     "AsyncProvider",
     "AsyncRerankStrategy",
+    "AsyncSelectionLLMProvider",
+    "AsyncTourRankStrategy",
     "AzureOpenAIReranker",
     "Document",
     "DocumentTooLongError",
@@ -50,5 +57,9 @@ __all__ = [
     "RerankStrategy",
     "RerankStrategyError",
     "RerankUsage",
+    "SelectionLLMProvider",
+    "TourRankStageConfig",
+    "TourRankStrategy",
     "parse_ranking_response",
+    "parse_selection_response",
 ]

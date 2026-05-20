@@ -66,6 +66,27 @@ This strategy compares two documents at a time using Pairwise Ranking Prompting.
   - Expected provider calls per query: `2 * passes * max(document_count - 1, 0)`.
   - `AsyncPairwiseStrategy` can run each pair's A/B and B/A calls concurrently with `pair_order_parallelism=2` without changing PRP traversal or call count.
 
+### 3. TourRankStrategy (TourRank-r)
+This strategy treats candidate documents as tournament participants. In each
+stage, the provider selects the top-`m` documents from each group; selected
+documents advance and earn points. The final ranking is sorted by accumulated
+points.
+
+- **`tourrank_r` Algorithm**
+  - Default `rounds=2` for a practical cost/performance trade-off.
+  - Prefer `rounds=10` for quality-focused evaluation, paper-style
+    reproduction, or final offline reranking when the extra LLM calls are
+    acceptable.
+  - Default stages assume exactly 100 candidate documents:
+    `100 -> 50 -> 20 -> 10 -> 5 -> 2`.
+  - For other candidate counts, pass explicit `stage_configs`; ranksmith fast
+    fails instead of silently deriving or trimming stages.
+  - `TourRankStrategy` defaults to `group_parallelism=1` for serial sync calls.
+    Increase it to run groups in the same stage concurrently. If one parallel
+    group fails, already-started group calls may still finish.
+  - `AsyncTourRankStrategy` runs groups concurrently by default. Set
+    `group_parallelism` to cap concurrent provider calls.
+
 ### How to Apply a Strategy
 
 You can configure and inject a custom strategy into the `AzureOpenAIReranker`.
@@ -109,7 +130,31 @@ reranker = AzureOpenAIReranker(
 )
 ```
 
-> **Note**: If `strategy` is not provided, it defaults to `ListwiseStrategy(algorithm="rankgpt_sliding_window")`. Pairwise PRP uses many more LLM calls than listwise reranking, so check call estimates before live benchmarks.
+TourRank-r can also be injected:
+
+```python
+from ranksmith import AzureOpenAIReranker, TourRankStrategy
+
+reranker = AzureOpenAIReranker(
+    api_key="...",
+    azure_endpoint="https://example.openai.azure.com",
+    azure_deployment="gpt-4o-mini",
+    strategy=TourRankStrategy(rounds=2, group_parallelism=1),
+)
+```
+
+For quality-focused runs, explicitly switch to TourRank-10:
+
+```python
+reranker = AzureOpenAIReranker(
+    api_key="...",
+    azure_endpoint="https://example.openai.azure.com",
+    azure_deployment="gpt-4o-mini",
+    strategy=TourRankStrategy(rounds=10),
+)
+```
+
+> **Note**: If `strategy` is not provided, it defaults to `ListwiseStrategy(algorithm="rankgpt_sliding_window")`. Pairwise PRP and TourRank-r use more LLM calls than listwise reranking, so check call estimates before live benchmarks.
 
 ## Custom Strategies
 
@@ -303,6 +348,11 @@ selected algorithms, `window_size`, `stride`, `passes`, and candidate count per 
 
 - `rankgpt_sliding_window`: one LLM call per back-to-front RankGPT window.
 - `prp_sliding_k`: `2 * passes * max(document_count - 1, 0)` pairwise LLM calls per query.
+- `tourrank_r`: `tourrank_rounds * sum(stage.group_count)` selection LLM
+  calls per query. The runner uses the paper top-100 stages for exactly 100
+  candidates, and an explicit single-group halving stage plan for other
+  candidate counts. With the paper top-100 stages, TourRank-2 uses 26 calls
+  per query and TourRank-10 uses 130 calls per query.
 
 The runner does **not** create first-stage candidates, embeddings, or
 communities. If your candidate TSV is produced by an upstream retrieval or
@@ -361,7 +411,12 @@ This benchmark measures reranking over fixed native MTEB candidate sets, not fir
 ```bash
 uv run python scripts/evaluate_mteb_reranking.py \
   --tasks AskUbuntuDupQuestions SciDocsRR StackOverflowDupQuestions \
-  --methods original rankgpt_sliding_window@20 prp_sliding_k@20 \
+  --methods \
+    original \
+    rankgpt_sliding_window@20 \
+    prp_sliding_k@20 \
+    tourrank_r@20:r2 \
+    tourrank_r@20:r10 \
   --output-dir benchmark-results/mteb-reranking/example \
   --max-queries 50 \
   --max-document-chars 4000 \
@@ -373,6 +428,16 @@ uv run python scripts/evaluate_mteb_reranking.py \
   --output-token-price-per-1m 10.00 \
   --allow-live
 ```
+
+TourRank methods use `tourrank_r@N:rR`, where `N` is the number of native MTEB
+candidates to rerank and `R` is the number of tournament rounds. If `:rR` is
+omitted, the runner normalizes to `:r2`. The recommended compact comparison is
+`tourrank_r@20:r2` versus `tourrank_r@20:r10`, which keeps the candidate scope
+fixed and isolates the effect of TourRank rounds.
+
+PRP and TourRank methods use `AsyncAzureOpenAIReranker` in this runner.
+`--concurrency` parallelizes independent query-method executions; it does not
+change each strategy's traversal or call count.
 
 ### Current MTEB snapshot
 

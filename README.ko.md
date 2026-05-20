@@ -66,6 +66,21 @@ for result in results:
   - query당 예상 provider 호출 수는 `2 * passes * max(document_count - 1, 0)`입니다.
   - `AsyncPairwiseStrategy`는 `pair_order_parallelism=2`로 같은 pair의 A/B, B/A 호출만 병렬 실행할 수 있으며, PRP 순회 방식과 호출 수는 바꾸지 않습니다.
 
+### 3. TourRankStrategy (TourRank-r)
+후보 문서를 토너먼트 참가자처럼 보고, 각 stage의 group 안에서 provider가
+top-`m` 문서를 선택합니다. 선택된 문서는 다음 stage로 진출하고 점수를 얻으며,
+최종 순위는 누적 점수 내림차순으로 정렬합니다.
+
+- **`tourrank_r` 알고리즘**
+  - 기본값은 비용과 품질 균형을 위한 `rounds=2`입니다.
+  - 품질 중심 평가, 논문식 재현, 최종 offline reranking처럼 추가 LLM 호출을
+    감수할 수 있는 경우에는 `rounds=10`을 우선 권장합니다.
+  - 기본 stage는 정확히 100개 후보 문서를 가정합니다:
+    `100 -> 50 -> 20 -> 10 -> 5 -> 2`.
+  - 다른 후보 수에서는 `stage_configs`를 명시해야 하며, ranksmith는 자동 보정이나 조용한 truncation을 하지 않습니다.
+  - `TourRankStrategy`는 sync 호출 안정성을 위해 기본 `group_parallelism=1`입니다. 같은 stage의 group을 병렬 실행하려면 값을 높입니다. 병렬 실행 중 한 group이 실패해도 이미 시작된 group 호출은 끝까지 진행될 수 있습니다.
+  - `AsyncTourRankStrategy`는 기본적으로 group을 병렬 실행합니다. `group_parallelism`을 지정하면 동시 provider 호출 수를 제한합니다.
+
 ### 전략 적용 방법
 
 사용자 정의 전략을 `AzureOpenAIReranker`에 주입(Inject)하여 사용할 수 있습니다.
@@ -109,7 +124,31 @@ reranker = AzureOpenAIReranker(
 )
 ```
 
-> **참고**: `strategy`를 명시하지 않으면 기본적으로 `ListwiseStrategy(algorithm="rankgpt_sliding_window")`가 자동으로 적용됩니다. Pairwise PRP는 listwise보다 LLM 호출 수가 훨씬 많으므로 live benchmark 전 호출 수를 확인해야 합니다.
+TourRank-r도 같은 방식으로 주입합니다.
+
+```python
+from ranksmith import AzureOpenAIReranker, TourRankStrategy
+
+reranker = AzureOpenAIReranker(
+    api_key="...",
+    azure_endpoint="https://example.openai.azure.com",
+    azure_deployment="gpt-4o-mini",
+    strategy=TourRankStrategy(rounds=2, group_parallelism=1),
+)
+```
+
+품질 중심 실행에서는 TourRank-10을 명시합니다.
+
+```python
+reranker = AzureOpenAIReranker(
+    api_key="...",
+    azure_endpoint="https://example.openai.azure.com",
+    azure_deployment="gpt-4o-mini",
+    strategy=TourRankStrategy(rounds=10),
+)
+```
+
+> **참고**: `strategy`를 명시하지 않으면 기본적으로 `ListwiseStrategy(algorithm="rankgpt_sliding_window")`가 자동으로 적용됩니다. Pairwise PRP와 TourRank-r은 listwise보다 LLM 호출 수가 많으므로 live benchmark 전 호출 수를 확인해야 합니다.
 
 ## 커스텀 Strategy
 
@@ -259,6 +298,11 @@ results = await reranker.rerank("query", documents)
 
 - `rankgpt_sliding_window`: RankGPT back-to-front window마다 LLM 1회 호출
 - `prp_sliding_k`: query마다 `2 * passes * max(document_count - 1, 0)` pairwise LLM 호출
+- `tourrank_r`: query마다 `tourrank_rounds * sum(stage.group_count)` selection
+  LLM 호출. 후보가 정확히 100개이면 논문 top-100 stage를 쓰고, 그 외 후보
+  수에는 명시적인 single-group halving stage를 생성해 실행합니다. 논문
+  top-100 stage 기준 TourRank-2는 query당 26회, TourRank-10은 query당
+  130회 호출합니다.
 
 비교 스크립트는 first-stage candidate, embedding, community를 생성하지
 않습니다. candidate TSV를 embedding retrieval이나 community-building
@@ -318,7 +362,12 @@ except RerankStrategyError:
 ```bash
 uv run python scripts/evaluate_mteb_reranking.py \
   --tasks AskUbuntuDupQuestions SciDocsRR StackOverflowDupQuestions \
-  --methods original rankgpt_sliding_window@20 prp_sliding_k@20 \
+  --methods \
+    original \
+    rankgpt_sliding_window@20 \
+    prp_sliding_k@20 \
+    tourrank_r@20:r2 \
+    tourrank_r@20:r10 \
   --output-dir benchmark-results/mteb-reranking/example \
   --max-queries 50 \
   --max-document-chars 4000 \
@@ -331,10 +380,15 @@ uv run python scripts/evaluate_mteb_reranking.py \
   --allow-live
 ```
 
-MTEB runner는 PRP method에 `AsyncAzureOpenAIReranker`와
-`AsyncPairwiseStrategy`를 사용합니다. 따라서 `--concurrency`는 독립적인
-query-method 실행만 병렬화하며, PRP-Sliding-K의 순회 방식과 호출 수는
-바꾸지 않습니다.
+TourRank method는 `tourrank_r@N:rR` 형식을 사용합니다. `N`은 rerank할
+native MTEB 후보 수이고, `R`은 tournament round 수입니다. `:rR`을 생략하면
+runner가 `:r2`로 정규화합니다. 권장하는 간결한 비교는
+`tourrank_r@20:r2`와 `tourrank_r@20:r10`이며, candidate scope를 고정한 채
+TourRank round 효과만 비교합니다.
+
+MTEB runner는 PRP와 TourRank method에 `AsyncAzureOpenAIReranker`를
+사용합니다. `--concurrency`는 독립적인 query-method 실행을 병렬화하며,
+각 Strategy 내부의 순회 방식과 호출 수는 바꾸지 않습니다.
 
 ### PRP vs RankGPT Snapshot
 

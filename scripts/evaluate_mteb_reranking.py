@@ -25,10 +25,13 @@ from ranksmith._mteb_eval import (  # noqa: E402
     PriceConfig,
     compute_query_metrics,
     estimate_cost,
+    estimate_tourrank_llm_calls,
     mean,
     normalize_method_name,
+    parse_method_config,
     percentile,
     stable_seed,
+    tourrank_stage_configs_for_candidate_count,
 )
 
 
@@ -229,7 +232,8 @@ async def _evaluate_sample_method_async(
     rankgpt_step: int,
     prp_passes: int,
 ) -> dict[str, Any]:
-    if not method.startswith("prp_sliding_k@"):
+    method_config = parse_method_config(method)
+    if method_config.kind not in {"prp_sliding_k", "tourrank_r"}:
         return await asyncio.to_thread(
             _evaluate_sample_method,
             sample=sample,
@@ -362,16 +366,21 @@ def _run_llm_method(
     )
     from ranksmith.errors import RerankParseError, RerankProviderError
 
-    if method.startswith("prp_sliding_k@"):
-        raise ValueError("PRP methods require async execution")
-    else:
+    method_config = parse_method_config(method)
+    if method_config.kind in {"prp_sliding_k", "tourrank_r"}:
+        raise ValueError("PRP and TourRank methods require async execution")
+    if method_config.kind == "rankgpt_sliding_window":
         algorithm = "rankgpt_sliding_window"
-        rank_end = int(method.removeprefix("rankgpt_sliding_window@"))
+        if method_config.candidate_count is None:
+            raise ValueError("RankGPT method config is missing candidate_count")
+        rank_end = method_config.candidate_count
         strategy = ListwiseStrategy(
             algorithm=algorithm,
             window_size=rankgpt_window_size,
             stride=rankgpt_step,
         )
+    else:
+        raise ValueError(f"Unsupported LLM method: {method}")
 
     totals = {"prompt_tokens": 0, "completion_tokens": 0, "calls": 0}
 
@@ -444,17 +453,33 @@ async def _run_llm_method_async(
     from ranksmith import (
         AsyncAzureOpenAIReranker,
         AsyncPairwiseStrategy,
+        AsyncTourRankStrategy,
         Document,
     )
     from ranksmith.errors import RerankParseError, RerankProviderError
 
-    rank_end = int(method.removeprefix("prp_sliding_k@"))
+    method_config = parse_method_config(method)
+    if method_config.kind not in {"prp_sliding_k", "tourrank_r"}:
+        raise ValueError(f"{method} does not use the async LLM execution path")
+    if method_config.candidate_count is None:
+        raise ValueError(f"{method} is missing candidate_count")
+    rank_end = method_config.candidate_count
     totals = {"prompt_tokens": 0, "completion_tokens": 0, "calls": 0}
 
     def on_usage(usage: Any) -> None:
         totals["prompt_tokens"] += usage.prompt_tokens
         totals["completion_tokens"] += usage.completion_tokens
         totals["calls"] += 1
+
+    if method_config.kind == "prp_sliding_k":
+        strategy = AsyncPairwiseStrategy(passes=prp_passes)
+    else:
+        if method_config.rounds is None:
+            raise ValueError("TourRank method config is missing rounds")
+        strategy = AsyncTourRankStrategy(
+            rounds=method_config.rounds,
+            stage_configs=tourrank_stage_configs_for_candidate_count(rank_end),
+        )
 
     reranker = AsyncAzureOpenAIReranker(
         api_key=_required_env("AZURE_OPENAI_API_KEY"),
@@ -467,7 +492,7 @@ async def _run_llm_method_async(
             "AZURE_OPENAI_LLM_API_VERSION",
             os.environ.get("AZURE_OPENAI_API_VERSION", "2024-08-01-preview"),
         ),
-        strategy=AsyncPairwiseStrategy(passes=prp_passes),
+        strategy=strategy,
         on_usage=on_usage,
     )
     documents = [
@@ -559,6 +584,7 @@ def _collect_metadata(
         "rankgpt_window_size": args.rankgpt_window_size,
         "rankgpt_step": args.rankgpt_step,
         "prp_passes": args.prp_passes,
+        "method_configs": {method: _method_metadata(method) for method in methods},
         "concurrency": args.concurrency,
         "azure_deployment": os.environ.get("AZURE_OPENAI_LLM_DEPLOYMENT")
         or os.environ.get("AZURE_OPENAI_DEPLOYMENT"),
@@ -572,6 +598,19 @@ def _collect_metadata(
         "git_commit": _read_git_commit(),
         "started_at_utc": _dt.datetime.now(_dt.timezone.utc).isoformat(),
     }
+
+
+def _method_metadata(method: str) -> dict[str, Any]:
+    method_config = parse_method_config(method)
+    metadata: dict[str, Any] = {
+        "kind": method_config.kind,
+        "candidate_count": method_config.candidate_count,
+        "rounds": method_config.rounds,
+    }
+    if method_config.kind == "tourrank_r":
+        metadata["tourrank_stage_policy"] = "paper_top_100_else_single_group_halving"
+        metadata["expected_llm_calls_per_query"] = estimate_tourrank_llm_calls(method)
+    return metadata
 
 
 def _get_split_field(split_data: Any, name: str) -> Any:
