@@ -111,6 +111,106 @@ reranker = AzureOpenAIReranker(
 
 > **Note**: If `strategy` is not provided, it defaults to `ListwiseStrategy(algorithm="rankgpt_sliding_window")`. Pairwise PRP uses many more LLM calls than listwise reranking, so check call estimates before live benchmarks.
 
+## Custom Strategies
+
+Custom reranking methods should be implemented as new strategy classes instead
+of adding new string values to `ListwiseStrategy.algorithm`. A strategy receives
+the normalized `Document` objects, a provider, and optional `top_k`, then returns
+`RerankResult` objects.
+
+```python
+from collections.abc import Sequence
+
+from ranksmith import (
+    AzureOpenAIReranker,
+    Document,
+    RerankResult,
+)
+
+
+class LengthStrategy:
+    def rerank(
+        self,
+        *,
+        query: str,
+        documents: Sequence[Document],
+        provider: object,
+        top_k: int | None = None,
+    ) -> list[RerankResult]:
+        del query, provider
+        ordered_indexes = sorted(
+            range(len(documents)),
+            key=lambda index: len(documents[index].text),
+            reverse=True,
+        )
+        results = [
+            RerankResult(
+                document=documents[original_index],
+                rank=rank,
+                original_index=original_index,
+                metadata={"strategy": "length"},
+            )
+            for rank, original_index in enumerate(ordered_indexes, start=1)
+        ]
+        return results if top_k is None else results[:top_k]
+
+
+reranker = AzureOpenAIReranker(
+    api_key="...",
+    azure_endpoint="https://example.openai.azure.com",
+    azure_deployment="gpt-4o-mini",
+    strategy=LengthStrategy(),
+)
+```
+
+A custom strategy can also use the public provider protocols directly.
+
+```python
+from collections.abc import Sequence
+
+from ranksmith import (
+    Document,
+    LLMProvider,
+    RerankResult,
+    parse_ranking_response,
+)
+
+
+class ProviderBackedStrategy:
+    def rerank(
+        self,
+        *,
+        query: str,
+        documents: Sequence[Document],
+        provider: LLMProvider,
+        top_k: int | None = None,
+    ) -> list[RerankResult]:
+        ranking = parse_ranking_response(
+            provider.rank(query, list(documents)),
+            expected_count=len(documents),
+        )
+        ordered_indexes = [number - 1 for number in ranking]
+        results = [
+            RerankResult(
+                document=documents[original_index],
+                rank=rank,
+                original_index=original_index,
+                metadata={"strategy": "provider-backed"},
+            )
+            for rank, original_index in enumerate(ordered_indexes, start=1)
+        ]
+        return results if top_k is None else results[:top_k]
+```
+
+Async strategies use the same contract with `async def rerank(...)` and can be
+typed with `AsyncRerankStrategy`. If a custom strategy fails with an unexpected
+exception, `AzureOpenAIReranker` wraps it as `RerankStrategyError`. Raise
+`RerankError` subclasses directly when the error category matters.
+
+See [`examples/custom_strategy.py`](examples/custom_strategy.py) for a runnable
+offline example that covers deterministic strategies, provider-backed
+strategies, strict ranking parsing, and provider error classification.
+
 For lower PRP wall time, use the async strategy. This preserves the
 PRP-Sliding-K method: adjacent pairs are still processed bottom-to-top, while
 only the two order-swapped calls for the same pair are concurrent.
@@ -233,7 +333,12 @@ result.metadata        # strategy-specific metadata
 invalid rankings, or return unvalidated LLM output.
 
 ```python
-from ranksmith import DocumentTooLongError, RerankParseError, RerankProviderError
+from ranksmith import (
+    DocumentTooLongError,
+    RerankParseError,
+    RerankProviderError,
+    RerankStrategyError,
+)
 
 try:
     results = reranker.rerank("query", documents)
@@ -242,6 +347,8 @@ except DocumentTooLongError:
 except RerankParseError:
     ...
 except RerankProviderError:
+    ...
+except RerankStrategyError:
     ...
 ```
 

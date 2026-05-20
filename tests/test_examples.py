@@ -22,3 +22,20 @@ def test_pairwise_prp_example_runs_without_live_provider() -> None:
     assert "rank=01 id=vitamin_c" in result.stdout
     assert "rank=02 id=vitamin_b12" in result.stdout
     assert "compare_calls=18" in result.stdout
+
+
+def test_custom_strategy_example_runs_without_live_provider() -> None:
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "examples" / "custom_strategy.py")],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Custom Strategy example" in result.stdout
+    assert "length_strategy rank=01 id=vitamin_c" in result.stdout
+    assert "provider_strategy rank=01 id=vitamin_b12" in result.stdout
+    assert "provider_error=provider timeout" in result.stdout

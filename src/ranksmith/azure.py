@@ -1,23 +1,28 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Any
 
 from ranksmith._providers import (
     AsyncAzureOpenAIProvider,
-    AsyncLLMProvider,
-    AsyncPairwiseLLMProvider,
     AsyncUsageCallback,
     AzureOpenAIProvider,
-    LLMProvider,
-    PairwiseLLMProvider,
     UsageCallback,
 )
-from ranksmith.errors import RerankError, RerankProviderError
+from ranksmith.errors import RerankError, RerankProviderError, RerankStrategyError
+from ranksmith.protocols import (
+    AsyncLLMProvider,
+    AsyncPairwiseLLMProvider,
+    AsyncRerankStrategy,
+    LLMProvider,
+    PairwiseLLMProvider,
+    RerankStrategy,
+)
 from ranksmith.strategies import (
     AsyncListwiseStrategy,
-    AsyncRerankStrategy,
+    AsyncPairwiseStrategy,
     ListwiseStrategy,
-    RerankStrategy,
+    PairwiseStrategy,
 )
 from ranksmith.types import Document, RerankResult
 
@@ -30,12 +35,12 @@ class AzureOpenAIReranker:
         azure_endpoint: str,
         azure_deployment: str,
         api_version: str = "2024-08-01-preview",
-        strategy: RerankStrategy | None = None,
+        strategy: RerankStrategy[Any] | None = None,
         provider: LLMProvider | PairwiseLLMProvider | None = None,
         timeout: float | None = None,
         on_usage: UsageCallback | None = None,
     ) -> None:
-        self._strategy: RerankStrategy = strategy or ListwiseStrategy()
+        self._strategy: RerankStrategy[Any] = strategy or ListwiseStrategy()
         self._provider = provider or AzureOpenAIProvider(
             api_key=api_key,
             azure_endpoint=azure_endpoint,
@@ -63,7 +68,9 @@ class AzureOpenAIReranker:
         except RerankError:
             raise
         except Exception as exc:
-            raise RerankProviderError(str(exc)) from exc
+            if _is_builtin_sync_strategy(self._strategy):
+                raise RerankProviderError(str(exc)) from exc
+            raise RerankStrategyError(str(exc)) from exc
 
 
 class AsyncAzureOpenAIReranker:
@@ -74,12 +81,12 @@ class AsyncAzureOpenAIReranker:
         azure_endpoint: str,
         azure_deployment: str,
         api_version: str = "2024-08-01-preview",
-        strategy: AsyncRerankStrategy | None = None,
+        strategy: AsyncRerankStrategy[Any] | None = None,
         provider: AsyncLLMProvider | AsyncPairwiseLLMProvider | None = None,
         timeout: float | None = None,
         on_usage: AsyncUsageCallback | None = None,
     ) -> None:
-        self._strategy: AsyncRerankStrategy = strategy or AsyncListwiseStrategy()
+        self._strategy: AsyncRerankStrategy[Any] = strategy or AsyncListwiseStrategy()
         self._provider = provider or AsyncAzureOpenAIProvider(
             api_key=api_key,
             azure_endpoint=azure_endpoint,
@@ -107,7 +114,17 @@ class AsyncAzureOpenAIReranker:
         except RerankError:
             raise
         except Exception as exc:
-            raise RerankProviderError(str(exc)) from exc
+            if _is_builtin_async_strategy(self._strategy):
+                raise RerankProviderError(str(exc)) from exc
+            raise RerankStrategyError(str(exc)) from exc
+
+
+def _is_builtin_sync_strategy(strategy: object) -> bool:
+    return type(strategy) in {ListwiseStrategy, PairwiseStrategy}
+
+
+def _is_builtin_async_strategy(strategy: object) -> bool:
+    return type(strategy) in {AsyncListwiseStrategy, AsyncPairwiseStrategy}
 
 
 def _normalize_documents(documents: Sequence[str | Document]) -> list[Document]:

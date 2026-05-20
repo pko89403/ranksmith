@@ -25,6 +25,12 @@ v1 공개 strategy:
 - `PairwiseStrategy`
 - `AsyncPairwiseStrategy`
 
+공식 확장 지점:
+- 새 reranking 방법은 새 Strategy 클래스로 추가한다.
+- Strategy protocol과 provider protocol은 `ranksmith.protocols` 및 root import에서 공개한다.
+- provider JSON ranking을 직접 다루는 custom Strategy는 `parse_ranking_response()`를 사용해 검증한다.
+- 자세한 확장 규칙은 `docs/wiki/08_custom_strategy_extension.md`를 따른다.
+
 향후 strategy 후보:
 - `PointwiseStrategy`
 

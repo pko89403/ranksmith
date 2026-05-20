@@ -111,6 +111,105 @@ reranker = AzureOpenAIReranker(
 
 > **참고**: `strategy`를 명시하지 않으면 기본적으로 `ListwiseStrategy(algorithm="rankgpt_sliding_window")`가 자동으로 적용됩니다. Pairwise PRP는 listwise보다 LLM 호출 수가 훨씬 많으므로 live benchmark 전 호출 수를 확인해야 합니다.
 
+## 커스텀 Strategy
+
+커스텀 reranking 메소드는 `ListwiseStrategy.algorithm`에 새 문자열 값을 추가하는
+방식보다, 새 Strategy 클래스로 구현하는 방식을 권장합니다. Strategy는 정규화된
+`Document` 목록, provider, 선택적 `top_k`를 받아 `RerankResult` 목록을 반환합니다.
+
+```python
+from collections.abc import Sequence
+
+from ranksmith import (
+    AzureOpenAIReranker,
+    Document,
+    RerankResult,
+)
+
+
+class LengthStrategy:
+    def rerank(
+        self,
+        *,
+        query: str,
+        documents: Sequence[Document],
+        provider: object,
+        top_k: int | None = None,
+    ) -> list[RerankResult]:
+        del query, provider
+        ordered_indexes = sorted(
+            range(len(documents)),
+            key=lambda index: len(documents[index].text),
+            reverse=True,
+        )
+        results = [
+            RerankResult(
+                document=documents[original_index],
+                rank=rank,
+                original_index=original_index,
+                metadata={"strategy": "length"},
+            )
+            for rank, original_index in enumerate(ordered_indexes, start=1)
+        ]
+        return results if top_k is None else results[:top_k]
+
+
+reranker = AzureOpenAIReranker(
+    api_key="...",
+    azure_endpoint="https://example.openai.azure.com",
+    azure_deployment="gpt-4o-mini",
+    strategy=LengthStrategy(),
+)
+```
+
+provider를 직접 쓰는 Strategy도 public provider protocol로 타입을 잡을 수 있습니다.
+
+```python
+from collections.abc import Sequence
+
+from ranksmith import (
+    Document,
+    LLMProvider,
+    RerankResult,
+    parse_ranking_response,
+)
+
+
+class ProviderBackedStrategy:
+    def rerank(
+        self,
+        *,
+        query: str,
+        documents: Sequence[Document],
+        provider: LLMProvider,
+        top_k: int | None = None,
+    ) -> list[RerankResult]:
+        ranking = parse_ranking_response(
+            provider.rank(query, list(documents)),
+            expected_count=len(documents),
+        )
+        ordered_indexes = [number - 1 for number in ranking]
+        results = [
+            RerankResult(
+                document=documents[original_index],
+                rank=rank,
+                original_index=original_index,
+                metadata={"strategy": "provider-backed"},
+            )
+            for rank, original_index in enumerate(ordered_indexes, start=1)
+        ]
+        return results if top_k is None else results[:top_k]
+```
+
+비동기 Strategy는 같은 계약을 `async def rerank(...)`로 구현하고
+`AsyncRerankStrategy`로 타입을 지정하면 됩니다. 커스텀 Strategy에서 예상하지
+못한 예외가 발생하면 `AzureOpenAIReranker`는 이를 `RerankStrategyError`로
+감쌉니다. 오류 분류가 중요하면 `RerankError` 하위 예외를 직접 발생시키세요.
+
+실행 가능한 오프라인 예제는 [`examples/custom_strategy.py`](examples/custom_strategy.py)를
+참고하세요. deterministic Strategy, provider-backed Strategy, 엄격한 ranking
+파싱, provider 오류 분류를 함께 보여줍니다.
+
 PRP wall time을 줄이려면 async strategy를 사용하세요. PRP-Sliding-K 방식은
 유지됩니다. 인접 pair는 여전히 아래에서 위로 순차 처리하고, 같은 pair의
 A/B와 B/A 호출만 동시에 보냅니다.
@@ -191,7 +290,12 @@ result.metadata        # 전략별 metadata
 잘못된 순위를 자동 보정하거나, 검증되지 않은 LLM 출력을 반환하지 않습니다.
 
 ```python
-from ranksmith import DocumentTooLongError, RerankParseError, RerankProviderError
+from ranksmith import (
+    DocumentTooLongError,
+    RerankParseError,
+    RerankProviderError,
+    RerankStrategyError,
+)
 
 try:
     results = reranker.rerank("query", documents)
@@ -200,6 +304,8 @@ except DocumentTooLongError:
 except RerankParseError:
     ...
 except RerankProviderError:
+    ...
+except RerankStrategyError:
     ...
 ```
 

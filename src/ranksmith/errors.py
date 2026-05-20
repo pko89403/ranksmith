@@ -18,6 +18,10 @@ class RerankProviderError(RerankError):
     """Raised when the LLM provider request fails."""
 
 
+class RerankStrategyError(RerankError):
+    """Raised when a custom reranking strategy fails unexpectedly."""
+
+
 class RerankInputError(RerankError):
     """Raised when user input or strategy configuration is invalid."""
 

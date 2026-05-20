@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from typing import Protocol
 
 from openai import AsyncAzureOpenAI, AzureOpenAI
 
@@ -10,36 +9,6 @@ from ranksmith.types import Document, RerankUsage
 
 UsageCallback = Callable[[RerankUsage], None]
 AsyncUsageCallback = Callable[[RerankUsage], Awaitable[None] | None]
-
-
-class LLMProvider(Protocol):
-    def rank(self, query: str, documents: list[Document]) -> str:
-        """Return a JSON string containing a 1-based ranking permutation."""
-
-
-class PairwiseLLMProvider(Protocol):
-    def compare(
-        self,
-        query: str,
-        document_a: Document,
-        document_b: Document,
-    ) -> str:
-        """Return a JSON string containing a pairwise winner, "A" or "B"."""
-
-
-class AsyncLLMProvider(Protocol):
-    async def rank(self, query: str, documents: list[Document]) -> str:
-        """Return a JSON string containing a 1-based ranking asynchronously."""
-
-
-class AsyncPairwiseLLMProvider(Protocol):
-    async def compare(
-        self,
-        query: str,
-        document_a: Document,
-        document_b: Document,
-    ) -> str:
-        """Return a JSON string containing a pairwise winner asynchronously."""
 
 
 class AzureOpenAIProvider:
