@@ -21,6 +21,8 @@ from ranksmith.protocols import (
     RerankStrategy,
 )
 from ranksmith.strategies import (
+    AcuRankStrategy,
+    AsyncAcuRankStrategy,
     AsyncListwiseStrategy,
     AsyncPairwiseStrategy,
     AsyncTourRankStrategy,
@@ -152,11 +154,17 @@ class AsyncAzureOpenAIReranker:
 
 
 def _is_builtin_sync_strategy(strategy: object) -> bool:
-    return type(strategy) in {ListwiseStrategy, PairwiseStrategy, TourRankStrategy}
+    return type(strategy) in {
+        AcuRankStrategy,
+        ListwiseStrategy,
+        PairwiseStrategy,
+        TourRankStrategy,
+    }
 
 
 def _is_builtin_async_strategy(strategy: object) -> bool:
     return type(strategy) in {
+        AsyncAcuRankStrategy,
         AsyncListwiseStrategy,
         AsyncPairwiseStrategy,
         AsyncTourRankStrategy,

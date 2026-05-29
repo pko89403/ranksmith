@@ -195,8 +195,14 @@ def test_model_client_rank_builds_domain_prompt_and_emits_usage() -> None:
     assert request.temperature == 0
     assert request.messages[0].role == "system"
     assert "ranking" in request.messages[0].content
+    assert "exactly 2 integers" in request.messages[0].content
     assert "[1]\nfirst" in request.messages[1].content
     assert "[2]\nsecond" in request.messages[1].content
+    assert '{"ranking": [1, 2]}' in request.messages[1].content
+    assert "Return exactly 2 candidate numbers" in request.messages[1].content
+    assert (
+        "verify that sorting your ranking gives [1, 2]" in request.messages[1].content
+    )
 
 
 def test_model_client_compare_and_select_keep_existing_json_contracts() -> None:
@@ -223,6 +229,7 @@ def test_model_client_compare_and_select_keep_existing_json_contracts() -> None:
     assert selected == '{"selected": [3, 1]}'
     assert "winner" in provider.requests[0].messages[0].content
     assert "selected" in provider.requests[1].messages[0].content
+    assert "exactly 2 integers from 1 to 3" in provider.requests[1].messages[0].content
 
 
 def test_model_client_wraps_provider_errors_and_rejects_empty_content() -> None:

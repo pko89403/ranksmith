@@ -35,6 +35,8 @@ v1 공개 strategy:
 - `AsyncPairwiseStrategy`
 - `TourRankStrategy`
 - `AsyncTourRankStrategy`
+- `AcuRankStrategy`
+- `AsyncAcuRankStrategy`
 
 공식 확장 지점:
 - 새 reranking 방법은 새 Strategy 클래스로 추가한다.
@@ -51,9 +53,9 @@ v1 지원 algorithm:
 - `rankgpt_sliding_window`
 - `prp_sliding_k`
 - `tourrank_r`
+- `acurank`
 
 향후 algorithm 후보:
-- `bayesian`
 - `confidence`
 
 ## LLM 응답 계약

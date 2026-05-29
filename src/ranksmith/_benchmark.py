@@ -19,6 +19,13 @@ class BenchmarkDocument:
     id: str
     title: str
     text: str
+    score: float | None = None
+
+
+@dataclass(frozen=True)
+class CandidateRecord:
+    document_id: str
+    score: float | None = None
 
 
 @dataclass(frozen=True)
@@ -72,6 +79,9 @@ def load_beir_cases(
     candidate_count: int = 20,
     max_cases: int | None = None,
     seed: int = 13,
+    dataset_name: str = "BEIR/SciFact",
+    fixture_prefix: str = "beir-scifact",
+    license_text: str = "See upstream dataset license metadata.",
 ) -> list[BenchmarkCase]:
     _validate_positive("candidate_count", candidate_count)
     if max_cases is not None:
@@ -114,14 +124,15 @@ def load_beir_cases(
         if not document_ids:
             raise ValueError(f"No candidate documents for query_id={query_id}")
         documents = tuple(
-            _document_for_id(corpus, document_id) for document_id in document_ids
+            _document_for_candidate(corpus, candidate)
+            for candidate in document_ids[:candidate_count]
         )
         cases.append(
             BenchmarkCase(
-                fixture_id=f"beir-scifact-{split}-{query_id}",
-                dataset=f"BEIR/SciFact {split}",
+                fixture_id=f"{fixture_prefix}-{split}-{query_id}",
+                dataset=f"{dataset_name} {split}",
                 source=f"cache:{cache_dir}",
-                license="See upstream SciFact/BEIR license metadata.",
+                license=license_text,
                 query_id=query_id,
                 query=queries[query_id],
                 documents=documents,
@@ -294,9 +305,9 @@ def _load_beir_qrels(path: Path) -> dict[str, dict[str, int]]:
     return dict(qrels)
 
 
-def _load_candidate_file(path: Path) -> dict[str, tuple[str, ...]]:
+def _load_candidate_file(path: Path) -> dict[str, tuple[CandidateRecord, ...]]:
     _require_file(path)
-    candidates: dict[str, list[str]] = defaultdict(list)
+    candidates: dict[str, list[CandidateRecord]] = defaultdict(list)
     seen: dict[str, set[str]] = defaultdict(set)
     lines = path.read_text(encoding="utf-8").splitlines()
     for line_number, line in enumerate(lines, 1):
@@ -307,14 +318,18 @@ def _load_candidate_file(path: Path) -> dict[str, tuple[str, ...]]:
             continue
         if len(columns) < 2:
             raise ValueError(f"Invalid candidates row at {path}:{line_number}")
-        query_id, document_id = columns[0], columns[1]
+        query_id, document_id, score = _parse_candidate_row(
+            columns,
+            path=path,
+            line_number=line_number,
+        )
         if document_id in seen[query_id]:
             raise ValueError(
                 f"Duplicate candidate document {document_id} "
                 f"for query_id={query_id} at {path}:{line_number}"
             )
         seen[query_id].add(document_id)
-        candidates[query_id].append(document_id)
+        candidates[query_id].append(CandidateRecord(document_id, score))
     if not candidates:
         raise ValueError(f"Candidate file has no candidates: {path}")
     return {
@@ -328,10 +343,10 @@ def _build_oracle_plus_random_candidates(
     qrels: Mapping[str, Mapping[str, int]],
     candidate_count: int,
     seed: int,
-) -> dict[str, tuple[str, ...]]:
+) -> dict[str, tuple[CandidateRecord, ...]]:
     rng = random.Random(seed)
     corpus_ids = sorted(corpus)
-    candidates: dict[str, tuple[str, ...]] = {}
+    candidates: dict[str, tuple[CandidateRecord, ...]] = {}
     for query_id, query_qrels in qrels.items():
         relevant_ids = sorted(
             document_id for document_id, score in query_qrels.items() if score > 0
@@ -346,20 +361,31 @@ def _build_oracle_plus_random_candidates(
         ]
         rng.shuffle(non_relevant_ids)
         candidates[query_id] = tuple(
-            relevant_ids + non_relevant_ids[: candidate_count - len(relevant_ids)]
+            CandidateRecord(document_id)
+            for document_id in (
+                relevant_ids + non_relevant_ids[: candidate_count - len(relevant_ids)]
+            )
         )
     return candidates
 
 
-def _document_for_id(
+def _document_for_candidate(
     corpus: Mapping[str, BenchmarkDocument],
-    document_id: str,
+    candidate: CandidateRecord,
 ) -> BenchmarkDocument:
     try:
-        return corpus[document_id]
+        document = corpus[candidate.document_id]
     except KeyError as exc:
-        message = f"Candidate document id not found in corpus: {document_id}"
+        message = f"Candidate document id not found in corpus: {candidate.document_id}"
         raise ValueError(message) from exc
+    if candidate.score is None:
+        return document
+    return BenchmarkDocument(
+        id=document.id,
+        title=document.title,
+        text=document.text,
+        score=candidate.score,
+    )
 
 
 def _read_jsonl(path: Path) -> list[tuple[int, Mapping[str, object]]]:
@@ -423,6 +449,33 @@ def _parse_int(value: str, *, path: Path, line_number: int) -> int:
         return int(value)
     except ValueError as exc:
         raise ValueError(f"Expected integer score at {path}:{line_number}") from exc
+
+
+def _parse_float(value: str, *, path: Path, line_number: int) -> float:
+    try:
+        return float(value)
+    except ValueError as exc:
+        raise ValueError(f"Expected numeric score at {path}:{line_number}") from exc
+
+
+def _parse_candidate_row(
+    columns: Sequence[str],
+    *,
+    path: Path,
+    line_number: int,
+) -> tuple[str, str, float | None]:
+    if len(columns) >= 6 and columns[1].upper() == "Q0":
+        return (
+            columns[0],
+            columns[2],
+            _parse_float(columns[4], path=path, line_number=line_number),
+        )
+    score = (
+        _parse_float(columns[3], path=path, line_number=line_number)
+        if len(columns) >= 4
+        else None
+    )
+    return columns[0], columns[1], score
 
 
 def _object_to_int(value: object, *, key: str) -> int:

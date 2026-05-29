@@ -63,11 +63,14 @@ class ModelClient:
         self._on_usage = on_usage
 
     def rank(self, query: str, documents: list[Document]) -> str:
+        candidate_count = len(documents)
         return self._complete(
             system=(
                 "You are a reranking engine. Return only JSON with "
                 'a "ranking" array. The ranking must be a permutation '
-                "of the candidate numbers."
+                "of the candidate numbers. "
+                f"The ranking array must contain exactly {candidate_count} integers: "
+                f"each integer from 1 to {candidate_count} exactly once."
             ),
             user=_build_prompt(query, documents),
         )
@@ -87,10 +90,13 @@ class ModelClient:
         )
 
     def select(self, query: str, documents: list[Document], top_m: int) -> str:
+        candidate_count = len(documents)
         return self._complete(
             system=(
                 "You are a tournament reranking engine. Return only JSON "
-                'with a "selected" array of candidate numbers.'
+                'with a "selected" array of candidate numbers. '
+                f"The selected array must contain exactly {top_m} integers from "
+                f"1 to {candidate_count}, without duplicates."
             ),
             user=_build_selection_prompt(query, documents, top_m),
         )
@@ -127,11 +133,14 @@ class AsyncModelClient:
         self._on_usage = on_usage
 
     async def rank(self, query: str, documents: list[Document]) -> str:
+        candidate_count = len(documents)
         return await self._complete(
             system=(
                 "You are a reranking engine. Return only JSON with "
                 'a "ranking" array. The ranking must be a permutation '
-                "of the candidate numbers."
+                "of the candidate numbers. "
+                f"The ranking array must contain exactly {candidate_count} integers: "
+                f"each integer from 1 to {candidate_count} exactly once."
             ),
             user=_build_prompt(query, documents),
         )
@@ -151,10 +160,13 @@ class AsyncModelClient:
         )
 
     async def select(self, query: str, documents: list[Document], top_m: int) -> str:
+        candidate_count = len(documents)
         return await self._complete(
             system=(
                 "You are a tournament reranking engine. Return only JSON "
-                'with a "selected" array of candidate numbers.'
+                'with a "selected" array of candidate numbers. '
+                f"The selected array must contain exactly {top_m} integers from "
+                f"1 to {candidate_count}, without duplicates."
             ),
             user=_build_selection_prompt(query, documents, top_m),
         )
@@ -197,6 +209,8 @@ async def _emit_usage_async(
 
 
 def _build_prompt(query: str, documents: list[Document]) -> str:
+    candidate_count = len(documents)
+    ranking_example = ", ".join(str(index) for index in range(1, candidate_count + 1))
     candidates = "\n\n".join(
         [
             f"[{index}]\n{document.text}"
@@ -208,8 +222,13 @@ def _build_prompt(query: str, documents: list[Document]) -> str:
         f"Query:\n{query}\n\n"
         f"Candidate documents:\n{candidates}\n\n"
         "Return JSON exactly like this shape:\n"
-        '{"ranking": [1, 2, 3]}\n'
-        "Use each candidate number exactly once."
+        f'{{"ranking": [{ranking_example}]}}\n'
+        f"Return exactly {candidate_count} candidate numbers. "
+        f"Use every integer from 1 to {candidate_count} exactly once. "
+        "Do not omit, duplicate, or invent candidate numbers. "
+        f"Before returning, verify that sorting your ranking gives "
+        f"[{ranking_example}]. "
+        "Do not include any explanation."
     )
 
 

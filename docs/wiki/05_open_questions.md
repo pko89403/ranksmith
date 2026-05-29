@@ -18,6 +18,24 @@ Impact:
 Needed From User:
 - 스펙 검토 후 개발 착수 승인
 
+## Q002 AcuRank public API 및 prior 정책
+Status: resolved
+
+Resolved Decision:
+- Public API 이름은 `AcuRankStrategy` / `AsyncAcuRankStrategy`로 둔다.
+- First-stage score는 `Document.metadata["score"]`에서 읽는다.
+- score가 모든 문서에 있으면 `mu=score`, `sigma=score/3`으로 초기화한다.
+- score가 모든 문서에 없으면 standard TrueSkill prior를 사용한다.
+- score가 일부 문서에만 있거나 numeric이 아니면 `RerankInputError`로 실패한다.
+- 결과 metadata에는 `mu`, `sigma`, `top_k_probability`, `reranker_calls`를 포함한다.
+- 기본 stopping criterion은 uncertain candidate count이며, `max_adaptive_reranker_calls`로 adaptive refinement budget만 제한할 수 있다.
+
+Impact:
+- `docs/specs/spec_acurank.md` 기준으로 구현 완료.
+
+Needed From User:
+- 없음
+
 ## 형식
 ```markdown
 ## Q001 <topic>
