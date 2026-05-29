@@ -6,8 +6,8 @@ LLM 기반 reranking을 위한 작고 신뢰성 있는 Python 패키지를 만�
 ## 현재 범위
 - Azure OpenAI provider만 실제 호출을 지원한다.
 - OpenAI, Anthropic, Gemini provider는 향후 구현을 위한 public stub만 제공한다.
-- Zero-shot listwise reranking과 pairwise PRP reranking을 지원한다.
-- `rankgpt_sliding_window`, `prp_sliding_k`, `tourrank_r` algorithm을 지원한다.
+- Zero-shot listwise, pairwise PRP, tournament, uncertainty-aware adaptive reranking을 지원한다.
+- `rankgpt_sliding_window`, `prp_sliding_k`, `tourrank_r`, `acurank` algorithm을 지원한다.
 - indexing은 하지 않는다.
 - vector search는 하지 않는다.
 - LangChain/LlamaIndex adapter는 아직 만들지 않는다.
@@ -40,13 +40,23 @@ LLM 기반 reranking을 위한 작고 신뢰성 있는 Python 패키지를 만�
 - `Document`
 - `RerankResult`
 - `ListwiseStrategy`
+- `AsyncListwiseStrategy`
 - `PairwiseStrategy`
+- `AsyncPairwiseStrategy`
 - `TourRankStrategy`
+- `AsyncTourRankStrategy`
+- `TourRankStageConfig`
+- `AcuRankStrategy`
+- `AsyncAcuRankStrategy`
 - `RerankError`
 - `RerankInputError`
 - `RerankParseError`
 - `RerankProviderError`
+- `RerankStrategyError`
 - `DocumentTooLongError`
+- `RerankUsage`
+- `parse_ranking_response`
+- `parse_selection_response`
 
 ## 현재 기본값
 - Python `3.10+`
@@ -63,6 +73,13 @@ LLM 기반 reranking을 위한 작고 신뢰성 있는 Python 패키지를 만�
 - `passes`: `10`
 - `TourRankStrategy.algorithm`: `tourrank_r`
 - `rounds`: `2`
+- `AcuRankStrategy.algorithm`: `acurank`
+- `target_rank`: `10`
+- `window_size`: `20`
+- `tolerance`: `0.01`
+- `uncertain_threshold`: `10`
+- `initial_pass`: `True`
+- `score_metadata_key`: `score`
 
 ## Codex 읽기 순서
 1. `docs/wiki/00_context.md`

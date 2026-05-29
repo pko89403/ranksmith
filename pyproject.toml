@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ranksmith"
-version = "0.4.0"
+version = "0.5.0"
 description = "Forge better rankings from candidate documents with LLM reranking."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -22,13 +22,16 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Typing :: Typed",
 ]
-dependencies = ["openai>=1.0.0"]
+dependencies = [
+    "openai>=1.0.0",
+    "trueskill>=0.4.5",
+]
 
 [project.urls]
 Homepage = "https://github.com/pko89403/ranksmith"
 Repository = "https://github.com/pko89403/ranksmith"
 Documentation = "https://github.com/pko89403/ranksmith#readme"
-Benchmarks = "https://github.com/pko89403/ranksmith/blob/main/docs/benchmarks/mteb_reranking.md"
+Benchmarks = "https://github.com/pko89403/ranksmith/blob/main/docs/benchmarks/bm25_top20_reranking.md"
 Issues = "https://github.com/pko89403/ranksmith/issues"
 
 [dependency-groups]
