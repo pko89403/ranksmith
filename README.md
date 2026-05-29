@@ -8,12 +8,14 @@ Forge better rankings from candidate documents.
 
 [한국어 문서](https://github.com/pko89403/ranksmith/blob/main/README.ko.md)
 
-`ranksmith` is a small Python package for LLM-based reranking. Version 1 focuses
-on Azure OpenAI powered zero-shot reranking for candidate documents.
+`ranksmith` is a small Python package for LLM-based reranking. The current
+package focuses on Azure OpenAI powered zero-shot reranking for candidate
+documents.
 
 Highlights:
 
-- Built-in listwise RankGPT, pairwise PRP, and tournament-style TourRank-r strategies
+- Built-in listwise RankGPT, pairwise PRP, tournament-style TourRank-r, and
+  uncertainty-aware AcuRank strategies
 - Public strategy contracts for custom reranking methods
 - `ModelClient` / `ModelProvider` boundary for vendor-independent LLM calls
 - Strict JSON parsing and fast-fail error behavior
@@ -60,17 +62,18 @@ logic (Algorithm).
 
 ### Recommended Use Cases
 
-| Method | Strategy | Recommended when | Trade-off |
+| Method | Strategy | Use when | Cost / risk |
 | --- | --- | --- | --- |
-| `rankgpt_sliding_window` | `ListwiseStrategy` | You need the default, lowest-friction LLM reranker for production or evaluation. | Low call count, but each prompt asks for a full ordered list and can be sensitive to output format. |
+| `rankgpt_sliding_window` | `ListwiseStrategy` | You need the default, lowest-friction LLM reranker for production or evaluation. | Low call count, but each prompt asks for a full ordered list and can be sensitive to output format. With `window_size >= N`, this becomes one-shot listwise reranking. |
 | `prp_sliding_k` | `PairwiseStrategy` | You need pairwise preference comparisons or want to reproduce PRP-style behavior. | Many LLM calls; default `passes=10` is expensive. |
 | `tourrank_r`, `rounds=2` | `TourRankStrategy` | You want stronger quality than listwise on a moderate call budget. | More calls than RankGPT, much fewer than TourRank-10. |
 | `tourrank_r`, `rounds=10` | `TourRankStrategy` | You are doing quality-focused offline reranking, paper-style evaluation, or final reranking where latency is acceptable. | Highest call cost among built-in methods in normal use. |
+| `acurank` | `AcuRankStrategy` | You want adaptive listwise reranking that spends calls on uncertain candidates near the top-k boundary. | Uses TrueSkill state and may issue more calls than basic listwise reranking unless capped. |
 | Custom strategy | `RerankStrategy` / `AsyncRerankStrategy` | You need deterministic business logic, a proprietary ranking process, or a new research method. | You own the ranking contract and validation behavior. |
 
 ### Applying a Strategy
 
-You can configure and inject a custom strategy into the `AzureOpenAIReranker`.
+Configure a strategy and pass it to `AzureOpenAIReranker`.
 
 ```python
 from ranksmith import AzureOpenAIReranker, ListwiseStrategy
@@ -129,7 +132,37 @@ reranker = AzureOpenAIReranker(
 )
 ```
 
-> **Note**: If `strategy` is not provided, it defaults to `ListwiseStrategy(algorithm="rankgpt_sliding_window")`. Pairwise PRP and TourRank-r use more LLM calls than listwise reranking, so check call estimates before live benchmarks.
+AcuRank uses listwise reranker calls as evidence for TrueSkill-based relevance
+estimates:
+
+```python
+from ranksmith import AcuRankStrategy, AzureOpenAIReranker
+
+reranker = AzureOpenAIReranker(
+    api_key="...",
+    azure_endpoint="https://example.openai.azure.com",
+    azure_deployment="gpt-4o-mini",
+    strategy=AcuRankStrategy(
+        target_rank=10,
+        window_size=20,
+        max_adaptive_reranker_calls=20,  # Optional adaptive-phase budget cap.
+        batch_parallelism=2,  # Optional; keep 1 if your provider is not thread-safe.
+    ),
+)
+```
+
+If every `Document` has numeric `metadata["score"]`, AcuRank uses it as the
+first-stage prior. If no document has a score, it falls back to the standard
+TrueSkill prior. Partial score metadata and boolean score values fail fast.
+
+For small candidate sets, `target_rank` is clipped to the number of documents.
+`max_adaptive_reranker_calls` limits only the adaptive refinement phase; the
+optional initial pass is counted separately in result metadata.
+`batch_parallelism` parallelizes independent batches within the same AcuRank
+iteration, while posterior updates are still applied in deterministic batch
+order.
+
+> **Note**: If `strategy` is not provided, it defaults to `ListwiseStrategy(algorithm="rankgpt_sliding_window")`. Pairwise PRP, TourRank-r, and AcuRank can use more LLM calls than basic listwise reranking, so check call estimates before live benchmarks.
 
 ## Custom Strategies
 
@@ -229,7 +262,8 @@ stubs for future SDK-backed implementations. Calling them fails fast with
 
 ## Async Support
 
-`ranksmith` provides first-class asynchronous support for high-throughput environments like FastAPI.
+`ranksmith` provides first-class asynchronous support for high-throughput
+environments like FastAPI.
 
 ```python
 from ranksmith import AsyncAzureOpenAIReranker
@@ -251,32 +285,46 @@ Runnable examples live in the `examples/` directory.
 - [rankgpt_async.py](https://github.com/pko89403/ranksmith/blob/main/examples/rankgpt_async.py): async RankGPT integration
 - [pairwise_prp.py](https://github.com/pko89403/ranksmith/blob/main/examples/pairwise_prp.py): pairwise PRP strategy
 - [tourrank.py](https://github.com/pko89403/ranksmith/blob/main/examples/tourrank.py): TourRank-r with a fake provider
+- [acurank.py](https://github.com/pko89403/ranksmith/blob/main/examples/acurank.py): AcuRank with first-stage score priors
 - [custom_strategy.py](https://github.com/pko89403/ranksmith/blob/main/examples/custom_strategy.py): custom strategy contracts
 
 ## Benchmarking
 
-The reference benchmark below measures reranking only. It uses the fixed native
-MTEB `AskUbuntuDupQuestions` test candidates: `361` queries, `20` candidates per
-query, shuffled with seed `13`, using Azure OpenAI deployment `gpt-5.4-nano`.
+The benchmark below measures reranking only. Pyserini BM25 provides the fixed
+first-stage candidates; `ranksmith` reranks those candidates without performing
+retrieval. The run uses `AskUbuntuDupQuestions` test data: `361` queries, BM25
+top-20 candidates per query, top-20 reranking, and `@5` evaluation. Azure OpenAI
+deployment `gpt-5.4-nano` was used for live LLM calls.
 
-Full command, call accounting, run scope, and artifact links are in
-the [MTEB reranking benchmark notes](https://github.com/pko89403/ranksmith/blob/main/docs/benchmarks/mteb_reranking.md).
+Invalid LLM outputs were not repaired or silently corrected. They were retried,
+and any remaining invalid rows are reported as invalid.
 
-| Method | NDCG@10 | MRR@10 | MAP | Recall@10 | p50 latency | Invalid rate | LLM calls/query | Total calls | Queries |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `original` | 0.3926 | 0.4594 | 0.3711 | 0.4993 | 0.0 ms | 0.000 | 0.0 | 0 | 361 |
-| `rankgpt_sliding_window@20` | 0.6908 | 0.7470 | 0.6355 | 0.7671 | 1820.5 ms | 0.008 | 1.0 | 374 | 361 |
-| `tourrank_r@20:r2` | 0.7023 | 0.7642 | 0.6421 | 0.7785 | 8297.1 ms | 0.000 | 8.0 | 2,888 | 361 |
-| `tourrank_r@20:r10` | 0.7135 | 0.7734 | 0.6597 | 0.7836 | 39026.4 ms | 0.006 | 39.9 | 14,409 | 361 |
+The table separates nominal algorithm call estimates from row-level retry
+attempts. Row attempts are useful for retry accounting, but they are not exact
+provider-call telemetry for multi-call methods that can fail partway through an
+algorithm run. The committed evidence artifacts are:
 
-`tourrank_r@20:r10` had the strongest scores in this run, while
-`tourrank_r@20:r2` stayed close with far fewer calls and lower latency. Full
-`prp_sliding_k@20` with the default `passes=10` was not run in this full-query
-benchmark; it would require `380` calls/query (`137,180` calls over all 361
-queries), so no quality or latency metrics are reported for that setting here.
+- [`benchmark-results/live/askubuntu-bm25-top20-default-live.v2.merged.json`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/live/askubuntu-bm25-top20-default-live.v2.merged.json)
+- [`benchmark-results/pyserini/askubuntu-bm25-top20.trec`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/pyserini/askubuntu-bm25-top20.trec)
 
-The auxiliary `prp_sliding_k@20:p1` result is documented in the benchmark
-details as a reduced-budget call reference, not as the default PRP result.
+| Method | NDCG@5 | MRR@5 | Recall@5 | Valid rows | Invalid rate | Nominal LLM calls/query | LLM row attempts/query incl. retries |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `original_bm25` | 0.3520 | 0.5062 | 0.2862 | 361/361 | 0.000 | 0 | N/A |
+| `single_call_listwise@20` | 0.4082 | 0.5541 | 0.3345 | 359/361 | 0.006 | 1 | 1.04 |
+| `rankgpt_sw_w5` | 0.3973 | 0.5283 | 0.3366 | 361/361 | 0.000 | 9 | 1.01 |
+| `acurank_k5_b1` | 0.4053 | 0.5491 | 0.3377 | 356/361 | 0.014 | 2 | 1.12 |
+| `tourrank_r2` | 0.4236 | 0.5725 | 0.3601 | 361/361 | 0.000 | 8 | 1.03 |
+| `prp_sliding_p1` | 0.4065 | 0.5818 | 0.3277 | 361/361 | 0.000 | 38 | 1.00 |
+
+`tourrank_r2` had the best NDCG@5 and Recall@5, while `prp_sliding_p1` had the
+best MRR@5. `single_call_listwise@20` is the one-shot listwise baseline.
+`rankgpt_sw_w5` is the true sliding-window listwise baseline for this top-20
+setup. `acurank_k5_b1` aligns AcuRank's uncertainty boundary with the `@5`
+evaluation cutoff.
+
+After retries, 2 `single_call_listwise@20` rows and 5 `acurank_k5_b1` rows
+remained invalid. They are included in the invalid-rate accounting instead of
+being repaired.
 
 ## Result Model
 

@@ -8,12 +8,13 @@
 
 [English README](https://github.com/pko89403/ranksmith/blob/main/README.md)
 
-`ranksmith`는 LLM 기반 reranking을 위한 작은 Python 패키지입니다. v1은
-Azure OpenAI 기반 zero-shot reranking에 집중합니다.
+`ranksmith`는 LLM 기반 reranking을 위한 작은 Python 패키지입니다. 현재 패키지는
+Azure OpenAI 기반 zero-shot candidate reranking에 집중합니다.
 
 주요 특징:
 
-- listwise RankGPT, pairwise PRP, tournament 방식 TourRank-r built-in Strategy
+- listwise RankGPT, pairwise PRP, tournament 방식 TourRank-r,
+  uncertainty-aware AcuRank built-in Strategy
 - 커스텀 reranking 메소드를 위한 public Strategy contract
 - vendor 독립 LLM 호출을 위한 `ModelClient` / `ModelProvider` 경계
 - 엄격한 JSON parsing과 fast-fail 오류 정책
@@ -59,17 +60,18 @@ for result in results:
 
 ### 추천 사용 시나리오
 
-| Method | Strategy | 추천 상황 | Trade-off |
+| Method | Strategy | 추천 상황 | 비용 / 위험 |
 | --- | --- | --- | --- |
-| `rankgpt_sliding_window` | `ListwiseStrategy` | production 또는 evaluation에서 기본 LLM reranker가 필요할 때 | 호출 수가 적지만, 한 번에 전체 순위를 출력해야 하므로 output format에 민감할 수 있음 |
+| `rankgpt_sliding_window` | `ListwiseStrategy` | production 또는 evaluation에서 기본 LLM reranker가 필요할 때 | 호출 수가 적지만, 한 번에 전체 순위를 출력해야 하므로 output format에 민감할 수 있음. `window_size >= N`이면 one-shot listwise reranking이 됨 |
 | `prp_sliding_k` | `PairwiseStrategy` | pairwise preference 비교가 필요하거나 PRP 방식 재현이 필요할 때 | LLM 호출 수가 많고, 기본 `passes=10`은 비용이 큼 |
 | `tourrank_r`, `rounds=2` | `TourRankStrategy` | 중간 수준 호출 예산에서 listwise보다 강한 품질을 원할 때 | RankGPT보다 호출 수가 많지만 TourRank-10보다 훨씬 가벼움 |
 | `tourrank_r`, `rounds=10` | `TourRankStrategy` | 품질 중심 offline reranking, 논문식 평가, 최종 reranking처럼 latency를 감수할 수 있을 때 | 일반 사용 기준 built-in 중 호출 비용이 가장 큼 |
+| `acurank` | `AcuRankStrategy` | top-k 경계 근처의 불확실한 후보에 listwise 호출을 집중하고 싶을 때 | TrueSkill 상태를 사용하며, cap을 두지 않으면 기본 listwise보다 호출 수가 늘 수 있음 |
 | Custom strategy | `RerankStrategy` / `AsyncRerankStrategy` | deterministic business logic, proprietary ranking, 새 research method가 필요할 때 | ranking contract와 validation을 직접 책임져야 함 |
 
 ### 전략 적용 방법
 
-사용자 정의 전략을 `AzureOpenAIReranker`에 주입(Inject)하여 사용할 수 있습니다.
+Strategy를 설정한 뒤 `AzureOpenAIReranker`에 전달합니다.
 
 ```python
 from ranksmith import AzureOpenAIReranker, ListwiseStrategy
@@ -128,7 +130,36 @@ reranker = AzureOpenAIReranker(
 )
 ```
 
-> **참고**: `strategy`를 명시하지 않으면 기본적으로 `ListwiseStrategy(algorithm="rankgpt_sliding_window")`가 자동으로 적용됩니다. Pairwise PRP와 TourRank-r은 listwise보다 LLM 호출 수가 많으므로 live benchmark 전 호출 수를 확인해야 합니다.
+AcuRank는 listwise reranker 호출 결과를 TrueSkill 기반 relevance 추정의
+evidence로 사용합니다.
+
+```python
+from ranksmith import AcuRankStrategy, AzureOpenAIReranker
+
+reranker = AzureOpenAIReranker(
+    api_key="...",
+    azure_endpoint="https://example.openai.azure.com",
+    azure_deployment="gpt-4o-mini",
+    strategy=AcuRankStrategy(
+        target_rank=10,
+        window_size=20,
+        max_adaptive_reranker_calls=20,  # 선택적 adaptive phase budget cap.
+        batch_parallelism=2,  # 선택 사항. provider thread-safety가 불확실하면 1 유지.
+    ),
+)
+```
+
+모든 `Document`에 numeric `metadata["score"]`가 있으면 AcuRank는 이를 first-stage
+prior로 사용합니다. score가 전혀 없으면 standard TrueSkill prior를 사용합니다.
+일부 문서에만 score가 있거나 boolean score 값이면 fast fail합니다.
+
+후보 수가 작을 때는 `target_rank`를 문서 수로 자동 제한합니다.
+`max_adaptive_reranker_calls`는 adaptive refinement phase만 제한하며, 선택적
+initial pass 호출은 결과 metadata에서 별도로 함께 집계됩니다.
+`batch_parallelism`은 같은 AcuRank iteration 안의 독립 batch를 병렬 호출하되,
+posterior update는 deterministic batch order로 적용합니다.
+
+> **참고**: `strategy`를 명시하지 않으면 기본적으로 `ListwiseStrategy(algorithm="rankgpt_sliding_window")`가 자동으로 적용됩니다. Pairwise PRP, TourRank-r, AcuRank는 기본 listwise보다 LLM 호출 수가 많을 수 있으므로 live benchmark 전 호출 수를 확인해야 합니다.
 
 ## 커스텀 Strategy
 
@@ -226,7 +257,8 @@ public stub입니다. 호출하면 `RerankProviderError`로 fast fail 합니다.
 
 ## 비동기 지원 (Async Support)
 
-대규모 트래픽이나 비동기 웹 프레임워크(FastAPI 등)를 위해 비동기 처리를 완벽하게 지원합니다.
+대규모 트래픽이나 FastAPI 같은 비동기 웹 프레임워크를 위해 async reranker를
+제공합니다.
 
 ```python
 from ranksmith import AsyncAzureOpenAIReranker
@@ -248,33 +280,45 @@ results = await reranker.rerank("query", documents)
 - [rankgpt_async.py](https://github.com/pko89403/ranksmith/blob/main/examples/rankgpt_async.py): 비동기 RankGPT 연동
 - [pairwise_prp.py](https://github.com/pko89403/ranksmith/blob/main/examples/pairwise_prp.py): pairwise PRP Strategy
 - [tourrank.py](https://github.com/pko89403/ranksmith/blob/main/examples/tourrank.py): fake provider 기반 TourRank-r
+- [acurank.py](https://github.com/pko89403/ranksmith/blob/main/examples/acurank.py): first-stage score prior 기반 AcuRank
 - [custom_strategy.py](https://github.com/pko89403/ranksmith/blob/main/examples/custom_strategy.py): custom Strategy 계약
 
 ## 벤치마크
 
-아래 참고 측정은 reranking만 측정합니다. MTEB `AskUbuntuDupQuestions` test의
-고정 후보를 사용했으며, query `361`개, query당 후보 `20`개, seed `13` shuffle,
-Azure OpenAI deployment `gpt-5.4-nano` 조건입니다.
+아래 benchmark는 reranking만 측정합니다. Pyserini BM25는 고정된 first-stage
+candidate를 만들고, `ranksmith`는 retrieval 없이 해당 후보만 재정렬합니다.
+실행 조건은 `AskUbuntuDupQuestions` test data, query `361`개, query당 BM25
+top-20 후보, top-20 reranking, `@5` 평가입니다. Live LLM 호출에는 Azure OpenAI
+deployment `gpt-5.4-nano`를 사용했습니다.
 
-전체 명령, 호출 수 산식, 측정 범위, artifact 링크는
-[MTEB reranking benchmark 문서](https://github.com/pko89403/ranksmith/blob/main/docs/benchmarks/mteb_reranking.ko.md)에
-분리했습니다.
+잘못된 LLM 출력은 조용히 보정하거나 자동 복구하지 않았습니다. 대신 재호출했고,
+끝까지 남은 invalid row는 invalid로 보고했습니다.
 
-| Method | NDCG@10 | MRR@10 | MAP | Recall@10 | p50 latency | Invalid rate | LLM calls/query | Total calls | Queries |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `original` | 0.3926 | 0.4594 | 0.3711 | 0.4993 | 0.0 ms | 0.000 | 0.0 | 0 | 361 |
-| `rankgpt_sliding_window@20` | 0.6908 | 0.7470 | 0.6355 | 0.7671 | 1820.5 ms | 0.008 | 1.0 | 374 | 361 |
-| `tourrank_r@20:r2` | 0.7023 | 0.7642 | 0.6421 | 0.7785 | 8297.1 ms | 0.000 | 8.0 | 2,888 | 361 |
-| `tourrank_r@20:r10` | 0.7135 | 0.7734 | 0.6597 | 0.7836 | 39026.4 ms | 0.006 | 39.9 | 14,409 | 361 |
+표에서는 algorithm 기준 nominal 호출 수와 retry를 포함한 row-level attempt 수를
+분리합니다. row attempt는 retry accounting에는 유용하지만, multi-call method가
+중간 단계에서 실패할 수 있으므로 정확한 provider-call telemetry는 아닙니다.
+커밋된 근거 artifact는 다음과 같습니다.
 
-이 run에서는 `tourrank_r@20:r10`이 가장 높은 점수를 냈습니다.
-`tourrank_r@20:r2`는 더 적은 호출과 낮은 latency로 근접한 결과를 냈습니다.
-기본 `passes=10`의 `prp_sliding_k@20`은 이 full-query benchmark에서 실행하지
-않았습니다. query당 `380`회, 전체 `137,180`회 호출이 필요하므로 이 설정의
-품질/latency metric은 여기서 보고하지 않습니다.
+- [`benchmark-results/live/askubuntu-bm25-top20-default-live.v2.merged.json`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/live/askubuntu-bm25-top20-default-live.v2.merged.json)
+- [`benchmark-results/pyserini/askubuntu-bm25-top20.trec`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/pyserini/askubuntu-bm25-top20.trec)
 
-보조 측정인 `prp_sliding_k@20:p1`은 기본 PRP 결과가 아니라 reduced-budget 호출
-참고값으로 상세 문서에만 기록합니다.
+| Method | NDCG@5 | MRR@5 | Recall@5 | Valid rows | Invalid rate | Nominal LLM calls/query | LLM row attempts/query incl. retries |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `original_bm25` | 0.3520 | 0.5062 | 0.2862 | 361/361 | 0.000 | 0 | N/A |
+| `single_call_listwise@20` | 0.4082 | 0.5541 | 0.3345 | 359/361 | 0.006 | 1 | 1.04 |
+| `rankgpt_sw_w5` | 0.3973 | 0.5283 | 0.3366 | 361/361 | 0.000 | 9 | 1.01 |
+| `acurank_k5_b1` | 0.4053 | 0.5491 | 0.3377 | 356/361 | 0.014 | 2 | 1.12 |
+| `tourrank_r2` | 0.4236 | 0.5725 | 0.3601 | 361/361 | 0.000 | 8 | 1.03 |
+| `prp_sliding_p1` | 0.4065 | 0.5818 | 0.3277 | 361/361 | 0.000 | 38 | 1.00 |
+
+`tourrank_r2`는 NDCG@5와 Recall@5가 가장 높았고, `prp_sliding_p1`은 MRR@5가
+가장 높았습니다. `single_call_listwise@20`은 one-shot listwise baseline입니다.
+`rankgpt_sw_w5`는 이 top-20 설정의 실제 sliding-window listwise baseline입니다.
+`acurank_k5_b1`은 AcuRank uncertainty boundary를 `@5` 평가 cutoff와 맞춘
+설정입니다.
+
+재시도 후에도 `single_call_listwise@20` 2개 row와 `acurank_k5_b1` 5개 row가
+invalid로 남았습니다. 이 row는 보정하지 않고 invalid rate에 반영했습니다.
 
 ## 결과 모델
 

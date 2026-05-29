@@ -48,6 +48,7 @@ MethodKind = Literal[
     "rankgpt_sliding_window",
     "prp_sliding_k",
     "tourrank_r",
+    "acurank",
 ]
 
 
@@ -80,9 +81,18 @@ def parse_method_config(method: str) -> MethodConfig:
         return _parse_prp_method(method)
     if method.startswith("tourrank_r@"):
         return _parse_tourrank_method(method)
+    if method.startswith("acurank@"):
+        candidate_count = _parse_positive_suffix(method, "acurank@")
+        return MethodConfig(
+            "acurank",
+            candidate_count,
+            None,
+            None,
+            f"acurank@{candidate_count}",
+        )
     raise ValueError(
         "method must be original, rankgpt_sliding_window@N, prp_sliding_k@N, "
-        "prp_sliding_k@N:pP, or tourrank_r@N:rR"
+        "prp_sliding_k@N:pP, tourrank_r@N:rR, or acurank@N"
     )
 
 
@@ -314,6 +324,13 @@ def estimate_tourrank_llm_calls(method: str) -> int:
         stage.group_count
         for stage in tourrank_stage_configs_for_candidate_count(config.candidate_count)
     )
+
+
+def estimate_acurank_llm_calls(method: str, *, window_size: int) -> int:
+    config = parse_method_config(method)
+    if config.kind != "acurank" or config.candidate_count is None:
+        raise ValueError("method must be acurank@N")
+    return max(1, math.ceil(config.candidate_count / window_size) + 1)
 
 
 def estimate_prp_llm_calls(method: str, *, default_passes: int) -> int:

@@ -16,6 +16,7 @@ from ranksmith._mteb_eval import (
     apply_integer_permutation,
     completed_result_keys,
     compute_query_metrics,
+    estimate_acurank_llm_calls,
     estimate_cost,
     estimate_prp_llm_calls,
     estimate_tourrank_llm_calls,
@@ -88,6 +89,17 @@ def test_parse_method_config_returns_tourrank_settings() -> None:
     assert config.canonical_name == "tourrank_r@20:r10"
 
 
+def test_parse_method_config_returns_acurank_settings() -> None:
+    assert normalize_method_name("acurank@20") == "acurank@20"
+    config = parse_method_config("acurank@20")
+
+    assert config.kind == "acurank"
+    assert config.candidate_count == 20
+    assert config.rounds is None
+    assert config.passes is None
+    assert config.canonical_name == "acurank@20"
+
+
 def test_parse_method_config_returns_prp_passes() -> None:
     config = parse_method_config("prp_sliding_k@20:p1")
 
@@ -115,6 +127,10 @@ def test_tourrank_stage_configs_for_non_100_mteb_candidates() -> None:
 
 def test_estimate_tourrank_llm_calls_uses_rounds_and_stage_groups() -> None:
     assert estimate_tourrank_llm_calls("tourrank_r@20:r10") == 40
+
+
+def test_estimate_acurank_llm_calls_uses_initial_pass_plus_refinement() -> None:
+    assert estimate_acurank_llm_calls("acurank@5", window_size=20) == 2
 
 
 def test_estimate_prp_llm_calls_uses_method_passes_when_present() -> None:
@@ -401,6 +417,7 @@ async def test_mteb_prp_async_method_uses_async_pairwise_strategy(
     class FakeAsyncReranker:
         def __init__(self, **kwargs: object) -> None:
             captured["strategy"] = kwargs["strategy"]
+            captured["timeout"] = kwargs["timeout"]
 
         async def rerank(
             self,
@@ -414,6 +431,7 @@ async def test_mteb_prp_async_method_uses_async_pairwise_strategy(
     monkeypatch.setenv("AZURE_OPENAI_API_KEY", "key")
     monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://example.openai.azure.com")
     monkeypatch.setenv("AZURE_OPENAI_DEPLOYMENT", "deployment")
+    monkeypatch.setenv("AZURE_OPENAI_LLM_TIMEOUT", "12.5")
     monkeypatch.setattr(ranksmith, "AsyncAzureOpenAIReranker", FakeAsyncReranker)
 
     (
@@ -439,6 +457,7 @@ async def test_mteb_prp_async_method_uses_async_pairwise_strategy(
     assert llm_calls == 0
     assert error is None
     assert isinstance(captured["strategy"], ranksmith.AsyncPairwiseStrategy)
+    assert captured["timeout"] == 12.5
     assert captured["strategy"].passes == 3
     assert captured["strategy"].pair_order_parallelism == 2
     assert captured["document_ids"] == ["d1", "d2"]
@@ -466,6 +485,7 @@ async def test_mteb_prp_method_passes_can_be_set_per_method(
     class FakeAsyncReranker:
         def __init__(self, **kwargs: object) -> None:
             captured["strategy"] = kwargs["strategy"]
+            captured["timeout"] = kwargs["timeout"]
 
         async def rerank(
             self,
@@ -477,6 +497,7 @@ async def test_mteb_prp_method_passes_can_be_set_per_method(
     monkeypatch.setenv("AZURE_OPENAI_API_KEY", "key")
     monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://example.openai.azure.com")
     monkeypatch.setenv("AZURE_OPENAI_DEPLOYMENT", "deployment")
+    monkeypatch.setenv("AZURE_OPENAI_LLM_TIMEOUT", "12.5")
     monkeypatch.setattr(ranksmith, "AsyncAzureOpenAIReranker", FakeAsyncReranker)
 
     await module._run_llm_method_async(
@@ -514,6 +535,21 @@ def test_mteb_method_metadata_uses_configured_default_prp_passes() -> None:
         "rounds": None,
         "passes": None,
         "expected_llm_calls_per_query": 38,
+    }
+
+
+def test_mteb_method_metadata_uses_acurank_window_size() -> None:
+    module = _load_mteb_cli_module()
+
+    assert module._method_metadata("acurank@20", rankgpt_window_size=7) == {
+        "kind": "acurank",
+        "candidate_count": 20,
+        "rounds": None,
+        "passes": None,
+        "expected_llm_calls_per_query": 4,
+        "expected_llm_calls_note": (
+            "adaptive upper estimate for initial pass plus one refinement"
+        ),
     }
 
 
@@ -555,6 +591,7 @@ async def test_mteb_tourrank_async_method_uses_async_tourrank_strategy(
     monkeypatch.setenv("AZURE_OPENAI_API_KEY", "key")
     monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://example.openai.azure.com")
     monkeypatch.setenv("AZURE_OPENAI_DEPLOYMENT", "deployment")
+    monkeypatch.setenv("AZURE_OPENAI_LLM_TIMEOUT", "12.5")
     monkeypatch.setattr(ranksmith, "AsyncAzureOpenAIReranker", FakeAsyncReranker)
 
     (
@@ -586,6 +623,127 @@ async def test_mteb_tourrank_async_method_uses_async_tourrank_strategy(
         for stage in captured["strategy"].stage_configs
     ] == [(1, 5, 2), (1, 2, 1)]
     assert captured["document_ids"] == ["d1", "d2", "d3", "d4", "d5"]
+
+
+@pytest.mark.asyncio
+async def test_mteb_acurank_async_method_uses_async_acurank_strategy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import ranksmith
+
+    module = _load_mteb_cli_module()
+    sample = MtebRerankingSample(
+        task_name="task",
+        split="test",
+        query_id="q1",
+        query="query",
+        candidates=(
+            MtebRerankingCandidate(doc_id="d1", text="a", label=1.0),
+            MtebRerankingCandidate(doc_id="d2", text="b", label=0.0),
+            MtebRerankingCandidate(doc_id="d3", text="c", label=0.0),
+            MtebRerankingCandidate(doc_id="d4", text="d", label=0.0),
+            MtebRerankingCandidate(doc_id="d5", text="e", label=0.0),
+        ),
+    )
+    captured: dict[str, object] = {}
+
+    class FakeAsyncReranker:
+        def __init__(self, **kwargs: object) -> None:
+            captured["strategy"] = kwargs["strategy"]
+
+        async def rerank(
+            self,
+            query: str,
+            documents: list[ranksmith.Document],
+        ) -> list[object]:
+            captured["query"] = query
+            captured["document_ids"] = [document.id for document in documents]
+            return [SimpleNamespace(document=document) for document in documents]
+
+    monkeypatch.setenv("AZURE_OPENAI_API_KEY", "key")
+    monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://example.openai.azure.com")
+    monkeypatch.setenv("AZURE_OPENAI_DEPLOYMENT", "deployment")
+    monkeypatch.setenv("AZURE_OPENAI_LLM_TIMEOUT", "12.5")
+    monkeypatch.setattr(ranksmith, "AsyncAzureOpenAIReranker", FakeAsyncReranker)
+
+    (
+        ranked,
+        valid,
+        failure,
+        usage,
+        llm_calls,
+        error,
+    ) = await module._run_llm_method_async(
+        sample=sample,
+        method="acurank@5",
+        rankgpt_window_size=20,
+        rankgpt_step=10,
+        prp_passes=3,
+        retry_invalid_outputs=0,
+    )
+
+    assert ranked == ("d1", "d2", "d3", "d4", "d5")
+    assert valid is True
+    assert failure is None
+    assert usage is None
+    assert llm_calls == 0
+    assert error is None
+    assert isinstance(captured["strategy"], ranksmith.AsyncAcuRankStrategy)
+    assert captured["strategy"].target_rank == 5
+    assert captured["strategy"].window_size == 20
+    assert captured["strategy"].max_adaptive_reranker_calls == 1
+    assert captured["document_ids"] == ["d1", "d2", "d3", "d4", "d5"]
+
+
+@pytest.mark.asyncio
+async def test_mteb_acurank_method_uses_async_evaluation_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_mteb_cli_module()
+    sample = MtebRerankingSample(
+        task_name="task",
+        split="test",
+        query_id="q1",
+        query="query",
+        candidates=(
+            MtebRerankingCandidate(doc_id="d1", text="a", label=1.0),
+            MtebRerankingCandidate(doc_id="d2", text="b", label=0.0),
+        ),
+    )
+    captured: dict[str, object] = {}
+
+    async def fake_run_llm_method_async(
+        **kwargs: object,
+    ) -> tuple[
+        tuple[str, ...],
+        bool,
+        str | None,
+        tuple[int, int] | None,
+        int,
+        str | None,
+    ]:
+        captured["method"] = kwargs["method"]
+        return ("d1", "d2"), True, None, (10, 2), 1, None
+
+    monkeypatch.setattr(
+        module,
+        "_run_llm_method_async",
+        fake_run_llm_method_async,
+    )
+
+    row = await module._evaluate_sample_method_async(
+        sample=sample,
+        method="acurank@2",
+        price_config=None,
+        rankgpt_window_size=2,
+        rankgpt_step=2,
+        prp_passes=3,
+        retry_invalid_outputs=0,
+    )
+
+    assert captured["method"] == "acurank@2"
+    assert row["valid"] is True
+    assert row["llm_calls"] == 1
 
 
 @pytest.mark.asyncio
@@ -642,6 +800,41 @@ async def test_evaluate_pending_methods_respects_concurrency() -> None:
 
     assert len(rows) == 3
     assert max_in_flight == 2
+
+
+@pytest.mark.asyncio
+async def test_evaluate_pending_methods_propagates_worker_errors() -> None:
+    module = _load_mteb_cli_module()
+    samples = [
+        MtebRerankingSample(
+            task_name="task",
+            split="test",
+            query_id="q1",
+            query="query",
+            candidates=(MtebRerankingCandidate(doc_id="d1", text="a", label=1.0),),
+        )
+    ]
+
+    async def failing_evaluate(**kwargs: object) -> dict[str, object]:
+        del kwargs
+        raise RuntimeError("boom")
+
+    with pytest.raises(RuntimeError, match="boom"):
+        await asyncio.wait_for(
+            module._evaluate_pending_methods(
+                samples=samples,
+                methods=("acurank@1",),
+                already_done=set(),
+                price_config=None,
+                rankgpt_window_size=1,
+                rankgpt_step=1,
+                prp_passes=1,
+                retry_invalid_outputs=0,
+                concurrency=1,
+                evaluate_one=failing_evaluate,
+            ),
+            timeout=1,
+        )
 
 
 @pytest.mark.asyncio

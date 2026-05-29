@@ -20,6 +20,8 @@ from ranksmith import (
 
 def test_protocols_are_publicly_importable_from_root() -> None:
     from ranksmith import (  # noqa: PLC0415
+        AcuRankStrategy,
+        AsyncAcuRankStrategy,
         AsyncModelClient,
         AsyncModelProvider,
         AsyncRerankStrategy,
@@ -40,6 +42,8 @@ def test_protocols_are_publicly_importable_from_root() -> None:
     assert AsyncModelClient is not None
     assert ModelProvider is not None
     assert AsyncModelProvider is not None
+    assert AcuRankStrategy is not None
+    assert AsyncAcuRankStrategy is not None
     assert TourRankStrategy is not None
     assert AsyncTourRankStrategy is not None
     assert TourRankStageConfig is not None

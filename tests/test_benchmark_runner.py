@@ -33,6 +33,44 @@ def test_load_beir_cases_with_candidate_file(tmp_path: Path) -> None:
     assert cases[0].qrels == {"d1": 2, "d2": 1}
 
 
+def test_load_beir_cases_reads_pyserini_trec_run_scores(tmp_path: Path) -> None:
+    _write_beir_cache(tmp_path)
+    candidates_path = tmp_path / "run.trec"
+    candidates_path.write_text(
+        "q1 Q0 d3 1 9.5 pyserini\nq1 Q0 d2 2 8.0 pyserini\nq1 Q0 d1 3 7.0 pyserini\n",
+        encoding="utf-8",
+    )
+
+    cases = load_beir_cases(
+        tmp_path,
+        split="test",
+        candidates_path=candidates_path,
+        candidate_count=2,
+    )
+
+    assert [document.id for document in cases[0].documents] == ["d3", "d2"]
+    assert [document.score for document in cases[0].documents] == [9.5, 8.0]
+
+
+def test_load_beir_cases_accepts_generic_dataset_metadata(tmp_path: Path) -> None:
+    _write_beir_cache(tmp_path)
+    candidates_path = tmp_path / "run.trec"
+    candidates_path.write_text("q1 Q0 d3 1 9.5 pyserini\n", encoding="utf-8")
+
+    cases = load_beir_cases(
+        tmp_path,
+        split="test",
+        candidates_path=candidates_path,
+        dataset_name="AskUbuntu BM25",
+        fixture_prefix="askubuntu-bm25",
+        license_text="See upstream AskUbuntu license metadata.",
+    )
+
+    assert cases[0].fixture_id == "askubuntu-bm25-test-q1"
+    assert cases[0].dataset == "AskUbuntu BM25 test"
+    assert cases[0].license == "See upstream AskUbuntu license metadata."
+
+
 def test_load_beir_cases_requires_candidate_file(tmp_path: Path) -> None:
     _write_beir_cache(tmp_path)
 

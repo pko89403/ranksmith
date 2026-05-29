@@ -5,6 +5,7 @@ import argparse
 import asyncio
 import datetime as _dt
 import json
+import math
 import os
 import platform
 import random
@@ -24,6 +25,7 @@ from ranksmith._mteb_eval import (  # noqa: E402
     MtebRerankingSample,
     PriceConfig,
     compute_query_metrics,
+    estimate_acurank_llm_calls,
     estimate_cost,
     estimate_prp_llm_calls,
     estimate_tourrank_llm_calls,
@@ -250,7 +252,7 @@ async def _evaluate_sample_method_async(
     retry_invalid_outputs: int,
 ) -> dict[str, Any]:
     method_config = parse_method_config(method)
-    if method_config.kind not in {"prp_sliding_k", "tourrank_r"}:
+    if method_config.kind not in {"prp_sliding_k", "tourrank_r", "acurank"}:
         return await asyncio.to_thread(
             _evaluate_sample_method,
             sample=sample,
@@ -318,7 +320,7 @@ async def _evaluate_pending_methods(
     ] = _evaluate_sample_method_async,
     on_row: Callable[[int, dict[str, Any]], None] | None = None,
 ) -> list[dict[str, Any]]:
-    queue: asyncio.Queue[tuple[int, MtebRerankingSample, str] | None] = asyncio.Queue()
+    queue: asyncio.Queue[tuple[int, MtebRerankingSample, str]] = asyncio.Queue()
     done_pair = 0
 
     for sample in samples:
@@ -333,10 +335,11 @@ async def _evaluate_pending_methods(
 
     async def worker() -> None:
         while True:
-            item = await queue.get()
             try:
-                if item is None:
-                    return
+                item = queue.get_nowait()
+            except asyncio.QueueEmpty:
+                return
+            try:
                 pair_number, sample, method = item
                 row = await evaluate_one(
                     sample=sample,
@@ -354,12 +357,7 @@ async def _evaluate_pending_methods(
                 queue.task_done()
 
     workers = [asyncio.create_task(worker()) for _ in range(worker_count)]
-    for _ in range(worker_count):
-        queue.put_nowait(None)
-
-    await queue.join()
-    for task in workers:
-        await task
+    await asyncio.gather(*workers)
     return rows
 
 
@@ -422,6 +420,7 @@ def _run_llm_method(
             "AZURE_OPENAI_LLM_API_VERSION",
             os.environ.get("AZURE_OPENAI_API_VERSION", "2024-08-01-preview"),
         ),
+        timeout=_env_float("AZURE_OPENAI_LLM_TIMEOUT"),
         strategy=strategy,
         on_usage=on_usage,
     )
@@ -475,11 +474,12 @@ async def _run_llm_method_async(
     int,
     str | None,
 ]:
-    del rankgpt_window_size, rankgpt_step
+    del rankgpt_step
 
     from openai import APIError
 
     from ranksmith import (
+        AsyncAcuRankStrategy,
         AsyncAzureOpenAIReranker,
         AsyncPairwiseStrategy,
         AsyncTourRankStrategy,
@@ -488,7 +488,7 @@ async def _run_llm_method_async(
     from ranksmith.errors import RerankParseError, RerankProviderError
 
     method_config = parse_method_config(method)
-    if method_config.kind not in {"prp_sliding_k", "tourrank_r"}:
+    if method_config.kind not in {"prp_sliding_k", "tourrank_r", "acurank"}:
         raise ValueError(f"{method} does not use the async LLM execution path")
     if method_config.candidate_count is None:
         raise ValueError(f"{method} is missing candidate_count")
@@ -505,12 +505,23 @@ async def _run_llm_method_async(
     )
     if method_config.kind == "prp_sliding_k":
         strategy = AsyncPairwiseStrategy(passes=method_prp_passes)
-    else:
+    elif method_config.kind == "tourrank_r":
         if method_config.rounds is None:
             raise ValueError("TourRank method config is missing rounds")
         strategy = AsyncTourRankStrategy(
             rounds=method_config.rounds,
             stage_configs=tourrank_stage_configs_for_candidate_count(rank_end),
+        )
+    else:
+        initial_pass_calls = math.ceil(rank_end / rankgpt_window_size)
+        estimated_calls = estimate_acurank_llm_calls(
+            method,
+            window_size=rankgpt_window_size,
+        )
+        strategy = AsyncAcuRankStrategy(
+            target_rank=min(10, rank_end),
+            window_size=rankgpt_window_size,
+            max_adaptive_reranker_calls=max(0, estimated_calls - initial_pass_calls),
         )
 
     reranker = AsyncAzureOpenAIReranker(
@@ -524,6 +535,7 @@ async def _run_llm_method_async(
             "AZURE_OPENAI_LLM_API_VERSION",
             os.environ.get("AZURE_OPENAI_API_VERSION", "2024-08-01-preview"),
         ),
+        timeout=_env_float("AZURE_OPENAI_LLM_TIMEOUT"),
         strategy=strategy,
         on_usage=on_usage,
     )
@@ -625,7 +637,11 @@ def _collect_metadata(
         "retry_invalid_outputs": args.retry_invalid_outputs,
         "retry_failed_results": args.retry_failed_results,
         "method_configs": {
-            method: _method_metadata(method, default_prp_passes=args.prp_passes)
+            method: _method_metadata(
+                method,
+                default_prp_passes=args.prp_passes,
+                rankgpt_window_size=args.rankgpt_window_size,
+            )
             for method in methods
         },
         "concurrency": args.concurrency,
@@ -643,7 +659,12 @@ def _collect_metadata(
     }
 
 
-def _method_metadata(method: str, *, default_prp_passes: int = 10) -> dict[str, Any]:
+def _method_metadata(
+    method: str,
+    *,
+    default_prp_passes: int = 10,
+    rankgpt_window_size: int = 20,
+) -> dict[str, Any]:
     method_config = parse_method_config(method)
     metadata: dict[str, Any] = {
         "kind": method_config.kind,
@@ -659,6 +680,14 @@ def _method_metadata(method: str, *, default_prp_passes: int = 10) -> dict[str, 
     if method_config.kind == "tourrank_r":
         metadata["tourrank_stage_policy"] = "paper_top_100_else_single_group_halving"
         metadata["expected_llm_calls_per_query"] = estimate_tourrank_llm_calls(method)
+    if method_config.kind == "acurank":
+        metadata["expected_llm_calls_per_query"] = estimate_acurank_llm_calls(
+            method,
+            window_size=rankgpt_window_size,
+        )
+        metadata["expected_llm_calls_note"] = (
+            "adaptive upper estimate for initial pass plus one refinement"
+        )
     return metadata
 
 
@@ -1051,6 +1080,13 @@ def _required_env(name: str, *, fallback: str | None = None) -> str:
         if fallback_value:
             return fallback_value
     raise SystemExit(f"Missing required environment variable: {name}")
+
+
+def _env_float(name: str) -> float | None:
+    value = os.environ.get(name)
+    if value is None or value == "":
+        return None
+    return float(value)
 
 
 if __name__ == "__main__":

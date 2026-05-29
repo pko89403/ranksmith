@@ -6,6 +6,11 @@
 .env
 .benchmark-cache/
 benchmark-results/**/query_results.jsonl
+benchmark-results/**/*.query_results.jsonl
+benchmark-results/live/*.json
+!benchmark-results/live/*.merged.json
+benchmark-results/mteb-reranking/
+benchmark-results/*original-check.json
 dist/
 build/
 *.egg-info/

@@ -29,6 +29,8 @@ from ranksmith.model import (
 from ranksmith.parsing import parse_ranking_response, parse_selection_response
 from ranksmith.protocols import AsyncRerankStrategy, RerankStrategy
 from ranksmith.strategies import (
+    AcuRankStrategy,
+    AsyncAcuRankStrategy,
     AsyncListwiseStrategy,
     AsyncPairwiseStrategy,
     AsyncTourRankStrategy,
@@ -41,6 +43,8 @@ from ranksmith.types import Document, RerankResult, RerankUsage
 
 __all__ = [
     "AnthropicProvider",
+    "AcuRankStrategy",
+    "AsyncAcuRankStrategy",
     "AsyncAnthropicProvider",
     "AsyncAzureAOAIProvider",
     "AsyncAzureOpenAIReranker",
