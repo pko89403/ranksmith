@@ -30,9 +30,11 @@ from ranksmith.strategies import (
     AsyncAcuRankStrategy,
     AsyncListwiseStrategy,
     AsyncPairwiseStrategy,
+    AsyncSetwiseStrategy,
     AsyncTourRankStrategy,
     ListwiseStrategy,
     PairwiseStrategy,
+    SetwiseStrategy,
     TourRankStrategy,
 )
 from ranksmith.types import Document, RerankResult
@@ -165,6 +167,7 @@ def _is_builtin_sync_strategy(strategy: object) -> bool:
         AcuRankStrategy,
         ListwiseStrategy,
         PairwiseStrategy,
+        SetwiseStrategy,
         TourRankStrategy,
     }
 
@@ -174,6 +177,7 @@ def _is_builtin_async_strategy(strategy: object) -> bool:
         AsyncAcuRankStrategy,
         AsyncListwiseStrategy,
         AsyncPairwiseStrategy,
+        AsyncSetwiseStrategy,
         AsyncTourRankStrategy,
     }
 

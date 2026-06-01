@@ -32,7 +32,7 @@ query_id    document_id    rank    score
 
 ## Method Set
 
-기본 비교는 BM25 top-20 후보를 재정렬하고 `@5`로 평가합니다.
+기본 비교는 BM25 top-20 후보를 입력으로 받고 `@5`로 평가합니다. top-k 조기 종료를 지원하는 method는 평가 대상 top-5까지만 추출할 수 있습니다.
 
 | Method | 설정 | 비교에서의 의미 | Calls/query estimate |
 | --- | --- | --- | ---: |
@@ -41,6 +41,7 @@ query_id    document_id    rank    score
 | `rankgpt_sw_w5` | `N=20`, `w=5`, `stride=2` | true sliding-window listwise baseline | 9 |
 | `acurank_k5_b1` | `N=20`, `target_rank=5`, `w=20`, adaptive budget 1 | evaluate@5-aligned low-cost AcuRank baseline | 2 |
 | `tourrank_r2` | `N=20`, `r=2` | moderate-cost setwise baseline | 8 |
+| `setwise_hs_s10` | `N=20`, `set_size=10`, `top_k=5` | practical setwise heapsort baseline for long-context chat models | 12 |
 | `prp_sliding_p1` | `N=20`, `passes=1` | pairwise quality/cost reference | 38 |
 
 Optional methods:

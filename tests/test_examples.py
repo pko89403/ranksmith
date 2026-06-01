@@ -61,6 +61,23 @@ def test_tourrank_example_runs_without_live_provider() -> None:
     assert "select_calls=4" in result.stdout
 
 
+def test_setwise_heapsort_example_runs_without_live_provider() -> None:
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "examples" / "setwise_heapsort.py")],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Setwise Heapsort example" in result.stdout
+    assert "rank=01 id=vitamin_c" in result.stdout
+    assert "rank=02 id=vitamin_b12" in result.stdout
+    assert "select_calls=" in result.stdout
+
+
 def test_selection_prompt_example_matches_top_m() -> None:
     prompt = _build_selection_prompt(
         "query",
