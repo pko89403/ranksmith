@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.1
+
+- Add `SetwiseStrategy` and `AsyncSetwiseStrategy` with `setwise_heapsort`.
+- Add setwise heapsort example, tests, benchmark support, and README benchmark evidence.
+- Document the setwise reference mapping and implementation constraints.
+
 ## 0.3.2
 
 - Streamline the PyPI README for clearer package discovery.
