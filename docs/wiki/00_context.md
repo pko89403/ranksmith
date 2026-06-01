@@ -1,5 +1,14 @@
 # ranksmith 작업 컨텍스트
 
+## 제품 철학
+ranksmith는 closed LLM API를 사용해 training-free reranking을 지원하는 작고 신뢰성 있는 Python 패키지다.
+
+핵심 대상은 ChatGPT, Claude, Gemini, Azure OpenAI 같은 hosted LLM이다.
+SFT, RL, distillation, logits, attention, hidden states 접근을 전제하지 않는다.
+
+Training 기반 논문도 그대로 재현하지 않는다.
+closed API와 training-free 조건에서 실행 가능한 insight만 Strategy, Wrapper, Validator 설계로 번역한다.
+
 ## 목표
 LLM 기반 reranking을 위한 작고 신뢰성 있는 Python 패키지를 만든다.
 

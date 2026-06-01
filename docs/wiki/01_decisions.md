@@ -76,3 +76,10 @@ Decision: replace the old `LLMProvider` family with `ModelClient` and `ModelProv
 Status: accepted
 
 Reason: Strategy는 ranksmith 도메인 메서드(`rank`, `compare`, `select`)만 알아야 하고, vendor별 SDK 호출 차이는 `ModelProvider.complete()` adapter에 격리해야 한다.
+
+## D012 Project philosophy
+Decision: ranksmith targets training-free reranking over closed LLM APIs.
+
+Status: accepted
+
+Reason: closed API 사용자는 모델 내부 신호나 학습 파이프라인 없이도 안정적인 reranking 모듈을 필요로 한다. Training 기반 논문은 구현 대상이 아니라, 실행 시점에 적용 가능한 insight만 선별해 반영한다.
