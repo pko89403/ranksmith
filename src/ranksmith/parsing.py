@@ -7,6 +7,10 @@ from ranksmith.errors import RerankInputError, RerankParseError
 __all__ = ["parse_ranking_response", "parse_selection_response"]
 
 
+def _is_json_int(value: object) -> bool:
+    return type(value) is int
+
+
 def parse_ranking_response(raw_response: str, *, expected_count: int) -> list[int]:
     """Parse and validate a 1-based ranking permutation from provider JSON."""
     if expected_count < 0:
@@ -23,7 +27,7 @@ def parse_ranking_response(raw_response: str, *, expected_count: int) -> list[in
             'LLM response must contain a "ranking" list.',
             raw_response,
         )
-    if not all(isinstance(item, int) for item in ranking):
+    if not all(_is_json_int(item) for item in ranking):
         raise RerankParseError("ranking must contain only integers.", raw_response)
 
     expected = set(range(1, expected_count + 1))
@@ -68,7 +72,7 @@ def parse_selection_response(
             'LLM response must contain a "selected" list.',
             raw_response,
         )
-    if not all(isinstance(item, int) for item in selected):
+    if not all(_is_json_int(item) for item in selected):
         raise RerankParseError("selected must contain only integers.", raw_response)
     if len(selected) != selected_count:
         raise RerankParseError(

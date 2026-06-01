@@ -229,6 +229,13 @@ def test_parse_ranking_non_integer_returns_empty_ranking() -> None:
     assert parsed.ranking == ()
 
 
+def test_parse_ranking_with_failure_type_rejects_boolean_rank() -> None:
+    parsed = parse_ranking_with_failure_type('{"ranking": [true, 2]}', 2)
+    assert not parsed.valid
+    assert parsed.failure_type == "non_integer_rank"
+    assert parsed.ranking == ()
+
+
 def test_parse_ranking_length_mismatch() -> None:
     parsed = parse_ranking_with_failure_type('{"ranking": [1, 2]}', 3)
     assert parsed.failure_type == "length_mismatch"

@@ -18,6 +18,7 @@ from ranksmith import (
     RerankProviderError,
     TourRankStageConfig,
     TourRankStrategy,
+    parse_selection_response,
 )
 
 SMALL_STAGES = (TourRankStageConfig(group_count=2, group_size=3, selected_count=1),)
@@ -106,6 +107,15 @@ def _documents() -> list[Document]:
         Document(id="e", text="epsilon"),
         Document(id="f", text="zeta"),
     ]
+
+
+def test_selection_parser_rejects_boolean_indexes() -> None:
+    with pytest.raises(RerankParseError):
+        parse_selection_response(
+            '{"selected": [true]}',
+            expected_count=2,
+            selected_count=1,
+        )
 
 
 def test_tourrank_strategy_defaults_to_tourrank_2() -> None:
