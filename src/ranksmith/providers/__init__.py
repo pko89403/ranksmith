@@ -1,10 +1,9 @@
-from ranksmith.providers import (
+from ranksmith.providers._azure import AsyncAzureAOAIProvider, AzureAOAIProvider
+from ranksmith.providers._stubs import (
     AnthropicProvider,
     AsyncAnthropicProvider,
-    AsyncAzureAOAIProvider,
     AsyncGeminiProvider,
     AsyncOpenAIProvider,
-    AzureAOAIProvider,
     GeminiProvider,
     OpenAIProvider,
 )

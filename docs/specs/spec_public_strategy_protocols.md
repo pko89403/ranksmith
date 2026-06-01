@@ -1,5 +1,11 @@
 # Spec: Public Strategy Protocols
 
+> **Historical Spec**
+> 이 문서는 과거 구현 당시의 설계 기록입니다.
+> 현재 code/API 기준은 `docs/wiki/02_architecture.md`와
+> `docs/wiki/08_custom_strategy_extension.md`를 따릅니다.
+> 아래 오래된 provider protocol 명칭과 파일 경로는 현재 구조에 맞게 최소 보정했습니다.
+
 ## 1. 개요 (Overview)
 - **작업 목적**: 사용자가 커스텀 reranking Strategy와 provider protocol을 공식 public contract로 import해 타입 안전하게 확장할 수 있게 한다.
 - **Reference**: 기존 `docs/wiki/01_decisions.md`의 Strategy 모델(D006), pairwise provider contract(D009), 사용자 승인 계획.
@@ -7,7 +13,7 @@
 
 ## 2. 요구 사항 및 제약 (Requirements & Constraints)
 - **입력 (Inputs)**:
-  - 사용자는 `from ranksmith import RerankStrategy, LLMProvider`처럼 protocol을 import할 수 있어야 한다.
+  - 사용자는 `from ranksmith import RerankStrategy, ModelProvider`처럼 protocol을 import할 수 있어야 한다.
   - 사용자는 `from ranksmith.protocols import ...`로도 동일 protocol을 import할 수 있어야 한다.
   - 사용자는 `Provider` / `AsyncProvider` alias도 root import로 사용할 수 있어야 한다.
   - provider JSON ranking을 직접 쓰는 커스텀 Strategy는 public parser helper로 permutation을 검증할 수 있어야 한다.
@@ -29,8 +35,8 @@
 - **통합 지점 (Integration Points)**:
 - `src/ranksmith/protocols.py`: 신규 public protocol module.
 - `src/ranksmith/parsing.py`: public ranking parser helper.
-  - `src/ranksmith/_providers.py`: provider protocol 중복 정의 제거 및 public module import.
-  - `src/ranksmith/strategies.py`, `src/ranksmith/azure.py`, `src/ranksmith/__init__.py`: public protocol import/export 정리.
+  - `src/ranksmith/model.py`: model/provider protocol 정의.
+  - `src/ranksmith/strategies/`, `src/ranksmith/azure.py`, `src/ranksmith/__init__.py`: public protocol import/export 정리.
   - `examples/custom_strategy.py`: live credential 없이 실행 가능한 custom Strategy 예제.
   - `docs/wiki/08_custom_strategy_extension.md`: 사람/코딩 어시스턴트용 확장 규칙.
 
@@ -71,8 +77,8 @@
 - [x] `src/ranksmith/protocols.py`: public protocol module 추가
 - [x] `src/ranksmith/parsing.py`: public ranking parser helper 추가
 - [x] `src/ranksmith/errors.py`: custom strategy error 추가
-- [x] `src/ranksmith/_providers.py`: provider protocol 정의 이동
-- [x] `src/ranksmith/strategies.py`, `src/ranksmith/azure.py`, `src/ranksmith/__init__.py`: public protocol 사용 및 export
+- [x] `src/ranksmith/model.py`: model/provider protocol 정의 이동
+- [x] `src/ranksmith/strategies/`, `src/ranksmith/azure.py`, `src/ranksmith/__init__.py`: public protocol 사용 및 export
 - [x] `README.md`, `README.ko.md`: 커스텀 Strategy 문서 추가
 - [x] `examples/custom_strategy.py`: 실행 가능한 오프라인 예제 추가
 - [x] `docs/wiki/08_custom_strategy_extension.md`: 확장 가이드 추가

@@ -12,6 +12,30 @@ AzureOpenAIReranker
 = AzureAOAIProvider + ModelClient + Strategy + input normalization
 ```
 
+## 파일 구조
+```text
+src/ranksmith/
+  azure.py                 # public reranker entry
+  model.py                 # ranksmith domain model client
+  parsing.py               # LLM response contract parser
+  strategies/
+    __init__.py            # public strategy exports
+    _common.py             # shared validation/capability guards
+    _listwise.py
+    _pairwise.py
+    _setwise.py
+    _tourrank.py
+    _acurank.py
+  providers/
+    __init__.py            # public provider exports
+    _azure.py              # Azure OpenAI implementation
+    _stubs.py              # unimplemented provider stubs
+  _providers.py            # backward-compatible re-export layer
+```
+
+외부 사용자는 root import 또는 `ranksmith.strategies`, `ranksmith.providers`의 public export를 사용한다.
+`strategies/_*.py`, `providers/_*.py`는 내부 구현 모듈로 취급한다.
+
 ## ModelProvider
 실제 SDK 호출은 Azure OpenAI만 구현한다.
 OpenAI, Anthropic, Gemini provider는 향후 구현을 위한 public stub이며 호출 시 fast fail 한다.
@@ -33,6 +57,8 @@ v1 공개 strategy:
 - `AsyncListwiseStrategy`
 - `PairwiseStrategy`
 - `AsyncPairwiseStrategy`
+- `SetwiseStrategy`
+- `AsyncSetwiseStrategy`
 - `TourRankStrategy`
 - `AsyncTourRankStrategy`
 - `AcuRankStrategy`
@@ -52,6 +78,7 @@ v1 공개 strategy:
 v1 지원 algorithm:
 - `rankgpt_sliding_window`
 - `prp_sliding_k`
+- `setwise_heapsort`
 - `tourrank_r`
 - `acurank`
 
@@ -78,3 +105,4 @@ Selection JSON:
 ```
 
 잘못된 JSON, 누락 값, 중복 값, 범위 밖 값, 정수가 아닌 값, 잘못된 winner 값은 `RerankParseError`로 실패한다.
+`true`, `false`는 JSON bool이며 정수로 인정하지 않는다.

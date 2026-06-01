@@ -88,6 +88,7 @@ def test_reranks_document_objects_and_preserves_metadata() -> None:
         '{"ranking": [1]}',
         '{"ranking": [1, 3]}',
         '{"ranking": ["1", "2"]}',
+        '{"ranking": [true, 2]}',
     ],
 )
 def test_invalid_llm_ranking_fast_fails(response: str) -> None:
@@ -147,6 +148,21 @@ def test_negative_top_k_is_input_error_not_provider_error() -> None:
 
     with pytest.raises(RerankInputError):
         reranker.rerank("query", ["alpha"], top_k=-1)
+
+
+def test_negative_top_k_fast_fails_before_provider_call() -> None:
+    provider = FakeProvider(['{"ranking": [1]}'])
+    reranker = AzureOpenAIReranker(
+        api_key="key",
+        azure_endpoint="https://example.openai.azure.com",
+        azure_deployment="gpt-4o-mini",
+        model_client=provider,
+    )
+
+    with pytest.raises(RerankInputError):
+        reranker.rerank("query", ["alpha"], top_k=-1)
+
+    assert provider.calls == []
 
 
 def test_provider_errors_are_wrapped() -> None:

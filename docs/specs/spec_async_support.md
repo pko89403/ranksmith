@@ -1,5 +1,11 @@
 # Spec: Async Reranking Support (비동기 지원)
 
+> **Historical Spec**
+> 이 문서는 과거 구현 당시의 설계 기록입니다.
+> 현재 코드 구조와 public API는 `docs/wiki/02_architecture.md`와
+> `docs/wiki/08_custom_strategy_extension.md`를 기준으로 확인하세요.
+> 아래 파일 경로와 내부 provider 용어는 현재 구조에 맞게 최소 보정했습니다.
+
 > **작성 가이드**: 이 문서는 코딩 어시스턴트의 작업 추적용이기도 하지만, **최우선적으로 사람(개발자)이 읽고 이해하기 가장 좋은 형태(가독성)**여야 합니다. 
 > 장황한 설명은 피하고, 핵심을 찌르는 간결한 문장, 명확한 목록(List), 구조화된 마크다운 포맷을 활용하세요.
 
@@ -21,7 +27,7 @@
 - **동작 메커니즘**:
   1. `AsyncAzureOpenAIReranker`가 쿼리와 문서를 입력받습니다.
   2. 비동기 전략인 `AsyncRerankStrategy`(예: `AsyncListwiseStrategy`)로 요청을 위임합니다.
-  3. `AsyncLLMProvider`를 통해 `await client.chat.completions.create(...)`로 비동기 API 호출을 수행합니다.
+  3. `AsyncModelClient` / `AsyncModelProvider`를 통해 `await client.chat.completions.create(...)`로 비동기 API 호출을 수행합니다.
   4. 응답을 파싱하고 예외를 처리한 뒤 순위를 반환합니다.
 
 - **의사 알고리즘 (Pseudo-algorithm)**:
@@ -29,28 +35,30 @@
   Async Sliding Window:
   1. documents를 크기 window_size로 분할
   2. for each window in reversed(windows):
-  3.     ranking = AWAIT AsyncLLMProvider.rank(window)
+  3.     ranking = AWAIT AsyncModelClient.rank(window)
   4.     update positions based on ranking
   5. return final positions
   ```
 
 - **의사 코드 (Pseudo-code)**:
   ```python
-  class AsyncLLMProvider(Protocol):
+  class AsyncModelClient(Protocol):
       async def rank(self, query: str, documents: list[Document]) -> str: ...
 
-  class AsyncAzureOpenAIProvider:
-      async def rank(self, query: str, documents: list[Document]) -> str:
+  class AsyncAzureAOAIProvider:
+      async def complete(self, request: ModelRequest) -> ModelResponse:
           response = await self._client.chat.completions.create(...)
-          return response.choices[0].message.content
+          return ModelResponse(content=response.choices[0].message.content)
 
   class AsyncRerankStrategy(Protocol):
-      async def rerank(self, query: str, documents: list[Document], provider: AsyncLLMProvider, ...) -> list[RerankResult]: ...
+      async def rerank(self, *, query: str, documents: list[Document], model_client: AsyncModelClient, ...) -> list[RerankResult]: ...
   ```
 
 - **통합 지점 (Integration Points)**:
-  - `src/ranksmith/_providers.py`: `AsyncLLMProvider`, `AsyncAzureOpenAIProvider` 추가
-  - `src/ranksmith/strategies.py`: `AsyncRerankStrategy`, `AsyncListwiseStrategy` 추가
+  - `src/ranksmith/providers/_azure.py`: `AsyncAzureAOAIProvider` 추가
+  - `src/ranksmith/model.py`: `AsyncModelClient`, `AsyncModelProvider` 추가
+  - `src/ranksmith/strategies/_listwise.py`: `AsyncListwiseStrategy` 추가
+  - `src/ranksmith/protocols.py`: `AsyncRerankStrategy` public protocol 추가
   - `src/ranksmith/azure.py`: `AsyncAzureOpenAIReranker` 추가
 
 ## 4. 재사용 및 모듈화 (Reusability & Modularization)
@@ -81,8 +89,9 @@
 - [x] 스펙 문서(본 문서) 상의 의사 코드 설계 검토 및 확정
 
 ### Phase 2: 로직 구현 (Implementation)
-- [x] `src/ranksmith/_providers.py`: `AsyncLLMProvider`, `AsyncAzureOpenAIProvider` 구현
-- [x] `src/ranksmith/strategies.py`: `AsyncRerankStrategy`, `AsyncListwiseStrategy` 구현 (공통 로직 분리 포함)
+- [x] `src/ranksmith/model.py`: `AsyncModelClient`, `AsyncModelProvider` 구현
+- [x] `src/ranksmith/providers/_azure.py`: `AsyncAzureAOAIProvider` 구현
+- [x] `src/ranksmith/strategies/_listwise.py`, `src/ranksmith/protocols.py`: `AsyncListwiseStrategy`, `AsyncRerankStrategy` 구현
 - [x] `src/ranksmith/azure.py`: `AsyncAzureOpenAIReranker` 구현
 
 ### Phase 3: 검증 (Verification)
