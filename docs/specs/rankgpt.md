@@ -1,5 +1,11 @@
 # Spec: RankGPT Sliding Window Algorithm
 
+> **Historical Spec**
+> 이 문서는 과거 구현 당시의 설계 기록이다.
+> 현재 코드 구조와 public API는 `docs/wiki/02_architecture.md`와
+> `docs/wiki/08_custom_strategy_extension.md`를 기준으로 확인한다.
+> 아래 파일 경로와 내부 helper 이름은 현재 구조에 맞게 최소 보정했다.
+
 > 이 문서는 `rankgpt_sliding_window` 알고리즘의 설계, 구현 지점, 검증 기준을 사람과 코딩 어시스턴트가 함께 추적하기 위한 기준 문서다.
 
 ## 1. 개요 (Overview)
@@ -12,7 +18,7 @@
 - **입력 (Inputs)**
   - `documents`: 랭킹 대상 `Document` 시퀀스.
   - `query`: 문서 관련성을 평가할 사용자 질의.
-  - `provider`: `LLMProvider` 구현체. 각 윈도우에 대해 JSON ranking 응답을 반환해야 한다.
+  - `model_client`: `ModelClient.rank()`를 지원하는 model client. 각 윈도우에 대해 JSON ranking 응답을 반환해야 한다.
   - `window_size`: 한 번의 LLM 요청에 포함할 최대 문서 수. `1` 이상이어야 한다.
   - `stride`: 다음 앞쪽 윈도우로 이동할 때 제외되는 하위 문서 수. `1` 이상이고 `window_size` 이하여야 한다.
 - **출력 (Outputs)**
@@ -50,7 +56,7 @@ loop:
   start_pos = max(0, start_pos)
   window_indices = current_order[start_pos : start_pos + window_size]
   window_documents = documents[window_indices]
-  ranking = parse(provider.rank(query, window_documents))
+  ranking = parse(model_client.rank(query, window_documents))
   current_order[start_pos : start_pos + window_size] =
     reorder(window_indices, ranking)
 
@@ -64,7 +70,7 @@ return current_order
 
 ### 3.3 의사 코드 (Pseudo-code)
 ```python
-def rankgpt_sliding_window(query, documents, provider, window_size, stride):
+def rankgpt_sliding_window(query, documents, model_client, window_size, stride):
     if stride > window_size:
         raise RerankInputError("stride must be less than or equal to window_size")
 
@@ -76,8 +82,8 @@ def rankgpt_sliding_window(query, documents, provider, window_size, stride):
         window_indices = current_order[start_pos : start_pos + window_size]
         window_documents = [documents[index] for index in window_indices]
 
-        raw_response = provider.rank(query, window_documents)
-        ranking = parse_ranking(raw_response, expected_count=len(window_documents))
+        raw_response = model_client.rank(query, window_documents)
+        ranking = parse_ranking_response(raw_response, expected_count=len(window_documents))
 
         current_order[start_pos : start_pos + window_size] = [
             window_indices[number - 1] for number in ranking
@@ -102,27 +108,27 @@ def rankgpt_sliding_window(query, documents, provider, window_size, stride):
 5. LLM ranking이 `E > A > B`이면 최종 순서는 `[E, A, B, C, D]`가 된다.
 
 ### 3.5 통합 지점 (Integration Points)
-- `src/ranksmith/strategies.py`
-  - `Algorithm = Literal["direct", "sliding_window", "rankgpt_sliding_window"]`
+- `src/ranksmith/strategies/_listwise.py`
+  - `Algorithm = Literal["rankgpt_sliding_window"]`
   - `ListwiseStrategy.__post_init__`: algorithm 값과 sliding window 계열의 `stride <= window_size` 검증.
   - `ListwiseStrategy.rerank`: `algorithm == "rankgpt_sliding_window"`일 때 `_rank_rankgpt_sliding_windows()`로 분기.
   - `ListwiseStrategy._rank_rankgpt_sliding_windows`: back-to-first bubble-up 순서 생성.
-  - `_parse_ranking`: provider 응답 JSON permutation 검증 재사용.
+  - `parse_ranking_response()`: model client 응답 JSON permutation 검증 재사용.
 - `tests/test_ranksmith.py`
   - RankGPT bubble-up 순서와 provider 호출 윈도우를 검증한다.
   - `stride > window_size` 실패 경로를 검증한다.
 
 ## 4. 재사용 및 모듈화 (Reusability & Modularization)
 - **공통 컴포넌트 식별 (Shared Components)**
-  - `_parse_ranking`: `direct`, `sliding_window`, `rankgpt_sliding_window`가 모두 공유하는 JSON permutation 검증 로직.
+  - `parse_ranking_response()`: `rankgpt_sliding_window`가 사용하는 JSON permutation 검증 로직.
   - `ListwiseStrategy._validate_documents`: 문서 길이 fast fail 정책을 알고리즘과 독립적으로 적용.
   - `RerankResult` 생성 경로: 모든 listwise 알고리즘은 original index 순서를 반환하고, 공통 `rerank()`가 결과 객체를 만든다.
-  - `LLMProvider.rank`: provider 호출 인터페이스를 알고리즘 구현과 분리한다.
+  - `ModelClient.rank`: model client 호출 인터페이스를 알고리즘 구현과 분리한다.
 - **추상화 방안 (Abstraction Plan)**
   - RankGPT 알고리즘은 현재 `_rank_rankgpt_sliding_windows()` private method로 충분하다.
   - 추가 sliding-window 변형이 늘어나면 window traversal helper를 분리할 수 있다.
   - Public API 확장은 하지 않는다. 새 알고리즘은 `ListwiseStrategy.algorithm` 내부 옵션으로만 추가한다.
-  - RankGPT 원문 파싱 형식은 도입하지 않고, 기존 `_parse_ranking`을 계속 재사용한다.
+  - RankGPT 원문 파싱 형식은 도입하지 않고, 기존 `parse_ranking_response()`를 계속 재사용한다.
 
 ## 5. 에러 핸들링 (Error Handling)
 - `stride > window_size`
@@ -195,11 +201,11 @@ def rankgpt_sliding_window(query, documents, provider, window_size, stride):
 - [x] 스펙 문서의 의사 알고리즘과 기존 설계 정합성 확인
 
 ### Phase 2: 로직 구현 (Implementation)
-- [x] `src/ranksmith/strategies.py`: `Algorithm`에 `rankgpt_sliding_window` 추가
-- [x] `src/ranksmith/strategies.py`: `ListwiseStrategy.rerank()` 분기 연결
-- [x] `src/ranksmith/strategies.py`: `_rank_rankgpt_sliding_windows()` 구현
-- [x] `src/ranksmith/strategies.py`: `stride <= window_size` 방어 로직 추가
-- [x] `src/ranksmith/strategies.py`: 기존 `_parse_ranking` 기반 strict JSON permutation 검증 재사용
+- [x] `src/ranksmith/strategies/_listwise.py`: `Algorithm`에 `rankgpt_sliding_window` 추가
+- [x] `src/ranksmith/strategies/_listwise.py`: `ListwiseStrategy.rerank()` 분기 연결
+- [x] `src/ranksmith/strategies/_listwise.py`: `_rank_rankgpt_sliding_windows()` 구현
+- [x] `src/ranksmith/strategies/_listwise.py`: `stride <= window_size` 방어 로직 추가
+- [x] `src/ranksmith/parsing.py`: `parse_ranking_response()` 기반 strict JSON permutation 검증 재사용
 
 ### Phase 3: 검증 (Verification)
 - [x] `tests/test_ranksmith.py`: bubble-up 정상 케이스 단위 테스트 추가
