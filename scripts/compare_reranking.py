@@ -39,12 +39,14 @@ Algorithm = Literal[
     "acurank_b4",
     "tourrank_r2",
     "tourrank_r10",
+    "setwise_hs_s10",
     "prp_sliding_p1",
     "prp_sliding_p3",
     "rankgpt_sliding_window",
     "rankgpt_sw",
     "prp_sliding_k",
     "tourrank_r",
+    "setwise_heapsort",
     "acurank",
 ]
 Dataset = Literal["fixture", "benchmark-cache", "beir-scifact"]
@@ -55,6 +57,7 @@ ALGORITHMS: tuple[Algorithm, ...] = (
     "rankgpt_sw_w5",
     "acurank_k5_b1",
     "tourrank_r2",
+    "setwise_hs_s10",
     "prp_sliding_p1",
 )
 OPTIONAL_ALGORITHMS: tuple[Algorithm, ...] = (
@@ -68,6 +71,7 @@ LEGACY_ALGORITHMS: tuple[Algorithm, ...] = (
     "rankgpt_sw",
     "prp_sliding_k",
     "tourrank_r",
+    "setwise_heapsort",
     "acurank",
 )
 
@@ -91,6 +95,8 @@ def main() -> None:
                 args.stride,
                 args.passes,
                 args.tourrank_rounds,
+                args.set_size,
+                args.top_k,
             )
             for case in cases
         )
@@ -186,6 +192,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--stride", type=int, default=10)
     parser.add_argument("--passes", type=int, default=10)
     parser.add_argument("--tourrank-rounds", type=int, default=2)
+    parser.add_argument("--set-size", type=int, default=3)
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument(
         "--query-id",
@@ -224,6 +231,7 @@ def _validate_args(args: argparse.Namespace) -> None:
         "stride",
         "passes",
         "tourrank_rounds",
+        "set_size",
         "top_k",
         "candidate_count",
     ):
@@ -332,6 +340,8 @@ def _evaluate_cases(
                     stride=args.stride,
                     passes=args.passes,
                     tourrank_rounds=args.tourrank_rounds,
+                    set_size=args.set_size,
+                    top_k=args.top_k,
                     timeout=getattr(args, "timeout", None),
                 )
                 evaluation = evaluate_ranked_ids(
@@ -378,6 +388,8 @@ def _rank_case(
     stride: int,
     passes: int,
     tourrank_rounds: int,
+    set_size: int = 3,
+    top_k: int | None = None,
     timeout: float | None = None,
 ) -> tuple[str, ...]:
     from ranksmith import (
@@ -386,6 +398,7 @@ def _rank_case(
         Document,
         ListwiseStrategy,
         PairwiseStrategy,
+        SetwiseStrategy,
         TourRankStrategy,
     )
 
@@ -399,6 +412,10 @@ def _rank_case(
             stage_configs=tourrank_stage_configs_for_candidate_count(
                 len(case.documents)
             ),
+        )
+    elif algorithm in {"setwise_heapsort", "setwise_hs_s10"}:
+        strategy = SetwiseStrategy(
+            set_size=_setwise_size_for_algorithm(algorithm, set_size),
         )
     elif algorithm in {
         "acurank",
@@ -451,9 +468,11 @@ def _rank_case(
         )
         for document in case.documents
     ]
-    return tuple(
-        result.document.id or "" for result in reranker.rerank(case.query, documents)
-    )
+    if top_k is None:
+        results = reranker.rerank(case.query, documents)
+    else:
+        results = reranker.rerank(case.query, documents, top_k=top_k)
+    return tuple(result.document.id or "" for result in results)
 
 
 def _build_report(
@@ -489,16 +508,85 @@ def _build_report(
         "stride": args.stride,
         "passes": args.passes,
         "tourrank_rounds": args.tourrank_rounds,
+        "set_size": args.set_size,
         "query_id_filter": list(args.query_id),
         "timeout": args.timeout,
         "tourrank_stage_policy": "paper_top_100_else_single_group_halving",
         "case_count": len(cases),
         "call_estimates": dict(call_estimates),
+        "method_settings": _method_settings(args, algorithms),
         "checkpoint_output": (
             str(args.checkpoint_output) if args.checkpoint_output is not None else None
         ),
         "aggregate": list(aggregate),
         "per_query": list(per_query),
+    }
+
+
+def _method_settings(
+    args: argparse.Namespace,
+    algorithms: Sequence[Algorithm],
+) -> dict[str, dict[str, object]]:
+    return {algorithm: _method_setting(args, algorithm) for algorithm in algorithms}
+
+
+def _method_setting(
+    args: argparse.Namespace,
+    algorithm: Algorithm,
+) -> dict[str, object]:
+    base: dict[str, object] = {"candidate_count": args.candidate_count}
+    if algorithm == "original_bm25":
+        return {**base, "top_k_early_stop": False}
+    if algorithm == "single_call_listwise@20":
+        return {**base, "top_k_early_stop": False}
+    if algorithm == "rankgpt_sw_w5":
+        return {
+            **base,
+            "window_size": 5,
+            "stride": 2,
+            "top_k_early_stop": False,
+        }
+    if algorithm in {
+        "acurank",
+        "acurank_k5_b1",
+        "acurank_k5_b4",
+        "acurank_b1",
+        "acurank_b4",
+    }:
+        return {
+            **base,
+            "target_rank": _acurank_target_rank_for_algorithm(algorithm),
+            "window_size": args.window_size,
+            "max_adaptive_reranker_calls": _acurank_budget_for_algorithm(algorithm),
+            "top_k_early_stop": False,
+        }
+    if algorithm in {"tourrank_r", "tourrank_r2", "tourrank_r10"}:
+        return {
+            **base,
+            "rounds": _tourrank_rounds_for_algorithm(
+                algorithm,
+                args.tourrank_rounds,
+            ),
+            "top_k_early_stop": False,
+        }
+    if algorithm in {"setwise_heapsort", "setwise_hs_s10"}:
+        return {
+            **base,
+            "set_size": _setwise_size_for_algorithm(algorithm, args.set_size),
+            "top_k": args.top_k,
+            "top_k_early_stop": True,
+        }
+    if algorithm in {"prp_sliding_k", "prp_sliding_p1", "prp_sliding_p3"}:
+        return {
+            **base,
+            "passes": _prp_passes_for_algorithm(algorithm, args.passes),
+            "top_k_early_stop": False,
+        }
+    return {
+        **base,
+        "window_size": args.window_size,
+        "stride": args.stride,
+        "top_k_early_stop": False,
     }
 
 
@@ -608,6 +696,8 @@ def _estimate_provider_calls(
     stride: int,
     passes: int = 10,
     tourrank_rounds: int = 2,
+    set_size: int = 3,
+    top_k: int | None = None,
 ) -> int:
     if algorithm == "original_bm25":
         return 0
@@ -622,6 +712,12 @@ def _estimate_provider_calls(
         return rounds * sum(
             stage.group_count
             for stage in tourrank_stage_configs_for_candidate_count(document_count)
+        )
+    if algorithm in {"setwise_heapsort", "setwise_hs_s10"}:
+        return _estimate_setwise_heapsort_calls(
+            document_count,
+            _setwise_size_for_algorithm(algorithm, set_size),
+            top_k=top_k,
         )
     if algorithm in {
         "acurank",
@@ -668,6 +764,47 @@ def _tourrank_rounds_for_algorithm(
     if algorithm == "tourrank_r10":
         return 10
     return tourrank_rounds
+
+
+def _setwise_size_for_algorithm(algorithm: Algorithm, set_size: int) -> int:
+    if algorithm == "setwise_hs_s10":
+        return 10
+    return set_size
+
+
+def _estimate_setwise_heapsort_calls(
+    document_count: int,
+    set_size: int,
+    *,
+    top_k: int | None = None,
+) -> int:
+    if document_count < 2:
+        return 0
+    child_arity = set_size - 1
+    heap_size = document_count
+    limit = document_count if top_k is None else min(top_k, document_count)
+    calls = sum(
+        _setwise_heapify_worst_case_calls(root, heap_size, child_arity)
+        for root in range((heap_size - 2) // child_arity, -1, -1)
+    )
+    for extract_index in range(limit):
+        heap_size -= 1
+        if extract_index < limit - 1 and heap_size > 1:
+            calls += _setwise_heapify_worst_case_calls(0, heap_size, child_arity)
+    return calls
+
+
+def _setwise_heapify_worst_case_calls(
+    root: int,
+    heap_size: int,
+    child_arity: int,
+) -> int:
+    calls = 0
+    current = root
+    while current * child_arity + 1 < heap_size:
+        calls += 1
+        current = current * child_arity + 1
+    return calls
 
 
 def _acurank_budget_for_algorithm(algorithm: Algorithm) -> int | None:

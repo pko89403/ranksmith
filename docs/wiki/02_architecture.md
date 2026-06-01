@@ -23,6 +23,7 @@ src/ranksmith/
     _common.py             # shared validation/capability guards
     _listwise.py
     _pairwise.py
+    _setwise.py
     _tourrank.py
     _acurank.py
   providers/
@@ -56,6 +57,8 @@ v1 공개 strategy:
 - `AsyncListwiseStrategy`
 - `PairwiseStrategy`
 - `AsyncPairwiseStrategy`
+- `SetwiseStrategy`
+- `AsyncSetwiseStrategy`
 - `TourRankStrategy`
 - `AsyncTourRankStrategy`
 - `AcuRankStrategy`
@@ -75,6 +78,7 @@ v1 공개 strategy:
 v1 지원 algorithm:
 - `rankgpt_sliding_window`
 - `prp_sliding_k`
+- `setwise_heapsort`
 - `tourrank_r`
 - `acurank`
 

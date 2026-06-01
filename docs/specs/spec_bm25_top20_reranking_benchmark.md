@@ -33,6 +33,7 @@
   - `rankgpt_sw_w5`: `N=20`, `window_size=5`, `stride=2`
   - `acurank_k5_b1`: `N=20`, `target_rank=5`, `window_size=20`, adaptive budget 1
   - `tourrank_r2`: `N=20`, `rounds=2`
+  - `setwise_hs_s10`: `N=20`, `set_size=10`, `top_k=5`
   - `prp_sliding_p1`: `N=20`, `passes=1`
 - **optional method**:
   - `acurank_k5_b4`: `N=20`, `target_rank=5`, `window_size=20`, adaptive budget 4
@@ -46,6 +47,7 @@
   - `rankgpt_sw_w5`: 9
   - `acurank_k5_b1`: 2
   - `tourrank_r2`: 8
+  - `setwise_hs_s10`: 12
   - `prp_sliding_p1`: 38
   - `acurank_k5_b4`: 5
   - `acurank_b1`: 2
@@ -82,7 +84,7 @@
 - `candidate_count=20`이면 query별 상위 20개만 사용한다.
 - `benchmark-cache` mode는 기존 benchmark dataset label을 report에 보존한다.
 - `original_bm25`는 입력 순서를 그대로 반환한다.
-- `single_call_listwise@20`, `rankgpt_sw_w5`, `acurank_k5_b1`, `tourrank_r2`, `prp_sliding_p1` alias가 올바른 Strategy 설정으로 변환된다.
+- `single_call_listwise@20`, `rankgpt_sw_w5`, `acurank_k5_b1`, `tourrank_r2`, `setwise_hs_s10`, `prp_sliding_p1` alias가 올바른 Strategy 설정으로 변환된다.
 - optional `acurank_k5_b4`, `acurank_b1`, `acurank_b4`, `tourrank_r10`, `prp_sliding_p3` call estimate를 검증한다.
 - AcuRank 문서에는 BM25 score metadata가 들어간다.
 - `./scripts/verify.sh`를 통과한다.
