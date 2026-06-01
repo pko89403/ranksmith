@@ -340,9 +340,32 @@ class _FailingCompletions:
         raise RuntimeError("azure timeout")
 
 
+class _EmptyChoicesCompletions:
+    def create(self, **kwargs: Any) -> _StubCompletionResponse:
+        del kwargs
+        return _StubCompletionResponse(
+            usage=_StubUsage(11, 2, 13),
+            choices=[],
+        )
+
+
+class _AsyncEmptyChoicesCompletions:
+    async def create(self, **kwargs: Any) -> _StubCompletionResponse:
+        del kwargs
+        return _StubCompletionResponse(
+            usage=_StubUsage(11, 2, 13),
+            choices=[],
+        )
+
+
 @dataclass
 class _StubChat:
-    completions: _StubCompletions | _FailingCompletions
+    completions: (
+        _StubCompletions
+        | _FailingCompletions
+        | _EmptyChoicesCompletions
+        | _AsyncEmptyChoicesCompletions
+    )
 
 
 @dataclass
@@ -409,3 +432,32 @@ def test_azure_aoai_provider_fast_fails_empty_and_sdk_errors() -> None:
         failing_provider.complete(
             ModelRequest(messages=[ModelMessage("user", "hello")])
         )
+
+
+def test_azure_aoai_provider_fast_fails_empty_choices() -> None:
+    provider = AzureAOAIProvider.__new__(AzureAOAIProvider)
+    stubbed_provider = cast(Any, provider)
+    stubbed_provider._azure_deployment = "deployment"
+    stubbed_provider._client = _StubSDKClient(
+        chat=_StubChat(completions=_EmptyChoicesCompletions())
+    )
+
+    with pytest.raises(RerankProviderError, match="invalid response"):
+        provider.complete(ModelRequest(messages=[ModelMessage("user", "hello")]))
+
+
+def test_async_azure_aoai_provider_fast_fails_empty_choices() -> None:
+    async def run() -> None:
+        provider = AsyncAzureAOAIProvider.__new__(AsyncAzureAOAIProvider)
+        stubbed_provider = cast(Any, provider)
+        stubbed_provider._azure_deployment = "deployment"
+        stubbed_provider._client = _StubSDKClient(
+            chat=_StubChat(completions=_AsyncEmptyChoicesCompletions())
+        )
+
+        with pytest.raises(RerankProviderError, match="invalid response"):
+            await provider.complete(
+                ModelRequest(messages=[ModelMessage("user", "hello")])
+            )
+
+    asyncio.run(run())
