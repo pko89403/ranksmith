@@ -145,6 +145,22 @@ async def test_async_provider_errors_are_wrapped() -> None:
     assert "timeout" in str(error.value)
 
 
+@pytest.mark.asyncio
+async def test_async_negative_top_k_fast_fails_before_provider_call() -> None:
+    provider = AsyncFakeProvider(['{"ranking": [1]}'])
+    reranker = AsyncAzureOpenAIReranker(
+        api_key="key",
+        azure_endpoint="https://example.openai.azure.com",
+        azure_deployment="gpt-4o-mini",
+        model_client=provider,
+    )
+
+    with pytest.raises(RerankInputError):
+        await reranker.rerank("query", ["alpha"], top_k=-1)
+
+    assert provider.calls == []
+
+
 def test_async_listwise_strategy_defaults_to_rankgpt_sliding_window() -> None:
     strategy = AsyncListwiseStrategy()
 

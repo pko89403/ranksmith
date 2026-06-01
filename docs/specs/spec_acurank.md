@@ -1,5 +1,11 @@
 # Spec: AcuRank
 
+> **Historical Spec**
+> 이 문서는 과거 구현 당시의 설계 기록입니다.
+> 현재 code/API 기준은 `docs/wiki/02_architecture.md`와
+> `docs/wiki/08_custom_strategy_extension.md`를 따릅니다.
+> 아래 파일 경로는 현재 구조에 맞게 최소 보정했습니다.
+
 ## 1. 개요 (Overview)
 - **작업 목적**: AcuRank를 ranksmith의 built-in uncertainty-aware adaptive reranking Strategy로 추가한다.
 - **Reference**:
@@ -115,7 +121,7 @@ return sort_by_mu_desc_then_original_index(ratings)
 ```
 
 - **통합 지점 (Integration Points)**:
-  - `src/ranksmith/strategies.py`
+  - `src/ranksmith/strategies/_acurank.py`
     - `AcuRankAlgorithm`
     - `_AcuRankConfigMixin`
     - `AcuRankStrategy`
@@ -187,8 +193,8 @@ return sort_by_mu_desc_then_original_index(ratings)
 - [x] 본 spec 사용자 검토 및 승인
 
 ### Phase 2: 로직 구현 (Implementation)
-- [x] `src/ranksmith/strategies.py`: AcuRank sync/async strategy 추가
-- [x] `src/ranksmith/strategies.py`: threshold / probability / TrueSkill update helper 추가
+- [x] `src/ranksmith/strategies/_acurank.py`: AcuRank sync/async strategy 추가
+- [x] `src/ranksmith/strategies/_acurank.py`: threshold / probability / TrueSkill update helper 추가
 - [x] `src/ranksmith/__init__.py`: public API 연결
 - [x] `src/ranksmith/azure.py`: built-in strategy 목록 연결
 - [x] `scripts/compare_reranking.py`: 비교 대상 추가

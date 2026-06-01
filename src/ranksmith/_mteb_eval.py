@@ -154,7 +154,7 @@ def parse_ranking_with_failure_type(
     ranking = data["ranking"]
     if not isinstance(ranking, list):
         return ParsedRanking((), False, "missing_ranking")
-    if not all(isinstance(item, int) for item in ranking):
+    if not all(type(item) is int for item in ranking):
         return ParsedRanking((), False, "non_integer_rank")
     parsed = tuple(ranking)
     if len(parsed) != expected_count:
