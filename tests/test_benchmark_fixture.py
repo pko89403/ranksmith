@@ -12,6 +12,7 @@ from ranksmith import (
     Document,
     ListwiseStrategy,
     PairwiseStrategy,
+    SetwiseStrategy,
     TourRankStageConfig,
     TourRankStrategy,
 )
@@ -216,6 +217,33 @@ def test_tourrank_with_real_fixture_reaches_relevant_docs() -> None:
         assert mrr_at_k(ranked_ids, case["qrels"], 3) == pytest.approx(1.0)
         assert recall_at_k(ranked_ids, case["qrels"], 3) == pytest.approx(1.0)
         assert len(provider.calls) == 2
+
+
+def test_setwise_heapsort_with_real_fixture_reaches_relevant_docs() -> None:
+    for case in _load_fixture_cases():
+        provider = SelectionRelevanceProvider(case["qrels"])
+        reranker = AzureOpenAIReranker(
+            api_key="key",
+            azure_endpoint="https://example.openai.azure.com",
+            azure_deployment="gpt-4o-mini",
+            model_client=provider,
+            strategy=SetwiseStrategy(set_size=3),
+        )
+        documents = [
+            Document(
+                id=document["id"],
+                text=f"{document['title']}\n\n{document['text']}",
+            )
+            for document in case["documents"]
+        ]
+
+        results = reranker.rerank(case["query"], documents)
+        ranked_ids = [result.document.id or "" for result in results]
+
+        assert ndcg_at_k(ranked_ids, case["qrels"], 3) == pytest.approx(1.0)
+        assert mrr_at_k(ranked_ids, case["qrels"], 3) == pytest.approx(1.0)
+        assert recall_at_k(ranked_ids, case["qrels"], 3) == pytest.approx(1.0)
+        assert provider.calls
 
 
 def test_acurank_with_real_fixture_reaches_relevant_docs() -> None:

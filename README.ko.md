@@ -64,6 +64,7 @@ for result in results:
 | --- | --- | --- | --- |
 | `rankgpt_sliding_window` | `ListwiseStrategy` | production 또는 evaluation에서 기본 LLM reranker가 필요할 때 | 호출 수가 적지만, 한 번에 전체 순위를 출력해야 하므로 output format에 민감할 수 있음. `window_size >= N`이면 one-shot listwise reranking이 됨 |
 | `prp_sliding_k` | `PairwiseStrategy` | pairwise preference 비교가 필요하거나 PRP 방식 재현이 필요할 때 | LLM 호출 수가 많고, 기본 `passes=10`은 비용이 큼 |
+| `setwise_heapsort` | `SetwiseStrategy` | 실용적인 long-context 설정에서 pairwise PRP보다 적은 호출로 top-k 중심 setwise selection을 하고 싶을 때 | `set_size`에 따라 품질이 달라짐. 큰 set은 호출 수를 줄이지만 selection prompt가 어려워질 수 있음 |
 | `tourrank_r`, `rounds=2` | `TourRankStrategy` | 중간 수준 호출 예산에서 listwise보다 강한 품질을 원할 때 | RankGPT보다 호출 수가 많지만 TourRank-10보다 훨씬 가벼움 |
 | `tourrank_r`, `rounds=10` | `TourRankStrategy` | 품질 중심 offline reranking, 논문식 평가, 최종 reranking처럼 latency를 감수할 수 있을 때 | 일반 사용 기준 built-in 중 호출 비용이 가장 큼 |
 | `acurank` | `AcuRankStrategy` | top-k 경계 근처의 불확실한 후보에 listwise 호출을 집중하고 싶을 때 | TrueSkill 상태를 사용하며, cap을 두지 않으면 기본 listwise보다 호출 수가 늘 수 있음 |
@@ -159,7 +160,7 @@ initial pass 호출은 결과 metadata에서 별도로 함께 집계됩니다.
 `batch_parallelism`은 같은 AcuRank iteration 안의 독립 batch를 병렬 호출하되,
 posterior update는 deterministic batch order로 적용합니다.
 
-> **참고**: `strategy`를 명시하지 않으면 기본적으로 `ListwiseStrategy(algorithm="rankgpt_sliding_window")`가 자동으로 적용됩니다. Pairwise PRP, TourRank-r, AcuRank는 기본 listwise보다 LLM 호출 수가 많을 수 있으므로 live benchmark 전 호출 수를 확인해야 합니다.
+> **참고**: `strategy`를 명시하지 않으면 기본적으로 `ListwiseStrategy(algorithm="rankgpt_sliding_window")`가 자동으로 적용됩니다. Pairwise PRP, Setwise, TourRank-r, AcuRank는 기본 listwise보다 LLM 호출 수가 많을 수 있으므로 live benchmark 전 호출 수를 확인해야 합니다.
 
 ## 커스텀 Strategy
 
@@ -279,6 +280,7 @@ results = await reranker.rerank("query", documents)
 - [rankgpt_sync.py](https://github.com/pko89403/ranksmith/blob/main/examples/rankgpt_sync.py): 동기 RankGPT 연동
 - [rankgpt_async.py](https://github.com/pko89403/ranksmith/blob/main/examples/rankgpt_async.py): 비동기 RankGPT 연동
 - [pairwise_prp.py](https://github.com/pko89403/ranksmith/blob/main/examples/pairwise_prp.py): pairwise PRP Strategy
+- [setwise_heapsort.py](https://github.com/pko89403/ranksmith/blob/main/examples/setwise_heapsort.py): fake provider 기반 Setwise Heapsort
 - [tourrank.py](https://github.com/pko89403/ranksmith/blob/main/examples/tourrank.py): fake provider 기반 TourRank-r
 - [acurank.py](https://github.com/pko89403/ranksmith/blob/main/examples/acurank.py): first-stage score prior 기반 AcuRank
 - [custom_strategy.py](https://github.com/pko89403/ranksmith/blob/main/examples/custom_strategy.py): custom Strategy 계약
@@ -288,8 +290,9 @@ results = await reranker.rerank("query", documents)
 아래 benchmark는 reranking만 측정합니다. Pyserini BM25는 고정된 first-stage
 candidate를 만들고, `ranksmith`는 retrieval 없이 해당 후보만 재정렬합니다.
 실행 조건은 `AskUbuntuDupQuestions` test data, query `361`개, query당 BM25
-top-20 후보, top-20 reranking, `@5` 평가입니다. Live LLM 호출에는 Azure OpenAI
-deployment `gpt-5.4-nano`를 사용했습니다.
+top-20 후보, `@5` 평가입니다. top-k 조기 종료를 지원하는 method는 평가 대상인
+top-5만 출력할 수 있습니다. Live LLM 호출에는 Azure OpenAI deployment
+`gpt-5.4-nano`를 사용했습니다.
 
 잘못된 LLM 출력은 조용히 보정하거나 자동 복구하지 않았습니다. 대신 재호출했고,
 끝까지 남은 invalid row는 invalid로 보고했습니다.
@@ -299,7 +302,7 @@ deployment `gpt-5.4-nano`를 사용했습니다.
 중간 단계에서 실패할 수 있으므로 정확한 provider-call telemetry는 아닙니다.
 커밋된 근거 artifact는 다음과 같습니다.
 
-- [`benchmark-results/live/askubuntu-bm25-top20-default-live.v2.merged.json`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/live/askubuntu-bm25-top20-default-live.v2.merged.json)
+- [`benchmark-results/live/askubuntu-bm25-top20-default-live.v3.merged.json`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/live/askubuntu-bm25-top20-default-live.v3.merged.json)
 - [`benchmark-results/pyserini/askubuntu-bm25-top20.trec`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/pyserini/askubuntu-bm25-top20.trec)
 
 | Method | NDCG@5 | MRR@5 | Recall@5 | Valid rows | Invalid rate | Nominal LLM calls/query | LLM row attempts/query incl. retries |
@@ -309,13 +312,15 @@ deployment `gpt-5.4-nano`를 사용했습니다.
 | `rankgpt_sw_w5` | 0.3973 | 0.5283 | 0.3366 | 361/361 | 0.000 | 9 | 1.01 |
 | `acurank_k5_b1` | 0.4053 | 0.5491 | 0.3377 | 356/361 | 0.014 | 2 | 1.12 |
 | `tourrank_r2` | 0.4236 | 0.5725 | 0.3601 | 361/361 | 0.000 | 8 | 1.03 |
+| `setwise_hs_s10` | 0.3653 | 0.5059 | 0.3005 | 361/361 | 0.000 | 12 | 1.00 |
 | `prp_sliding_p1` | 0.4065 | 0.5818 | 0.3277 | 361/361 | 0.000 | 38 | 1.00 |
 
 `tourrank_r2`는 NDCG@5와 Recall@5가 가장 높았고, `prp_sliding_p1`은 MRR@5가
 가장 높았습니다. `single_call_listwise@20`은 one-shot listwise baseline입니다.
 `rankgpt_sw_w5`는 이 top-20 설정의 실제 sliding-window listwise baseline입니다.
 `acurank_k5_b1`은 AcuRank uncertainty boundary를 `@5` 평가 cutoff와 맞춘
-설정입니다.
+설정입니다. `setwise_hs_s10`은 20개 후보에서 평가 대상 top-5만 추출하는 실용적인
+Setwise Heapsort 설정입니다.
 
 재시도 후에도 `single_call_listwise@20` 2개 row와 `acurank_k5_b1` 5개 row가
 invalid로 남았습니다. 이 row는 보정하지 않고 invalid rate에 반영했습니다.

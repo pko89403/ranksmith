@@ -36,6 +36,19 @@ Impact:
 Needed From User:
 - 없음
 
+## Q003 Setwise 구현 범위
+Status: resolved
+
+Missing:
+- 없음
+
+Impact:
+- 새 public API인 `SetwiseStrategy` / `AsyncSetwiseStrategy`를 추가했다.
+- 이번 구현은 `setwise.heapsort`만 포함하고, `setwise.bubblesort`와 logits 기반 `listwise.likelihood`는 제외한다.
+
+Needed From User:
+- 없음
+
 ## 형식
 ```markdown
 ## Q001 <topic>

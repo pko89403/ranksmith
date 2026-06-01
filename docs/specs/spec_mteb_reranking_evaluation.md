@@ -1,5 +1,11 @@
 # Spec: Native MTEB Reranking Evaluation CLI
 
+> **Historical Spec**
+> 이 문서는 과거 구현 당시의 설계 기록입니다.
+> 현재 code/API 기준은 `docs/wiki/02_architecture.md`와
+> `docs/wiki/08_custom_strategy_extension.md`를 따릅니다.
+> 아래 parser/helper 명칭은 현재 구조에 맞게 최소 보정했습니다.
+
 ## 1. 개요 (Overview)
 - **작업 목적**: MTEB native Reranking task에서 ranksmith reranking method의 품질, 비용, 지연 시간, token 사용량, invalid output 비율을 함께 측정하는 CLI를 만든다. 결과는 사용자가 method를 고를 때 참고할 실험 자료로 제공하며, 보편적인 leaderboard나 절대적인 승자 판정으로 사용하지 않는다.
 - **Reference**
@@ -245,7 +251,7 @@ CLI는 public API를 확장하지 않는다.
 
 대신 evaluation-only Azure provider와 evaluation-only parser를 둔다.
 
-이 parser는 core의 1-based integer permutation 계약을 그대로 따르되, query-level logging을 위해 failure type을 세분화해서 반환한다. core `_parse_ranking`의 동작과 어긋나면 안 되므로 parity test를 추가한다.
+이 parser는 core의 1-based integer permutation 계약을 그대로 따르되, query-level logging을 위해 failure type을 세분화해서 반환한다. core `parse_ranking_response()`의 동작과 어긋나면 안 되므로 parity test를 추가한다.
 
 ```python
 class InstrumentedAzureOpenAIProvider:

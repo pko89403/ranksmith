@@ -48,6 +48,7 @@ def test_compare_all_uses_top20_bm25_default_methods() -> None:
         "rankgpt_sw_w5",
         "acurank_k5_b1",
         "tourrank_r2",
+        "setwise_hs_s10",
         "prp_sliding_p1",
     )
 
@@ -76,6 +77,7 @@ def test_compare_all_is_stable_for_100_candidate_cases() -> None:
         "rankgpt_sw_w5",
         "acurank_k5_b1",
         "tourrank_r2",
+        "setwise_hs_s10",
         "prp_sliding_p1",
     )
 
@@ -99,6 +101,13 @@ def test_compare_explicit_tourrank_is_preserved_for_non_100_candidate_cases() ->
     cases: list[BenchmarkCase] = []
 
     assert compare_reranking._selected_algorithms(args, cases) == ("tourrank_r",)
+
+
+def test_compare_explicit_setwise_heapsort_is_preserved() -> None:
+    args = argparse.Namespace(algorithm="setwise_heapsort")
+    cases: list[BenchmarkCase] = []
+
+    assert compare_reranking._selected_algorithms(args, cases) == ("setwise_heapsort",)
 
 
 def test_compare_builds_tourrank_stages_for_non_100_candidate_cases() -> None:
@@ -169,6 +178,12 @@ def test_compare_top20_default_alias_call_estimates() -> None:
     )
     assert (
         compare_reranking._estimate_provider_calls(
+            20, "setwise_hs_s10", window_size=20, stride=10, top_k=5
+        )
+        == 12
+    )
+    assert (
+        compare_reranking._estimate_provider_calls(
             20, "prp_sliding_p1", window_size=20, stride=10
         )
         == 38
@@ -203,6 +218,203 @@ def test_compare_top100_optional_call_estimates_remain_available() -> None:
         )
         == 130
     )
+    assert (
+        compare_reranking._estimate_provider_calls(
+            100, "setwise_hs_s10", window_size=20, stride=10, top_k=5
+        )
+        == 26
+    )
+
+
+def test_compare_report_records_method_settings() -> None:
+    args = argparse.Namespace(
+        dataset="benchmark-cache",
+        dataset_name="askubuntu-bm25",
+        fixture=Path("fixture.jsonl"),
+        cache_dir=Path(".benchmark-cache/askubuntu-bm25"),
+        candidates=Path("benchmark-results/pyserini/askubuntu-bm25-top20.trec"),
+        candidate_strategy="candidate_file",
+        candidate_count=20,
+        seed=13,
+        top_k=5,
+        window_size=20,
+        stride=10,
+        passes=10,
+        tourrank_rounds=2,
+        set_size=3,
+        query_id=[],
+        timeout=None,
+        checkpoint_output=None,
+    )
+
+    report = compare_reranking._build_report(
+        args=args,
+        algorithms=("setwise_hs_s10",),
+        cases=(),
+        call_estimates={"setwise_hs_s10": 0},
+        per_query=(),
+        aggregate=(),
+    )
+
+    assert report["method_settings"] == {
+        "setwise_hs_s10": {
+            "candidate_count": 20,
+            "set_size": 10,
+            "top_k": 5,
+            "top_k_early_stop": True,
+        }
+    }
+
+
+def test_compare_setwise_heapsort_uses_set_size(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeReranker:
+        def __init__(self, **kwargs: object) -> None:
+            captured["strategy"] = kwargs["strategy"]
+
+        def rerank(
+            self,
+            query: str,
+            documents: list[object],
+        ) -> list[object]:
+            del query
+            return [
+                type("Result", (), {"document": document})() for document in documents
+            ]
+
+    monkeypatch.setenv("AZURE_OPENAI_API_KEY", "key")
+    monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://example.openai.azure.com")
+    monkeypatch.setenv("AZURE_OPENAI_DEPLOYMENT", "deployment")
+    monkeypatch.setattr("ranksmith.AzureOpenAIReranker", FakeReranker)
+
+    compare_reranking._rank_case(
+        case=BenchmarkCase(
+            fixture_id="fixture",
+            dataset="dataset",
+            source="source",
+            license="license",
+            query_id="q1",
+            query="query",
+            documents=tuple(
+                BenchmarkDocument(id=str(index), title="", text="")
+                for index in range(5)
+            ),
+            qrels={},
+        ),
+        algorithm="setwise_heapsort",
+        window_size=3,
+        stride=2,
+        passes=10,
+        tourrank_rounds=2,
+        set_size=5,
+    )
+
+    assert captured["strategy"].set_size == 5
+
+
+def test_compare_setwise_hs_s10_uses_fixed_set_size(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeReranker:
+        def __init__(self, **kwargs: object) -> None:
+            captured["strategy"] = kwargs["strategy"]
+
+        def rerank(
+            self,
+            query: str,
+            documents: list[object],
+        ) -> list[object]:
+            del query
+            return [
+                type("Result", (), {"document": document})() for document in documents
+            ]
+
+    monkeypatch.setenv("AZURE_OPENAI_API_KEY", "key")
+    monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://example.openai.azure.com")
+    monkeypatch.setenv("AZURE_OPENAI_DEPLOYMENT", "deployment")
+    monkeypatch.setattr("ranksmith.AzureOpenAIReranker", FakeReranker)
+
+    compare_reranking._rank_case(
+        case=BenchmarkCase(
+            fixture_id="fixture",
+            dataset="dataset",
+            source="source",
+            license="license",
+            query_id="q1",
+            query="query",
+            documents=tuple(
+                BenchmarkDocument(id=str(index), title="", text="")
+                for index in range(5)
+            ),
+            qrels={},
+        ),
+        algorithm="setwise_hs_s10",
+        window_size=3,
+        stride=2,
+        passes=10,
+        tourrank_rounds=2,
+        set_size=5,
+    )
+
+    assert captured["strategy"].set_size == 10
+
+
+def test_compare_setwise_heapsort_forwards_top_k(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeReranker:
+        def __init__(self, **kwargs: object) -> None:
+            captured["strategy"] = kwargs["strategy"]
+
+        def rerank(
+            self,
+            query: str,
+            documents: list[object],
+            *,
+            top_k: int | None = None,
+        ) -> list[object]:
+            del query
+            captured["top_k"] = top_k
+            return [
+                type("Result", (), {"document": document})()
+                for document in documents[: top_k or len(documents)]
+            ]
+
+    monkeypatch.setenv("AZURE_OPENAI_API_KEY", "key")
+    monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://example.openai.azure.com")
+    monkeypatch.setenv("AZURE_OPENAI_DEPLOYMENT", "deployment")
+    monkeypatch.setattr("ranksmith.AzureOpenAIReranker", FakeReranker)
+
+    compare_reranking._rank_case(
+        case=BenchmarkCase(
+            fixture_id="fixture",
+            dataset="dataset",
+            source="source",
+            license="license",
+            query_id="q1",
+            query="query",
+            documents=tuple(
+                BenchmarkDocument(id=str(index), title="", text="")
+                for index in range(20)
+            ),
+            qrels={},
+        ),
+        algorithm="setwise_hs_s10",
+        window_size=20,
+        stride=10,
+        passes=10,
+        tourrank_rounds=2,
+        top_k=5,
+    )
+
+    assert captured["top_k"] == 5
 
 
 def test_compare_acurank_live_strategy_does_not_force_estimated_budget(
@@ -456,6 +668,7 @@ def test_compare_cli_defaults_match_top20_evaluate_at_5(
     assert args.candidate_count == 20
     assert args.window_size == 20
     assert args.stride == 10
+    assert args.set_size == 3
     assert args.top_k == 5
 
 
@@ -467,6 +680,7 @@ def test_compare_live_invalid_output_is_recorded(
         stride=10,
         passes=10,
         tourrank_rounds=2,
+        set_size=3,
         top_k=5,
         checkpoint_output=None,
     )
@@ -512,6 +726,7 @@ def test_compare_checkpoint_output_writes_per_query_rows(
         stride=10,
         passes=10,
         tourrank_rounds=2,
+        set_size=3,
         top_k=5,
         checkpoint_output=checkpoint_path,
     )

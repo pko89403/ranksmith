@@ -1,5 +1,11 @@
 # Spec: Pairwise Ranking Prompting
 
+> **Historical Spec**
+> 이 문서는 과거 구현 당시의 설계 기록이다.
+> 현재 코드 구조와 public API는 `docs/wiki/02_architecture.md`와
+> `docs/wiki/08_custom_strategy_extension.md`를 기준으로 확인한다.
+> 아래 파일 경로와 provider 용어는 현재 구조에 맞게 최소 보정했다.
+
 > 이 문서는 PRP(Pairwise Ranking Prompting)를 ranksmith에 추가하기 위한 설계 기준이다. 구현은 사용자 최종 승인 후 진행한다.
 
 ## 1. 개요 (Overview)
@@ -13,7 +19,7 @@
 ### 입력 (Inputs)
 - `query`: 문서 관련성을 평가할 사용자 질의.
 - `documents`: `Sequence[Document]`.
-- `provider`: pairwise 비교 호출을 지원하는 provider.
+- `model_client`: `compare()`를 지원하는 model client.
 - `algorithm`: 1차 구현에서는 `"prp_sliding_k"`만 허용한다.
 - `passes`: 뒤에서 앞으로 pairwise swap pass를 몇 번 수행할지 결정한다. 기본값은 논문 기준과 맞춰 `10`으로 둔다.
 - `max_document_chars`: 개별 문서 최대 길이. 기존 fast fail 정책을 유지한다.
@@ -27,9 +33,9 @@
 
 ### 제약 사항 (Constraints)
 - 신규 public API로 `PairwiseStrategy`와 `AsyncPairwiseStrategy`를 추가한다.
-- 기존 `ListwiseStrategy`의 provider 계약을 오염시키지 않는다.
-- `PairwiseStrategy`는 `PairwiseLLMProvider.compare()`를 지원하는 provider만 받는다.
-- `AsyncPairwiseStrategy`는 `AsyncPairwiseLLMProvider.compare()`를 지원하는 provider만 받는다.
+- 기존 `ListwiseStrategy`의 model client 계약을 오염시키지 않는다.
+- `PairwiseStrategy`는 `ModelClient.compare()`를 지원하는 model client만 받는다.
+- `AsyncPairwiseStrategy`는 `AsyncModelClient.compare()`를 지원하는 model client만 받는다.
 - pairwise 응답 계약은 JSON으로 통일한다.
 - 논문 원문처럼 invalid generation을 조용히 tie로 완화하지 않는다.
 - A/B와 B/A가 모두 유효하지만 서로 충돌하는 경우만 tie로 처리한다.
@@ -156,19 +162,19 @@ pairwise_provider_calls = 2 * passes * max(document_count - 1, 0)
 benchmark와 live 실행 CLI는 실행 전 이 호출 수를 반드시 출력한다. `--allow-live`가 있더라도 호출 수가 사용자의 의도와 맞는지 확인할 수 있어야 한다.
 
 ### 3.7 통합 지점 (Integration Points)
-- `src/ranksmith/_providers.py`
-  - 기존 `LLMProvider.rank(query, documents)`는 listwise 전용 계약으로 유지한다.
-  - 신규 `PairwiseLLMProvider.compare(query, document_a, document_b) -> str` Protocol을 추가한다.
-  - 신규 `AsyncPairwiseLLMProvider.compare(...)` Protocol을 추가한다.
-  - Azure provider에는 pairwise 전용 prompt builder를 분리한다.
-- `src/ranksmith/strategies.py`
+- `src/ranksmith/model.py`
+  - 기존 `ModelClient.rank(query, documents)`는 listwise 계약으로 유지한다.
+  - `ModelClient.compare(query, document_a, document_b) -> str` 계약을 제공한다.
+  - `AsyncModelClient.compare(...)` 계약을 제공한다.
+  - pairwise 전용 prompt builder를 분리한다.
+- `src/ranksmith/strategies/_pairwise.py`
   - `PairwiseAlgorithm = Literal["prp_sliding_k"]` 추가.
   - `PairwiseStrategy(algorithm="prp_sliding_k", passes=10, max_document_chars=4000)` 추가.
   - `AsyncPairwiseStrategy(algorithm="prp_sliding_k", passes=10, max_document_chars=4000)` 추가.
-  - `_parse_pairwise_winner()` 추가.
-  - provider가 pairwise protocol을 만족하지 않으면 `RerankInputError`로 실패한다.
+  - `_parse_pairwise_winner_response()` 추가.
+  - model client가 `compare()` 계약을 만족하지 않으면 `RerankInputError`로 실패한다.
 - `src/ranksmith/azure.py`
-  - 기존 `RerankStrategy` / `AsyncRerankStrategy` 주입 구조는 유지하되, provider type은 listwise와 pairwise를 모두 수용할 수 있게 확장한다.
+  - 기존 `RerankStrategy` / `AsyncRerankStrategy` 주입 구조는 유지하되, model client는 listwise와 pairwise를 모두 수용할 수 있게 확장한다.
   - `AzureOpenAIReranker(strategy=PairwiseStrategy(...))`가 동작하도록 한다.
 - `src/ranksmith/__init__.py`
   - `PairwiseStrategy`, `AsyncPairwiseStrategy`를 public API로 export한다.
@@ -196,9 +202,9 @@ benchmark와 live 실행 CLI는 실행 전 이 호출 수를 반드시 출력한
 - `passes < 1`
   - **Exception**: `ValueError`
   - **이유**: algorithm 구성 자체가 유효하지 않다.
-- provider가 `compare()`를 지원하지 않음
+- model client가 `compare()`를 지원하지 않음
   - **Exception**: `RerankInputError`
-  - **이유**: `PairwiseStrategy`와 provider의 계약이 맞지 않는 사용자 구성 오류다.
+  - **이유**: `PairwiseStrategy`와 model client의 계약이 맞지 않는 사용자 구성 오류다.
 - `max_document_chars < 1`
   - **Exception**: `ValueError`
   - **이유**: 문서 길이 검증 기준이 성립하지 않는다.
@@ -217,9 +223,9 @@ benchmark와 live 실행 CLI는 실행 전 이 호출 수를 반드시 출력한
 - A/B와 B/A 비교 결과가 서로 충돌
   - **Exception**: 없음
   - **동작**: 논문 방식에 맞춰 tie로 간주하고 현재 순서를 유지한다.
-- provider 호출 실패
+- model client 호출 실패
   - **Exception**: `RerankProviderError`
-  - **이유**: provider 계층 오류로 분류한다.
+  - **이유**: provider/model client 계층 오류로 분류한다.
 
 ## 6. 테스트 계획 (Test Plan)
 
@@ -237,11 +243,11 @@ benchmark와 live 실행 CLI는 실행 전 이 호출 수를 반드시 출력한
 - 빈 문서 목록은 빈 결과를 반환한다.
 - 문서가 1개면 provider 호출 없이 그대로 반환한다.
 - `passes < 1`은 `ValueError`.
-- pairwise `compare()`를 지원하지 않는 provider는 `RerankInputError`.
+- pairwise `compare()`를 지원하지 않는 model client는 `RerankInputError`.
 - `top_k < 0`은 `RerankInputError`.
 - malformed JSON, 누락된 `winner`, 잘못된 winner 값은 `RerankParseError`.
 - 긴 문서는 provider 호출 전 `DocumentTooLongError`.
-- provider 예외는 `RerankProviderError`로 wrapping된다.
+- provider/model client 예외는 `RerankProviderError`로 wrapping된다.
 
 ### 공통 Reranking Smoke/Benchmark
 - `tests/fixtures/reranking_smoke_fixture.jsonl` 기반 smoke test에 `prp_sliding_k`를 추가한다.
@@ -267,12 +273,12 @@ benchmark와 live 실행 CLI는 실행 전 이 호출 수를 반드시 출력한
 - [x] 사용자 최종 승인 확인
 
 ### Phase 2: 로직 구현 (Implementation)
-- [x] `src/ranksmith/_providers.py`: `PairwiseLLMProvider` / `AsyncPairwiseLLMProvider` protocol 추가
-- [x] `src/ranksmith/_providers.py`: Azure pairwise prompt 및 `compare()` 구현
-- [x] `src/ranksmith/strategies.py`: `PairwiseStrategy` 구현
-- [x] `src/ranksmith/strategies.py`: `AsyncPairwiseStrategy` 구현
-- [x] `src/ranksmith/strategies.py`: `_parse_pairwise_winner()` 구현
-- [x] `src/ranksmith/strategies.py`: `compare()` 미지원 provider의 `RerankInputError` 처리
+- [x] `src/ranksmith/model.py`: `ModelClient.compare()` / `AsyncModelClient.compare()` 계약 추가
+- [x] `src/ranksmith/model.py`: pairwise prompt 및 `compare()` 구현
+- [x] `src/ranksmith/strategies/_pairwise.py`: `PairwiseStrategy` 구현
+- [x] `src/ranksmith/strategies/_pairwise.py`: `AsyncPairwiseStrategy` 구현
+- [x] `src/ranksmith/strategies/_pairwise.py`: `_parse_pairwise_winner_response()` 구현
+- [x] `src/ranksmith/strategies/_pairwise.py`: `compare()` 미지원 model client의 `RerankInputError` 처리
 - [x] `src/ranksmith/azure.py`: 기존 strategy injection 구조와 pairwise provider 연결 확인
 - [x] `src/ranksmith/__init__.py`: 신규 strategy export
 - [x] `README.md`, `README.ko.md`: 사용 예시 및 비용 설명 추가
