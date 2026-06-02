@@ -273,6 +273,40 @@ reranker = AsyncAzureOpenAIReranker(
 results = await reranker.rerank("query", documents)
 ```
 
+## Structural Confidence
+
+`ranksmith.confidence`는 frozen HuggingFace encoder, `structural-v1` feature,
+학습된 compatible scorer artifact를 사용해 closed-model output에 대한 single-item
+sync confidence inference를 제공합니다.
+
+선택 dependency 설치:
+
+```bash
+pip install "ranksmith[confidence]"
+```
+
+```python
+from ranksmith.confidence import (
+    AnswerConfidenceInput,
+    StructuralConfidenceEstimator,
+    load_lightgbm_scorer,
+)
+
+scorer = load_lightgbm_scorer("structural-confidence.joblib")
+estimator = StructuralConfidenceEstimator.from_pretrained(
+    scorer=scorer,
+    task_type="answer_confidence",
+)
+
+result = estimator.score(
+    AnswerConfidenceInput(context="...", answer="...")
+)
+print(result.score)
+```
+
+이 모듈은 scorer를 학습하지 않고, reranking Strategy를 추가하지 않으며, batch 또는
+async inference를 수행하지 않습니다.
+
 ## 실전 가이드 (Examples)
 
 실행 가능한 예제는 `examples/` 폴더에 있습니다.

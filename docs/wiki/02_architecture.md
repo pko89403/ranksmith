@@ -85,6 +85,21 @@ v1 지원 algorithm:
 향후 algorithm 후보:
 - `confidence`
 
+## Confidence
+`ranksmith.confidence`는 reranking Strategy나 Algorithm이 아니라, closed model output confidence를 계산하는 utility layer다.
+
+현재 범위:
+- frozen HuggingFace encoder 기반 token-level trajectory 생성
+- `structural-v1` 70차원 feature extraction
+- 학습된 scorer artifact 기반 single-item sync confidence inference
+- root import가 아닌 `ranksmith.confidence` submodule export
+
+제외:
+- training pipeline
+- semantic feature fusion
+- batch/async inference
+- reranking Strategy
+
 ## LLM 응답 계약
 Listwise JSON permutation:
 

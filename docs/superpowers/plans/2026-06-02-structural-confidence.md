@@ -2041,7 +2041,7 @@ confidence = [
 ]
 ```
 
-- [ ] **Step 2: Update architecture wiki**
+- [x] **Step 2: Update architecture wiki**
 
 In `docs/wiki/02_architecture.md`, add a `Confidence` section after `Algorithm`:
 
@@ -2061,7 +2061,7 @@ In `docs/wiki/02_architecture.md`, add a `Confidence` section after `Algorithm`:
 - reranking Strategy
 ```
 
-- [ ] **Step 3: Add Trust reference summary**
+- [x] **Step 3: Add Trust reference summary**
 
 Create `docs/wiki/references/structural_confidence.md`:
 
@@ -2102,7 +2102,7 @@ closed model의 hidden state를 직접 보지 않고, `context + answer` 또는 
 - Phase 2 artifact save/export helper
 ```
 
-- [ ] **Step 4: Update reference index**
+- [x] **Step 4: Update reference index**
 
 In `docs/wiki/04_references_index.md`, move Trust from pending to registered:
 
@@ -2112,7 +2112,7 @@ In `docs/wiki/04_references_index.md`, move Trust from pending to registered:
 
 Remove the pending Trust PDF line. Keep the PDF file in `docs/wiki/references/`.
 
-- [ ] **Step 5: Update README files without performance claims**
+- [x] **Step 5: Update README files without performance claims**
 
 Add this minimal English section to `README.md`:
 

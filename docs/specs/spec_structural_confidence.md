@@ -747,10 +747,10 @@ scoring 규칙:
 - [ ] `./scripts/verify.sh` 실행
 
 ### Phase 4: 완료 및 정리
-- [ ] `docs/wiki/02_architecture.md`: Confidence utility layer 반영
-- [ ] `docs/wiki/references/structural_confidence.md`: Trust reference 요약 작성
-- [ ] `docs/wiki/04_references_index.md`: Trust reference 상태 갱신
-- [ ] `README.md` / `README.ko.md`: optional extra와 minimal usage 반영
+- [x] `docs/wiki/02_architecture.md`: Confidence utility layer 반영
+- [x] `docs/wiki/references/structural_confidence.md`: Trust reference 요약 작성
+- [x] `docs/wiki/04_references_index.md`: Trust reference 상태 갱신
+- [x] `README.md` / `README.ko.md`: optional extra와 minimal usage 반영
 - [ ] 본 문서 최상단의 **상태**를 `Completed`로 변경
 
 ## 8. Phase 2 예고: Training Pipeline
