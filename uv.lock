@@ -2423,11 +2423,14 @@ confidence-train = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "lightgbm" },
     { name = "mteb" },
     { name = "mypy" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
+    { name = "scikit-learn", version = "1.7.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "scikit-learn", version = "1.8.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
 
 [package.metadata]
@@ -2450,11 +2453,13 @@ provides-extras = ["confidence", "confidence-train"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "lightgbm", specifier = ">=4.0" },
     { name = "mteb", specifier = ">=1.0" },
     { name = "mypy", specifier = ">=1.8" },
     { name = "pytest", specifier = ">=8.0" },
     { name = "pytest-asyncio", specifier = ">=0.23" },
     { name = "ruff", specifier = ">=0.5" },
+    { name = "scikit-learn", specifier = ">=1.4" },
 ]
 
 [[package]]
