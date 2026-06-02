@@ -1348,7 +1348,7 @@ git commit -m "feat: add frozen confidence encoder"
 - Modify: `src/ranksmith/confidence/_scorer.py`
 - Test: `tests/test_confidence_scorer.py`
 
-- [ ] **Step 1: Write failing scorer tests**
+- [x] **Step 1: Write failing scorer tests**
 
 Create `tests/test_confidence_scorer.py`:
 
@@ -1511,7 +1511,7 @@ def test_booster_metadata_json_must_be_json_serializable(tmp_path: Path) -> None
     assert data["artifact_schema_version"] == "structural-artifact-v1"
 ```
 
-- [ ] **Step 2: Run failing scorer tests**
+- [x] **Step 2: Run failing scorer tests**
 
 Run:
 
@@ -1521,7 +1521,7 @@ uv run pytest tests/test_confidence_scorer.py -q
 
 Expected: FAIL because `_scorer.py` still contains stubs.
 
-- [ ] **Step 3: Implement scorer metadata and model wrapper**
+- [x] **Step 3: Implement scorer metadata and model wrapper**
 
 Replace `src/ranksmith/confidence/_scorer.py` with:
 
@@ -1710,7 +1710,7 @@ def _validate_probability(score: float) -> None:
         raise ConfidenceArtifactError("confidence score must be a probability")
 ```
 
-- [ ] **Step 4: Run scorer tests**
+- [x] **Step 4: Run scorer tests**
 
 Run:
 
@@ -1720,7 +1720,7 @@ uv run pytest tests/test_confidence_scorer.py -q
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/ranksmith/confidence/_scorer.py tests/test_confidence_scorer.py

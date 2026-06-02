@@ -717,17 +717,17 @@ scoring 규칙:
   - [x] output tensor detach/CPU/float64 변환 구현
   - [x] `allow_truncation=False` token length preflight 구현
   - [x] attention mask 기반 padding 제외 처리 구현
-- [ ] `src/ranksmith/confidence/_scorer.py`: scorer protocol과 LightGBM/joblib loader 구현
-  - [ ] `ScorerMetadata` parsing/validation 구현
-  - [ ] `artifact_schema_version` validation 구현
-  - [ ] JSON-serializable metadata validation 구현
-  - [ ] joblib wrapper artifact loader 구현
-  - [ ] LightGBM Booster + metadata JSON loader 구현
-  - [ ] `predict_proba` positive class score 추출 구현
-  - [ ] `predict_proba` output shape validation 구현
-  - [ ] probability-only `predict` path 구현
-  - [ ] `predict` output shape validation 구현
-  - [ ] unknown metadata field 보존 구현
+- [x] `src/ranksmith/confidence/_scorer.py`: scorer protocol과 LightGBM/joblib loader 구현
+  - [x] `ScorerMetadata` parsing/validation 구현
+  - [x] `artifact_schema_version` validation 구현
+  - [x] JSON-serializable metadata validation 구현
+  - [x] joblib wrapper artifact loader 구현
+  - [x] LightGBM Booster + metadata JSON loader 구현
+  - [x] `predict_proba` positive class score 추출 구현
+  - [x] `predict_proba` output shape validation 구현
+  - [x] probability-only `predict` path 구현
+  - [x] `predict` output shape validation 구현
+  - [x] unknown metadata field 보존 구현
 - [ ] `src/ranksmith/confidence/_structural.py`: `StructuralConfidenceEstimator` 구현
   - [ ] estimator 설정과 scorer metadata mismatch 검증 구현
   - [ ] confidence result metadata 생성 구현
@@ -736,7 +736,7 @@ scoring 규칙:
 ### Phase 3: 검증 (Verification)
 - [ ] `tests/test_confidence_features.py`: feature extraction unit test 추가
 - [ ] `tests/test_confidence_estimator.py`: estimator input/result/error test 추가
-- [ ] `tests/test_confidence_scorer.py`: scorer protocol/metadata/loader test 추가
+- [x] `tests/test_confidence_scorer.py`: scorer protocol/metadata/loader test 추가
 - [ ] `tests/test_confidence_api_scope.py`: input type 분리, no batch, no async, root export 제외 test 추가
 - [ ] `tests/test_confidence_templates.py`: input template formatting 및 required field 검증 test 추가
 - [ ] `tests/test_confidence_dependencies.py`: core install import 및 lazy dependency error test 추가
