@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from types import MappingProxyType
+from typing import Any, Literal
 
 from ranksmith.confidence import TaskType
 
@@ -36,3 +37,30 @@ class ConfidenceTrainingResult:
     export_path: Path
     report_path: Path
     metadata_path: Path
+
+
+@dataclass(frozen=True)
+class CanonicalConfidenceSample:
+    id: str
+    task_type: TaskType
+    label: int
+    context: str | None = None
+    answer: str | None = None
+    query: str | None = None
+    document: str | None = None
+    judgment: str | None = None
+    gold_answer: str | list[str] | None = None
+    relevance_label: int | float | bool | None = None
+    source: str | None = None
+    group_id: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "metadata", MappingProxyType(dict(self.metadata)))
+
+
+@dataclass(frozen=True)
+class ConfidenceDatasetSplit:
+    train: tuple[CanonicalConfidenceSample, ...]
+    valid: tuple[CanonicalConfidenceSample, ...]
+    test: tuple[CanonicalConfidenceSample, ...]
