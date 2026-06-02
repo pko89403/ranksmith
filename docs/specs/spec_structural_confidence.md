@@ -4,7 +4,7 @@
 - **작업 목적**: closed model의 hidden state, attention, logits에 접근하지 못하는 상황에서, closed model 출력의 confidence를 추정하는 공식 utility module을 추가한다.
 - **Reference**:
   - `docs/wiki/references/Trust in One Round- Confidence Estimation for Large Language Models via Structural Signals.pdf`
-- **상태**: `[x] Draft` | `[ ] In Progress` | `[ ] Completed`
+- **상태**: `[ ] Draft` | `[ ] In Progress` | `[x] Completed`
 
 이 기능은 reranking `Strategy`가 아니다.
 새 reranking `Algorithm`도 아니다.
@@ -685,28 +685,28 @@ scoring 규칙:
 - [x] 관련 기존 코드베이스 및 Wiki 문서 확인
 - [x] Trust 논문의 적용 범위와 ranksmith 내 위치 확인
 - [x] Phase 1 scope freeze 반영
-- [ ] 사용자 스펙 검토 및 최종 승인
+- [x] 사용자 스펙 검토 및 최종 승인
 
 ### Phase 2: 로직 구현 (Implementation)
-- [ ] `pyproject.toml`: confidence optional dependency 추가
-- [ ] `src/ranksmith/confidence/__init__.py`: public confidence module export 추가
-- [ ] `src/ranksmith/confidence/_types.py`: input/result/metadata dataclass 구현
-  - [ ] `AnswerConfidenceInput` 구현
-  - [ ] `JudgmentConfidenceInput` 구현
-  - [ ] confidence 전용 error submodule export 결정 반영
-- [ ] `src/ranksmith/confidence/_errors.py`: confidence-specific error 구현
-- [ ] `src/ranksmith/confidence/_dependencies.py`: optional dependency lazy import helper 구현
-- [ ] `src/ranksmith/confidence/_templates.py`: `answer_confidence` / `judgment_confidence` input template 구현
-- [ ] `src/ranksmith/confidence/_features.py`: structural feature extraction 구현
-  - [ ] spectral stability 48차원 구현
-  - [ ] local variation 6차원 구현
-  - [ ] shape coherence 16차원 구현
-  - [ ] `two_scale` descriptor aggregation 구현
-  - [ ] feature length/dtype validation 구현
-  - [ ] NaN/Inf validation 구현
-  - [ ] graph degree zero fallback 구현
-  - [ ] eigenvalue tolerance validation 구현
-  - [ ] single-token zero fallback 구현
+- [x] `pyproject.toml`: confidence optional dependency 추가
+- [x] `src/ranksmith/confidence/__init__.py`: public confidence module export 추가
+- [x] `src/ranksmith/confidence/_types.py`: input/result/metadata dataclass 구현
+  - [x] `AnswerConfidenceInput` 구현
+  - [x] `JudgmentConfidenceInput` 구현
+  - [x] confidence 전용 error submodule export 결정 반영
+- [x] `src/ranksmith/confidence/_errors.py`: confidence-specific error 구현
+- [x] `src/ranksmith/confidence/_dependencies.py`: optional dependency lazy import helper 구현
+- [x] `src/ranksmith/confidence/_templates.py`: `answer_confidence` / `judgment_confidence` input template 구현
+- [x] `src/ranksmith/confidence/_features.py`: structural feature extraction 구현
+  - [x] spectral stability 48차원 구현
+  - [x] local variation 6차원 구현
+  - [x] shape coherence 16차원 구현
+  - [x] `two_scale` descriptor aggregation 구현
+  - [x] feature length/dtype validation 구현
+  - [x] NaN/Inf validation 구현
+  - [x] graph degree zero fallback 구현
+  - [x] eigenvalue tolerance validation 구현
+  - [x] single-token zero fallback 구현
 - [x] `src/ranksmith/confidence/_encoder.py`: frozen HuggingFace AutoModel wrapper 구현
   - [x] tokenizer/model lazy import 구현
   - [x] `hf_token` 전달 및 비노출 정책 구현
@@ -734,24 +734,24 @@ scoring 규칙:
   - [x] request별 mutable state 없음 확인
 
 ### Phase 3: 검증 (Verification)
-- [ ] `tests/test_confidence_features.py`: feature extraction unit test 추가
+- [x] `tests/test_confidence_features.py`: feature extraction unit test 추가
 - [x] `tests/test_confidence_estimator.py`: estimator input/result/error test 추가
 - [x] `tests/test_confidence_scorer.py`: scorer protocol/metadata/loader test 추가
-- [ ] `tests/test_confidence_api_scope.py`: input type 분리, no batch, no async, root export 제외 test 추가
-- [ ] `tests/test_confidence_templates.py`: input template formatting 및 required field 검증 test 추가
-- [ ] `tests/test_confidence_dependencies.py`: core install import 및 lazy dependency error test 추가
+- [x] `tests/test_confidence_api_scope.py`: input type 분리, no batch, no async, root export 제외 test 추가
+- [x] `tests/test_confidence_templates.py`: input template formatting 및 required field 검증 test 추가
+- [x] `tests/test_confidence_dependencies.py`: core install import 및 lazy dependency error test 추가
 - [x] `tests/test_confidence_hf_token.py`: HuggingFace token 전달/비노출/local-only test 추가
-- [ ] `tests/test_confidence_numeric_stability.py`: NaN/Inf/eigenvalue/degree-zero/single-token 안정성 test 추가
+- [x] `tests/test_confidence_numeric_stability.py`: NaN/Inf/eigenvalue/degree-zero/single-token 안정성 test 추가
 - [x] `tests/test_confidence_hf_options.py`: `cache_dir`, `device`, HF opt-in env 정책 test 추가
-- [ ] optional dependency 관련 test 조건 분리
-- [ ] `./scripts/verify.sh` 실행
+- [x] optional dependency 관련 test 조건 분리
+- [x] `./scripts/verify.sh` 실행
 
 ### Phase 4: 완료 및 정리
 - [x] `docs/wiki/02_architecture.md`: Confidence utility layer 반영
 - [x] `docs/wiki/references/structural_confidence.md`: Trust reference 요약 작성
 - [x] `docs/wiki/04_references_index.md`: Trust reference 상태 갱신
 - [x] `README.md` / `README.ko.md`: optional extra와 minimal usage 반영
-- [ ] 본 문서 최상단의 **상태**를 `Completed`로 변경
+- [x] 본 문서 최상단의 **상태**를 `Completed`로 변경
 
 ## 8. Phase 2 예고: Training Pipeline
 

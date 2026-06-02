@@ -2025,7 +2025,7 @@ git commit -m "feat: add structural confidence estimator"
 - Modify: `README.ko.md`
 - Test: `tests/test_confidence_api_scope.py`
 
-- [ ] **Step 1: Add optional extra**
+- [x] **Step 1: Add optional extra**
 
 Modify `pyproject.toml` after `[project.urls]`:
 
@@ -2150,7 +2150,7 @@ This module does not train a scorer and does not add a reranking Strategy.
 
 Add the matching Korean section to `README.ko.md`.
 
-- [ ] **Step 6: Run docs/API tests**
+- [x] **Step 6: Run docs/API tests**
 
 Run:
 
@@ -2160,7 +2160,7 @@ uv run pytest tests/test_confidence_api_scope.py -q
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add pyproject.toml docs/wiki/02_architecture.md docs/wiki/references/structural_confidence.md docs/wiki/04_references_index.md README.md README.ko.md tests/test_confidence_api_scope.py
@@ -2174,7 +2174,7 @@ git commit -m "docs: document structural confidence module"
 **Files:**
 - Modify: `docs/specs/spec_structural_confidence.md`
 
-- [ ] **Step 1: Run focused tests**
+- [x] **Step 1: Run focused tests**
 
 Run:
 
@@ -2184,7 +2184,7 @@ uv run pytest tests/test_confidence_*.py -q
 
 Expected: all confidence tests PASS.
 
-- [ ] **Step 2: Run full verification**
+- [x] **Step 2: Run full verification**
 
 Run:
 
@@ -2194,7 +2194,7 @@ Run:
 
 Expected: full verification PASS.
 
-- [ ] **Step 3: Mark spec completed**
+- [x] **Step 3: Mark spec completed**
 
 Modify `docs/specs/spec_structural_confidence.md`:
 
@@ -2204,7 +2204,7 @@ Modify `docs/specs/spec_structural_confidence.md`:
 
 Mark every completed task checklist item in the spec with `[x]`.
 
-- [ ] **Step 4: Commit closeout**
+- [x] **Step 4: Commit closeout**
 
 ```bash
 git add docs/specs/spec_structural_confidence.md
@@ -2215,8 +2215,8 @@ git commit -m "docs: complete structural confidence spec"
 
 ## Self-Review Checklist
 
-- [ ] Spec coverage: every Phase 1 scope item in `docs/specs/spec_structural_confidence.md` maps to at least one task above.
-- [ ] No placeholders: no task uses `TBD`, `TODO`, `implement later`, or vague “add tests” language.
-- [ ] Type consistency: `AnswerConfidenceInput`, `JudgmentConfidenceInput`, `ScorerMetadata`, `StructuralConfidenceEstimator`, and `load_lightgbm_scorer` names match across tasks.
-- [ ] Scope containment: no training, semantic fusion, batch, async, root export, non-CPU, or artifact save helper is implemented.
-- [ ] Verification: focused confidence tests and `./scripts/verify.sh` run before marking complete.
+- [x] Spec coverage: every Phase 1 scope item in `docs/specs/spec_structural_confidence.md` maps to at least one task above.
+- [x] No placeholders: no task uses `TBD`, `TODO`, `implement later`, or vague “add tests” language.
+- [x] Type consistency: `AnswerConfidenceInput`, `JudgmentConfidenceInput`, `ScorerMetadata`, `StructuralConfidenceEstimator`, and `load_lightgbm_scorer` names match across tasks.
+- [x] Scope containment: no training, semantic fusion, batch, async, root export, non-CPU, or artifact save helper is implemented.
+- [x] Verification: focused confidence tests and `./scripts/verify.sh` run before marking complete.
