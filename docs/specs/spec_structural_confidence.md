@@ -728,14 +728,14 @@ scoring 규칙:
   - [x] probability-only `predict` path 구현
   - [x] `predict` output shape validation 구현
   - [x] unknown metadata field 보존 구현
-- [ ] `src/ranksmith/confidence/_structural.py`: `StructuralConfidenceEstimator` 구현
-  - [ ] estimator 설정과 scorer metadata mismatch 검증 구현
-  - [ ] confidence result metadata 생성 구현
-  - [ ] request별 mutable state 없음 확인
+- [x] `src/ranksmith/confidence/_structural.py`: `StructuralConfidenceEstimator` 구현
+  - [x] estimator 설정과 scorer metadata mismatch 검증 구현
+  - [x] confidence result metadata 생성 구현
+  - [x] request별 mutable state 없음 확인
 
 ### Phase 3: 검증 (Verification)
 - [ ] `tests/test_confidence_features.py`: feature extraction unit test 추가
-- [ ] `tests/test_confidence_estimator.py`: estimator input/result/error test 추가
+- [x] `tests/test_confidence_estimator.py`: estimator input/result/error test 추가
 - [x] `tests/test_confidence_scorer.py`: scorer protocol/metadata/loader test 추가
 - [ ] `tests/test_confidence_api_scope.py`: input type 분리, no batch, no async, root export 제외 test 추가
 - [ ] `tests/test_confidence_templates.py`: input template formatting 및 required field 검증 test 추가

@@ -26,4 +26,5 @@ def test_no_batch_or_async_api_in_phase_one() -> None:
     confidence = importlib.import_module("ranksmith.confidence")
 
     assert not hasattr(confidence.StructuralConfidenceEstimator, "score_batch")
+    assert not hasattr(confidence.StructuralConfidenceEstimator, "ascore")
     assert not hasattr(confidence, "AsyncStructuralConfidenceEstimator")

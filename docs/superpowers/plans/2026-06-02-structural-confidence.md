@@ -1735,7 +1735,7 @@ git commit -m "feat: add confidence scorer loaders"
 - Modify: `src/ranksmith/confidence/_structural.py`
 - Test: `tests/test_confidence_estimator.py`
 
-- [ ] **Step 1: Write failing estimator tests**
+- [x] **Step 1: Write failing estimator tests**
 
 Create `tests/test_confidence_estimator.py`:
 
@@ -1848,7 +1848,7 @@ def test_estimator_rejects_out_of_range_score() -> None:
         )
 ```
 
-- [ ] **Step 2: Run failing estimator tests**
+- [x] **Step 2: Run failing estimator tests**
 
 Run:
 
@@ -1858,7 +1858,7 @@ uv run pytest tests/test_confidence_estimator.py -q
 
 Expected: FAIL because `_structural.py` is still a placeholder.
 
-- [ ] **Step 3: Implement estimator**
+- [x] **Step 3: Implement estimator**
 
 Replace `src/ranksmith/confidence/_structural.py` with:
 
@@ -1985,7 +1985,7 @@ def _validate_score(score: float) -> None:
         raise ConfidenceArtifactError("confidence score must be in [0, 1]")
 ```
 
-- [ ] **Step 4: Run estimator tests**
+- [x] **Step 4: Run estimator tests**
 
 Run:
 
@@ -1995,7 +1995,7 @@ uv run pytest tests/test_confidence_estimator.py -q
 
 Expected: PASS.
 
-- [ ] **Step 5: Run all confidence tests**
+- [x] **Step 5: Run all confidence tests**
 
 Run:
 
@@ -2005,7 +2005,7 @@ uv run pytest tests/test_confidence_*.py -q
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/ranksmith/confidence/_structural.py tests/test_confidence_estimator.py
