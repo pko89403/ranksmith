@@ -4,17 +4,11 @@ from ranksmith.confidence_training._errors import (
     ConfidenceTrainingConfigError,
     ConfidenceTrainingError,
 )
+from ranksmith.confidence_training._pipeline import train_confidence_scorer
 from ranksmith.confidence_training._types import (
     ConfidenceTrainingConfig,
     ConfidenceTrainingResult,
 )
-
-
-def train_confidence_scorer(
-    config: ConfidenceTrainingConfig,
-) -> ConfidenceTrainingResult:
-    raise ConfidenceTrainingError("confidence training is not implemented yet")
-
 
 __all__ = [
     "ConfidenceDatasetError",
