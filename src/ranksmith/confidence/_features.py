@@ -160,20 +160,18 @@ def _local_variation(np: Any, trajectory: Any) -> Any:
 
     deltas = np.diff(trajectory, axis=0)
     step_norms = np.linalg.norm(deltas, axis=1)
-    displacement = np.linalg.norm(trajectory[-1] - trajectory[0])
-    path_length = np.sum(step_norms)
-    curvature = np.diff(deltas, axis=0)
-    curvature_norms = (
-        np.linalg.norm(curvature, axis=1) if curvature.shape[0] > 0 else np.zeros(1)
-    )
+    path_length = float(np.sum(step_norms))
+    start_end_distance = float(np.linalg.norm(trajectory[-1] - trajectory[0]))
+    embedding_variance = float(np.mean(np.var(trajectory, axis=0)))
+    centroid_norm = float(np.linalg.norm(np.mean(trajectory, axis=0)))
     features = np.array(
         [
+            path_length,
             float(np.mean(step_norms)),
-            float(np.std(step_norms)),
-            float(np.max(step_norms)),
-            float(displacement),
-            float(path_length / max(trajectory.shape[0] - 1, 1)),
-            float(np.mean(curvature_norms)),
+            float(np.var(step_norms)),
+            start_end_distance,
+            embedding_variance,
+            centroid_norm,
         ],
         dtype=np.float64,
     )

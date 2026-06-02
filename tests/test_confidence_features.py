@@ -44,3 +44,35 @@ def test_feature_order_has_expected_family_lengths() -> None:
     assert len(spectral) == 48
     assert len(local) == 6
     assert len(shape) == 16
+
+
+def test_local_variation_matches_structural_v1_order() -> None:
+    hidden_states = np.array(
+        [
+            [0.0, 0.0],
+            [3.0, 4.0],
+            [6.0, 8.0],
+        ],
+        dtype=np.float64,
+    )
+    attention_mask = np.ones(3, dtype=np.int64)
+
+    features = extract_structural_features(
+        hidden_states,
+        attention_mask,
+        max_length=64,
+    )
+
+    expected = np.array(
+        [
+            10.0,
+            5.0,
+            0.0,
+            10.0,
+            8.3333333333,
+            5.0,
+        ],
+        dtype=np.float64,
+    )
+
+    np.testing.assert_allclose(features[48:54], expected, rtol=1e-10, atol=1e-10)
