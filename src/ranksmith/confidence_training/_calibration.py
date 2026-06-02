@@ -23,7 +23,10 @@ class CalibratedConfidenceScorer:
             [list(features)],
             positive_class_index=self.positive_class_index,
         )[0]
-        raw = self.calibrator.predict_proba([[base_score]])
+        predict_proba = getattr(self.calibrator, "predict_proba", None)
+        if not callable(predict_proba):
+            raise ConfidenceTrainingError("calibrator must provide predict_proba()")
+        raw = predict_proba([[base_score]])
         return _extract_probability(raw, positive_class_index=1)
 
 

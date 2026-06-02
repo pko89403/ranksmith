@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
+
+import pytest
 
 from ranksmith.confidence import load_lightgbm_scorer
 from ranksmith.confidence_training import (
@@ -24,6 +27,10 @@ class FakeEncoder:
         signal = 1.0 if "positive" in text else 0.0
         hidden = [[signal + float(row), float(row + 1)] for row in range(6)]
         return hidden, [1, 1, 1, 1, 1, 1]
+
+
+def _fake_from_pretrained(**kwargs: Any) -> FakeEncoder:
+    return FakeEncoder()
 
 
 def _feature_rows(count: int = 40) -> list[ConfidenceFeatureRow]:
@@ -95,19 +102,16 @@ def test_exported_artifact_loads_with_phase_1_loader(tmp_path: Path) -> None:
 
 def test_train_confidence_scorer_pipeline_exports_artifact(
     tmp_path: Path,
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     dataset_path = tmp_path / "dataset.jsonl"
     export_path = tmp_path / "artifact.joblib"
     output_dir = tmp_path / "run"
     _write_answer_dataset(dataset_path)
 
-    from ranksmith.confidence_training import _pipeline
-
     monkeypatch.setattr(
-        _pipeline.FrozenAutoEncoder,
-        "from_pretrained",
-        lambda **kwargs: FakeEncoder(),
+        "ranksmith.confidence_training._pipeline.FrozenAutoEncoder.from_pretrained",
+        _fake_from_pretrained,
     )
 
     result = train_confidence_scorer(

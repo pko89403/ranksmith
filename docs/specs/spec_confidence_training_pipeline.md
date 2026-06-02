@@ -5,7 +5,7 @@
 - **Reference**:
   - `docs/specs/spec_structural_confidence.md`
   - `docs/wiki/references/structural_confidence.md`
-- **상태**: `[x] Draft` | `[ ] In Progress` | `[ ] Completed`
+- **상태**: `[ ] Draft` | `[ ] In Progress` | `[x] Completed`
 
 Phase 1은 추론 core만 제공한다.
 Phase 2 전체 방향은 실제 confidence score를 만들기 위한 **training pipeline**이다.
@@ -502,36 +502,36 @@ uv run mypy src tests/test_confidence_training_*.py
 - [x] task scope를 `answer_confidence` + `judgment_confidence`로 확정
 - [x] dataset source를 task별 분리로 확정
 - [x] canonical JSONL 우선 구현 및 adapter 후속 분리 확정
-- [ ] 사용자 스펙 검토 및 최종 승인
+- [x] 사용자 스펙 검토 및 최종 승인
 
 ### Phase 2: 로직 구현 (Implementation)
-- [ ] `pyproject.toml`: `confidence-train` optional extra 추가
-- [ ] `.gitignore`: generated training output ignore 규칙 추가
-- [ ] `src/ranksmith/confidence_training/__init__.py`: public training submodule export
-- [ ] `src/ranksmith/confidence_training/_errors.py`: training-specific error 구현
-- [ ] `src/ranksmith/confidence_training/_types.py`: config/result/schema dataclass 구현
-- [ ] `src/ranksmith/confidence_training/_dataset.py`: canonical JSONL validation/load 구현
-- [ ] `src/ranksmith/confidence_training/_split.py`: deterministic split 구현
-- [ ] `src/ranksmith/confidence_training/_features.py`: feature extraction runner 구현
-- [ ] `src/ranksmith/confidence_training/_train.py`: LightGBM training 구현
-- [ ] `src/ranksmith/confidence_training/_calibration.py`: calibration 구현
-- [ ] `src/ranksmith/confidence_training/_report.py`: metrics/report 구현
-- [ ] `src/ranksmith/confidence_training/_artifact.py`: artifact export 구현
-- [ ] Phase 1 `ScorerMetadata` 필수 필드 export 검증 구현
+- [x] `pyproject.toml`: `confidence-train` optional extra 추가
+- [x] `.gitignore`: generated training output ignore 규칙 추가
+- [x] `src/ranksmith/confidence_training/__init__.py`: public training submodule export
+- [x] `src/ranksmith/confidence_training/_errors.py`: training-specific error 구현
+- [x] `src/ranksmith/confidence_training/_types.py`: config/result/schema dataclass 구현
+- [x] `src/ranksmith/confidence_training/_dataset.py`: canonical JSONL validation/load 구현
+- [x] `src/ranksmith/confidence_training/_split.py`: deterministic split 구현
+- [x] `src/ranksmith/confidence_training/_features.py`: feature extraction runner 구현
+- [x] `src/ranksmith/confidence_training/_train.py`: LightGBM training 구현
+- [x] `src/ranksmith/confidence_training/_calibration.py`: calibration 구현
+- [x] `src/ranksmith/confidence_training/_report.py`: metrics/report 구현
+- [x] `src/ranksmith/confidence_training/_artifact.py`: artifact export 구현
+- [x] Phase 1 `ScorerMetadata` 필수 필드 export 검증 구현
 
 ### Phase 3: 검증 (Verification)
-- [ ] `tests/test_confidence_training_dataset.py`: canonical schema tests
-- [ ] `tests/test_confidence_training_split.py`: split tests
-- [ ] `tests/test_confidence_training_features.py`: feature runner tests
-- [ ] `tests/test_confidence_training_train.py`: training/calibration tests
-- [ ] `tests/test_confidence_training_artifact.py`: artifact load smoke tests
-- [ ] `tests/test_confidence_training_metadata.py`: Phase 1 metadata compatibility tests
-- [ ] `./scripts/verify.sh` 실행
+- [x] `tests/test_confidence_training_dataset.py`: canonical schema tests
+- [x] `tests/test_confidence_training_split.py`: split tests
+- [x] `tests/test_confidence_training_features.py`: feature runner tests
+- [x] `tests/test_confidence_training_train.py`: training/calibration tests
+- [x] `tests/test_confidence_training_artifact.py`: artifact load smoke tests
+- [x] `tests/test_confidence_training_metadata.py`: Phase 1 metadata compatibility tests
+- [x] `./scripts/verify.sh` 실행
 
 ### Phase 4: 완료 및 정리
-- [ ] `docs/wiki/02_architecture.md`: training utility layer 반영
-- [ ] `README.md` / `README.ko.md`: training extra와 no-benchmark-claim caveat 반영
-- [ ] 본 문서 최상단의 **상태**를 `Completed`로 변경
+- [x] `docs/wiki/02_architecture.md`: training utility layer 반영
+- [x] `README.md` / `README.ko.md`: training extra와 no-benchmark-claim caveat 반영
+- [x] 본 문서 최상단의 **상태**를 `Completed`로 변경
 
 ## 9. Open Questions
 - `answer_confidence`의 semantic match label은 별도 evaluator 없이 제외한다.

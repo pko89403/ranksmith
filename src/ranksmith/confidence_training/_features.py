@@ -17,7 +17,8 @@ from ranksmith.confidence_training._types import (
 
 
 class EncoderLike(Protocol):
-    max_length: int
+    @property
+    def max_length(self) -> int: ...
 
     def encode(self, text: str) -> tuple[list[list[float]], list[int]]: ...
 

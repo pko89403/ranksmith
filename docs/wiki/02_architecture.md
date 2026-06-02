@@ -95,10 +95,25 @@ v1 지원 algorithm:
 - root import가 아닌 `ranksmith.confidence` submodule export
 
 제외:
-- training pipeline
 - semantic feature fusion
 - batch/async inference
 - reranking Strategy
+
+`ranksmith.confidence_training`은 Phase 1 compatible scorer artifact를 만들기 위한 별도 training utility layer다.
+
+현재 범위:
+- task별 canonical JSONL validation/loading
+- deterministic train/valid/test split
+- frozen HuggingFace encoder와 `structural-v1` feature extraction 재사용
+- LightGBM binary classifier training
+- validation split 기반 sigmoid calibration
+- Phase 1 `ScorerMetadata` compatible artifact export
+
+제외:
+- 외부 benchmark/source adapter
+- label 생성
+- CLI
+- reranking Strategy 또는 Algorithm
 
 ## LLM 응답 계약
 Listwise JSON permutation:

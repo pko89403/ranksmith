@@ -307,6 +307,35 @@ print(result.score)
 이 모듈은 scorer를 학습하지 않고, reranking Strategy를 추가하지 않으며, batch 또는
 async inference를 수행하지 않습니다.
 
+### compatible confidence scorer 학습
+
+`ranksmith.confidence_training`은 supervised canonical JSONL에서 Phase 1 compatible
+scorer artifact를 학습할 수 있습니다. label 생성, closed model 호출, dataset
+adapter, reranking benchmark 수치 보고는 수행하지 않습니다.
+
+학습 dependency 설치:
+
+```bash
+pip install "ranksmith[confidence-train]"
+```
+
+```python
+from ranksmith.confidence_training import (
+    ConfidenceTrainingConfig,
+    train_confidence_scorer,
+)
+
+result = train_confidence_scorer(
+    ConfidenceTrainingConfig(
+        task_type="answer_confidence",
+        dataset_path="answer_confidence.jsonl",
+        output_dir="confidence-runs/answer-v1",
+        export_path="artifacts/answer_confidence.joblib",
+    )
+)
+print(result.export_path)
+```
+
 ## 실전 가이드 (Examples)
 
 실행 가능한 예제는 `examples/` 폴더에 있습니다.

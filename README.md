@@ -312,6 +312,35 @@ print(result.score)
 This module does not train a scorer, does not add a reranking Strategy, and
 does not perform batch or async inference.
 
+### Training a compatible confidence scorer
+
+`ranksmith.confidence_training` can train a Phase 1-compatible scorer artifact
+from supervised canonical JSONL. It does not generate labels, call closed
+models, provide dataset adapters, or report reranking benchmark numbers.
+
+Install training dependencies:
+
+```bash
+pip install "ranksmith[confidence-train]"
+```
+
+```python
+from ranksmith.confidence_training import (
+    ConfidenceTrainingConfig,
+    train_confidence_scorer,
+)
+
+result = train_confidence_scorer(
+    ConfidenceTrainingConfig(
+        task_type="answer_confidence",
+        dataset_path="answer_confidence.jsonl",
+        output_dir="confidence-runs/answer-v1",
+        export_path="artifacts/answer_confidence.joblib",
+    )
+)
+print(result.export_path)
+```
+
 ## Examples
 
 Runnable examples live in the `examples/` directory.

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -60,7 +60,7 @@ def build_scorer_metadata(
         "test_count": test_count,
         "calibration_method": config.calibration_method,
         "training_config_hash": training_config_hash,
-        "created_at": datetime.now(UTC).isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat(),
     }
     _validate_phase_1_metadata(metadata)
     return metadata
