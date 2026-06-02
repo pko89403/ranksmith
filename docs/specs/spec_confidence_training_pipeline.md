@@ -59,7 +59,11 @@ Phase 2 전체 방향은 실제 confidence score를 만들기 위한 **training 
 선택 필드:
 - `gold_answer: str | list[str]`
 - `source: str`
+- `group_id: str`
 - `metadata: dict[str, object]`
+
+Phase 2A는 `label`을 생성하지 않는다.
+`label`은 입력 JSONL에 이미 있어야 하며, `gold_answer`는 provenance/debug용 metadata다.
 
 #### Canonical JSONL: `judgment_confidence`
 각 line은 하나의 supervised sample이다.
@@ -76,7 +80,11 @@ Phase 2 전체 방향은 실제 confidence score를 만들기 위한 **training 
 선택 필드:
 - `relevance_label: int | float | bool`
 - `source: str`
+- `group_id: str`
 - `metadata: dict[str, object]`
+
+Phase 2A는 `judgment`와 `relevance_label`로 label을 생성하지 않는다.
+`label`은 입력 JSONL에 이미 있어야 하며, `relevance_label`은 provenance/debug용 metadata다.
 
 ### 후속 Adapter 후보
 
@@ -106,7 +114,7 @@ Adapter는 Phase 2A 구현 범위가 아니다.
 
 주의:
 - answer correctness는 exact match 또는 semantic match 중 하나를 label schema로 고정해야 한다.
-- Phase 2 기본값은 exact/normalized match다.
+- Phase 2B adapter 후보의 기본값은 exact/normalized match다.
 - semantic match label은 별도 evaluator spec 없이는 구현하지 않는다.
 
 ### 출력 (Outputs)
@@ -182,6 +190,7 @@ confidence-train = [
 ```
 
 `confidence-train`은 `confidence` extra를 자기 참조하지 않고 실제 dependency를 명시한다.
+dependency 목록은 현재 구현된 Phase 1 `confidence` extra에 `scikit-learn`만 더한 형태다.
 
 필요 시 `pandas`, `datasets`, `pyarrow`는 별도 검토 후 추가한다.
 기본 설계는 JSONL + standard library 중심으로 둔다.
@@ -203,41 +212,26 @@ external source
 ### Label Schema
 
 #### `answer_confidence`
-기본 label 방식:
-```text
-normalized(answer) == normalized(gold_answer) -> 1
-otherwise -> 0
-```
+Phase 2A는 supervised `label`을 그대로 학습한다.
+`gold_answer` 기반 exact/normalized match label 생성은 구현하지 않는다.
 
-Normalization:
+후속 adapter/evaluator에서 label을 생성할 때의 후보 기준:
 - trim whitespace
 - lowercase
 - collapse internal whitespace
-- remove surrounding punctuation only if explicitly enabled
+- optional surrounding punctuation removal
 
-Semantic equivalence label은 Phase 2 기본 구현에서 제외한다.
+Semantic equivalence label은 Phase 2A에서 제외한다.
 
 #### `judgment_confidence`
-기본 label 방식:
-```text
-judgment_positive == relevance_positive -> 1
-otherwise -> 0
-```
+Phase 2A는 supervised `label`을 그대로 학습한다.
+`judgment` text mapping과 `relevance_label` threshold 기반 label 생성은 구현하지 않는다.
 
-필수 mapping:
+후속 adapter/evaluator에서 label을 생성할 때는 다음 값을 명시해야 한다.
 - `judgment` text를 positive/negative로 바꾸는 mapping
 - `relevance_label`을 positive/negative로 바꾸는 threshold
 
-예:
-```json
-{
-  "positive_judgments": ["direct evidence", "relevant"],
-  "negative_judgments": ["no evidence", "irrelevant"],
-  "relevance_positive_threshold": 1
-}
-```
-
-mapping에 없는 judgment는 실패한다.
+mapping에 없는 judgment는 후속 adapter에서도 실패해야 한다.
 조용히 negative로 처리하지 않는다.
 
 ### Split
@@ -251,6 +245,9 @@ mapping에 없는 judgment는 실패한다.
 - 같은 `id`가 중복되면 실패한다.
 - 같은 source group을 split 단위로 묶을 수 있도록 optional `group_id`를 지원한다.
 - split manifest에 seed, counts, task_type, source hash를 기록한다.
+- 전체 dataset과 train/valid/test 각각에 positive/negative class가 모두 있어야 한다.
+- 기본 최소 sample 수는 전체 30개, split별 2개, split별 class당 1개다.
+- 이 기준을 만족하지 못하면 training/calibration/report를 진행하지 않고 실패한다.
 
 ### Feature Extraction
 Phase 1의 다음 기능을 재사용한다.
@@ -279,7 +276,6 @@ Parquet은 Phase 2 기본 구현에서 제외한다.
 
 입력:
 - train feature matrix
-- valid feature matrix
 
 출력:
 - uncalibrated classifier
@@ -287,6 +283,8 @@ Parquet은 Phase 2 기본 구현에서 제외한다.
 
 기본 hyperparameter는 config에 명시한다.
 자동 tuning은 제외한다.
+Phase 2A는 early stopping을 사용하지 않는다.
+validation split은 calibration과 calibration 전 metric 확인에 사용한다.
 
 ### Calibration
 기본 calibration:
@@ -297,6 +295,8 @@ Parquet은 Phase 2 기본 구현에서 제외한다.
 - calibration은 task별로 수행한다.
 - calibration 전후 metrics를 모두 report에 기록한다.
 - calibration data가 너무 작으면 fast fail 한다.
+- test split은 최종 report에만 사용한다.
+- test split은 training, hyperparameter 선택, calibration에 사용하지 않는다.
 
 ### Metrics
 필수 report metric:
@@ -316,6 +316,25 @@ Parquet은 Phase 2 기본 구현에서 제외한다.
 ### Artifact Metadata
 `metadata.json`과 joblib artifact metadata는 Phase 1 `ScorerMetadata`와 호환되어야 한다.
 
+Phase 2A export는 다음 Phase 1 필드를 반드시 생성한다.
+- `artifact_schema_version`
+- `scorer_type`
+- `task_type`
+- `encoder_name`
+- `encoder_revision`
+- `tokenizer_name`
+- `tokenizer_revision`
+- `input_template_version`
+- `feature_schema_version`
+- `feature_dim`
+- `feature_dtype`
+- `max_length`
+- `granularity`
+- `local_window_size`
+- `local_stride`
+- `score_output`
+- `positive_class_index`
+
 필수 추가 training metadata:
 - `label_schema_version`
 - `dataset_manifest_hash`
@@ -328,6 +347,43 @@ Parquet은 Phase 2 기본 구현에서 제외한다.
 - `created_at`
 
 Unknown metadata는 Phase 1 loader의 `extra`에 보존된다.
+
+Phase 1 loader가 검증하는 값과 맞지 않으면 export 단계에서 실패한다.
+loader 실패를 smoke test에서 뒤늦게 발견하는 방식으로 넘기지 않는다.
+
+### Training Config
+`ConfidenceTrainingConfig` 최소 필드:
+- `task_type: Literal["answer_confidence", "judgment_confidence"]`
+- `dataset_path: str | Path`
+- `output_dir: str | Path`
+- `export_path: str | Path`
+- `encoder_name: str`
+- `encoder_revision: str | None`
+- `tokenizer_name: str | None`
+- `tokenizer_revision: str | None`
+- `cache_dir: str | None`
+- `local_files_only: bool`
+- `max_length: int`
+- `allow_truncation: bool`
+- `seed: int`
+- `train_ratio: float`
+- `valid_ratio: float`
+- `test_ratio: float`
+- `calibration_method: Literal["sigmoid"]`
+
+기본값:
+- `encoder_name = "bert-base-uncased"`
+- `tokenizer_name = None`
+- `max_length = 256`
+- `allow_truncation = False`
+- `local_files_only = False`
+- `train_ratio = 0.8`
+- `valid_ratio = 0.1`
+- `test_ratio = 0.1`
+- `calibration_method = "sigmoid"`
+
+`seed`는 명시 입력을 권장한다.
+기본 seed를 제공하더라도 report와 split manifest에 반드시 기록한다.
 
 ### Public API Scope
 Phase 2 public API는 기본적으로 submodule 아래에 둔다.
@@ -377,9 +433,9 @@ Phase 2A 완료 후 별도 spec 또는 이 spec 개정으로 다룬다.
 주요 실패:
 - canonical JSONL 필수 필드 누락
 - label이 `0/1`이 아님
-- unknown judgment mapping
 - duplicate id
 - split 후 class가 한쪽만 존재
+- split/sample 최소 기준 미달
 - feature vector length mismatch
 - NaN/Inf feature
 - calibration sample 부족
@@ -423,9 +479,9 @@ HuggingFace token:
 ### 실패 케이스
 - missing required field
 - invalid label
-- unknown judgment text
 - duplicate id
 - split class collapse
+- split/sample minimum violation
 - feature vector NaN
 - metadata mismatch
 - unsupported task_type
@@ -461,6 +517,7 @@ uv run mypy src tests/test_confidence_training_*.py
 - [ ] `src/ranksmith/confidence_training/_calibration.py`: calibration 구현
 - [ ] `src/ranksmith/confidence_training/_report.py`: metrics/report 구현
 - [ ] `src/ranksmith/confidence_training/_artifact.py`: artifact export 구현
+- [ ] Phase 1 `ScorerMetadata` 필수 필드 export 검증 구현
 
 ### Phase 3: 검증 (Verification)
 - [ ] `tests/test_confidence_training_dataset.py`: canonical schema tests
@@ -468,6 +525,7 @@ uv run mypy src tests/test_confidence_training_*.py
 - [ ] `tests/test_confidence_training_features.py`: feature runner tests
 - [ ] `tests/test_confidence_training_train.py`: training/calibration tests
 - [ ] `tests/test_confidence_training_artifact.py`: artifact load smoke tests
+- [ ] `tests/test_confidence_training_metadata.py`: Phase 1 metadata compatibility tests
 - [ ] `./scripts/verify.sh` 실행
 
 ### Phase 4: 완료 및 정리
@@ -476,6 +534,5 @@ uv run mypy src tests/test_confidence_training_*.py
 - [ ] 본 문서 최상단의 **상태**를 `Completed`로 변경
 
 ## 9. Open Questions
-- `judgment` text mapping의 기본값을 어디까지 제공할지 결정해야 한다.
 - `answer_confidence`의 semantic match label은 별도 evaluator 없이 제외한다.
 - Phase 2B에서 adapter와 CLI를 각각 별도 구현 단위로 둘지 결정한다.
