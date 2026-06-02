@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
@@ -53,7 +54,7 @@ class CanonicalConfidenceSample:
     relevance_label: int | float | bool | None = None
     source: str | None = None
     group_id: str | None = None
-    metadata: dict[str, Any] = field(default_factory=dict)
+    metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "metadata", MappingProxyType(dict(self.metadata)))
@@ -64,3 +65,17 @@ class ConfidenceDatasetSplit:
     train: tuple[CanonicalConfidenceSample, ...]
     valid: tuple[CanonicalConfidenceSample, ...]
     test: tuple[CanonicalConfidenceSample, ...]
+
+
+@dataclass(frozen=True)
+class ConfidenceFeatureRow:
+    id: str
+    task_type: TaskType
+    label: int
+    features: tuple[float, ...]
+    feature_schema_version: str
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "features", tuple(float(v) for v in self.features))
+        object.__setattr__(self, "metadata", MappingProxyType(dict(self.metadata)))
