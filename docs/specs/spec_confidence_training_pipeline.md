@@ -8,7 +8,8 @@
 - **상태**: `[x] Draft` | `[ ] In Progress` | `[ ] Completed`
 
 Phase 1은 추론 core만 제공한다.
-Phase 2는 실제 confidence score를 만들기 위한 **full training pipeline**이다.
+Phase 2 전체 방향은 실제 confidence score를 만들기 위한 **training pipeline**이다.
+이번 구현 단위는 범위를 줄인 **Phase 2A: trainable artifact 생성 최소 경로**다.
 
 지원 task는 두 개다.
 - `answer_confidence`
@@ -21,7 +22,7 @@ Phase 2는 실제 confidence score를 만들기 위한 **full training pipeline*
 ### 범위
 포함한다:
 - task별 canonical JSONL dataset schema.
-- 외부 benchmark/source format을 canonical JSONL로 변환하는 adapter.
+- canonical JSONL validation/loading.
 - train/valid/test split.
 - frozen HuggingFace encoder 기반 structural feature extraction.
 - `structural-v1` 70차원 feature matrix 생성.
@@ -36,7 +37,9 @@ Phase 2는 실제 confidence score를 만들기 위한 **full training pipeline*
 - online learning.
 - closed model 호출 자동 생성.
 - answer generation pipeline.
+- 외부 benchmark/source adapter 구현.
 - qrel 생성 자동화.
+- CLI.
 - benchmark 수치 README 반영.
 - Phase 1 public inference API 변경.
 
@@ -75,9 +78,12 @@ Phase 2는 실제 confidence score를 만들기 위한 **full training pipeline*
 - `source: str`
 - `metadata: dict[str, object]`
 
-### 외부 포맷 Adapter
+### 후속 Adapter 후보
 
-#### IR adapter
+Adapter는 Phase 2A 구현 범위가 아니다.
+아래 항목은 후속 Phase 2B 후보로만 둔다.
+
+#### IR adapter 후보
 지원 대상:
 - BEIR/MTEB style `queries`, `corpus`, `qrels`
 - 필요 시 fixed candidate run file
@@ -90,7 +96,7 @@ Phase 2는 실제 confidence score를 만들기 위한 **full training pipeline*
 - judgment source가 없는 경우 구현을 멈추고 사용자 결정이 필요하다.
 - 예: `"direct evidence"`, `"no evidence"` 같은 judgment label text를 쓰려면 mapping table을 명시해야 한다.
 
-#### QA adapter
+#### QA adapter 후보
 지원 대상:
 - SQuAD-style `context`, `question`, `answers`
 - answer prediction과 gold/reference answer가 함께 있는 source
@@ -149,7 +155,6 @@ src/ranksmith/confidence_training/
   _types.py          # dataset/config/result dataclass
   _errors.py         # training-specific errors
   _dataset.py        # canonical JSONL validation/loading
-  _adapters.py       # BEIR/MTEB and SQuAD-style adapters
   _split.py          # deterministic split
   _features.py       # feature extraction runner
   _train.py          # LightGBM training
@@ -184,8 +189,7 @@ confidence-train = [
 ### Data Flow
 ```text
 external source
-  -> adapter
-  -> canonical JSONL
+  -> user-provided canonical JSONL
   -> deterministic split
   -> frozen encoder
   -> structural-v1 feature extraction
@@ -341,6 +345,14 @@ CLI는 별도 검토한다.
 기본 구현은 Python API 우선이다.
 CLI를 추가하려면 이 spec 승인 후 별도 scope로 확정한다.
 
+### Phase 2B 후보
+Phase 2A 완료 후 별도 spec 또는 이 spec 개정으로 다룬다.
+- BEIR/MTEB-style IR adapter
+- SQuAD-style QA adapter
+- CLI
+- semantic match evaluator
+- generated artifact store/release workflow
+
 ## 4. 재사용 및 모듈화 (Reusability & Modularization)
 
 재사용:
@@ -352,7 +364,6 @@ CLI를 추가하려면 이 spec 승인 후 별도 scope로 확정한다.
 
 분리:
 - training-only dependency는 `confidence_training`으로 격리한다.
-- adapter는 training core와 분리한다.
 - report generation은 training model과 분리한다.
 
 ## 5. 에러 핸들링 (Error Handling)
@@ -402,8 +413,6 @@ HuggingFace token:
 ### 성공 케이스
 - answer canonical JSONL load 성공
 - judgment canonical JSONL load 성공
-- SQuAD-style adapter가 answer canonical JSONL 생성
-- BEIR/MTEB-style adapter가 judgment canonical JSONL 생성
 - deterministic split이 seed 재현
 - feature extraction runner가 70차원 feature JSONL 생성
 - LightGBM training smoke 성공
@@ -436,7 +445,7 @@ uv run mypy src tests/test_confidence_training_*.py
 - [x] Trust reference summary 확인
 - [x] task scope를 `answer_confidence` + `judgment_confidence`로 확정
 - [x] dataset source를 task별 분리로 확정
-- [x] canonical JSONL + adapter 구조 확정
+- [x] canonical JSONL 우선 구현 및 adapter 후속 분리 확정
 - [ ] 사용자 스펙 검토 및 최종 승인
 
 ### Phase 2: 로직 구현 (Implementation)
@@ -446,7 +455,6 @@ uv run mypy src tests/test_confidence_training_*.py
 - [ ] `src/ranksmith/confidence_training/_errors.py`: training-specific error 구현
 - [ ] `src/ranksmith/confidence_training/_types.py`: config/result/schema dataclass 구현
 - [ ] `src/ranksmith/confidence_training/_dataset.py`: canonical JSONL validation/load 구현
-- [ ] `src/ranksmith/confidence_training/_adapters.py`: BEIR/MTEB and SQuAD-style adapter 구현
 - [ ] `src/ranksmith/confidence_training/_split.py`: deterministic split 구현
 - [ ] `src/ranksmith/confidence_training/_features.py`: feature extraction runner 구현
 - [ ] `src/ranksmith/confidence_training/_train.py`: LightGBM training 구현
@@ -456,7 +464,6 @@ uv run mypy src tests/test_confidence_training_*.py
 
 ### Phase 3: 검증 (Verification)
 - [ ] `tests/test_confidence_training_dataset.py`: canonical schema tests
-- [ ] `tests/test_confidence_training_adapters.py`: adapter tests
 - [ ] `tests/test_confidence_training_split.py`: split tests
 - [ ] `tests/test_confidence_training_features.py`: feature runner tests
 - [ ] `tests/test_confidence_training_train.py`: training/calibration tests
@@ -471,4 +478,4 @@ uv run mypy src tests/test_confidence_training_*.py
 ## 9. Open Questions
 - `judgment` text mapping의 기본값을 어디까지 제공할지 결정해야 한다.
 - `answer_confidence`의 semantic match label은 별도 evaluator 없이 제외한다.
-- CLI 제공 여부는 구현 전 최종 결정이 필요하다.
+- Phase 2B에서 adapter와 CLI를 각각 별도 구현 단위로 둘지 결정한다.
