@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from ranksmith.confidence._dependencies import import_optional_dependency
 from ranksmith.confidence._features import (
     FEATURE_DIM,
     FEATURE_DTYPE,
@@ -84,7 +85,7 @@ def export_scorer_artifact(
         dataset_manifest_hash=dataset_manifest_hash,
         training_config_hash=training_config_hash,
     )
-    joblib = __import__("joblib")
+    joblib = import_optional_dependency("joblib", extra="confidence-train")
     export_path = Path(config.export_path)
     export_path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump({"metadata": metadata, "scorer": scorer}, export_path)

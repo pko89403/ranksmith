@@ -143,9 +143,9 @@ def _optional_text(value: object, name: str) -> str | None:
 
 
 def _label(value: object) -> int:
-    if isinstance(value, bool) or value not in {0, 1}:
+    if type(value) is not int or value not in (0, 1):
         raise ConfidenceLabelError("label must be 0 or 1")
-    return int(value)
+    return value
 
 
 def _optional_gold_answer(value: object) -> str | list[str] | None:

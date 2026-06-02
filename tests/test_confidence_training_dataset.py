@@ -108,6 +108,22 @@ def test_bool_label_fails(tmp_path: Path) -> None:
         load_canonical_dataset(path, task_type="answer_confidence")
 
 
+def test_float_label_fails(tmp_path: Path) -> None:
+    path = tmp_path / "float-label.jsonl"
+    _write_jsonl(path, [{"id": "a1", "context": "c", "answer": "a", "label": 1.0}])
+
+    with pytest.raises(ConfidenceLabelError, match="label must be 0 or 1"):
+        load_canonical_dataset(path, task_type="answer_confidence")
+
+
+def test_unhashable_label_fails_with_label_error(tmp_path: Path) -> None:
+    path = tmp_path / "list-label.jsonl"
+    _write_jsonl(path, [{"id": "a1", "context": "c", "answer": "a", "label": []}])
+
+    with pytest.raises(ConfidenceLabelError, match="label must be 0 or 1"):
+        load_canonical_dataset(path, task_type="answer_confidence")
+
+
 def test_duplicate_id_fails(tmp_path: Path) -> None:
     path = tmp_path / "duplicate.jsonl"
     _write_jsonl(

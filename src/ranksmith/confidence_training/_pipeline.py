@@ -6,6 +6,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
+from ranksmith.confidence._dependencies import import_optional_dependency
 from ranksmith.confidence._encoder import FrozenAutoEncoder
 from ranksmith.confidence_training._artifact import (
     export_scorer_artifact,
@@ -89,7 +90,7 @@ def train_confidence_scorer(
     _write_json(output_dir / "dataset_manifest.json", dataset_manifest)
     _write_json(output_dir / "split_manifest.json", split_manifest)
 
-    joblib = __import__("joblib")
+    joblib = import_optional_dependency("joblib", extra="confidence-train")
     joblib.dump(scorer, output_dir / "model.joblib")
 
     metadata = export_scorer_artifact(

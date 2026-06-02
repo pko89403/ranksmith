@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from ranksmith.confidence._dependencies import import_optional_dependency
 from ranksmith.confidence_training._calibration import (
     CalibratedConfidenceScorer,
     predict_model_probability,
@@ -45,15 +46,9 @@ def _metrics(labels: list[int], scores: list[float]) -> dict[str, object]:
         raise ConfidenceTrainingError(
             "metric split must contain positive and negative labels"
         )
-    sklearn_metrics = __import__(
+    sklearn_metrics = import_optional_dependency(
         "sklearn.metrics",
-        fromlist=[
-            "accuracy_score",
-            "average_precision_score",
-            "brier_score_loss",
-            "log_loss",
-            "roc_auc_score",
-        ],
+        extra="confidence-train",
     )
     predictions = [1 if score >= 0.5 else 0 for score in scores]
     return {
@@ -85,7 +80,7 @@ def _expected_calibration_error(labels: list[int], scores: list[float]) -> float
         ]
         if not pairs:
             continue
-        accuracy = sum(label for label, score in pairs if score >= 0.5) / len(pairs)
-        confidence = sum(score for label, score in pairs) / len(pairs)
+        accuracy = sum(label for label, _ in pairs) / len(pairs)
+        confidence = sum(score for _, score in pairs) / len(pairs)
         error += (len(pairs) / total) * abs(accuracy - confidence)
     return float(error)

@@ -7,6 +7,7 @@ from types import MappingProxyType
 from typing import Any, Literal
 
 from ranksmith.confidence import TaskType
+from ranksmith.confidence_training._errors import ConfidenceTrainingConfigError
 
 CalibrationMethod = Literal["sigmoid"]
 
@@ -30,6 +31,10 @@ class ConfidenceTrainingConfig:
     valid_ratio: float = 0.1
     test_ratio: float = 0.1
     calibration_method: CalibrationMethod = "sigmoid"
+
+    def __post_init__(self) -> None:
+        if self.calibration_method != "sigmoid":
+            raise ConfidenceTrainingConfigError("unsupported calibration_method")
 
 
 @dataclass(frozen=True)

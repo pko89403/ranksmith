@@ -6,7 +6,11 @@ from typing import Any
 
 import pytest
 
-from ranksmith.confidence import load_lightgbm_scorer
+from ranksmith.confidence import (
+    AnswerConfidenceInput,
+    StructuralConfidenceEstimator,
+    load_lightgbm_scorer,
+)
 from ranksmith.confidence_training import (
     ConfidenceTrainingConfig,
     ConfidenceTrainingResult,
@@ -21,6 +25,10 @@ from ranksmith.confidence_training._types import ConfidenceFeatureRow
 
 
 class FakeEncoder:
+    encoder_name = "bert-base-uncased"
+    encoder_revision = None
+    tokenizer_name = "bert-base-uncased"
+    tokenizer_revision = None
     max_length = 34
 
     def encode(self, text: str) -> tuple[list[list[float]], list[int]]:
@@ -98,6 +106,38 @@ def test_exported_artifact_loads_with_phase_1_loader(tmp_path: Path) -> None:
     assert loaded.metadata.task_type == "answer_confidence"
     assert loaded.metadata.feature_dim == 70
     assert 0.0 <= loaded.predict_confidence(rows[37].features) <= 1.0
+
+
+def test_exported_artifact_scores_with_phase_1_estimator(tmp_path: Path) -> None:
+    rows = _feature_rows()
+    model = train_lightgbm_classifier(rows[:30], seed=7)
+    scorer = calibrate_classifier(model, rows[30:36])
+    export_path = tmp_path / "answer_confidence.joblib"
+    config = ConfidenceTrainingConfig(
+        task_type="answer_confidence",
+        dataset_path=tmp_path / "dataset.jsonl",
+        output_dir=tmp_path / "run",
+        export_path=export_path,
+        max_length=34,
+    )
+    export_scorer_artifact(
+        scorer,
+        config=config,
+        train_count=30,
+        valid_count=6,
+        test_count=4,
+        dataset_manifest_hash="dataset-hash",
+        training_config_hash="config-hash",
+    )
+
+    estimator = StructuralConfidenceEstimator(
+        encoder=FakeEncoder(),
+        scorer=load_lightgbm_scorer(export_path),
+        task_type="answer_confidence",
+    )
+    result = estimator.score(AnswerConfidenceInput(context="positive", answer="yes"))
+
+    assert 0.0 <= result.score <= 1.0
 
 
 def test_train_confidence_scorer_pipeline_exports_artifact(

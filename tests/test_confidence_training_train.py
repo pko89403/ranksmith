@@ -5,7 +5,10 @@ from typing import Any
 import pytest
 
 from ranksmith.confidence_training import ConfidenceTrainingError
-from ranksmith.confidence_training._report import generate_training_report
+from ranksmith.confidence_training._report import (
+    _expected_calibration_error,
+    generate_training_report,
+)
 from ranksmith.confidence_training._train import (
     calibrate_classifier,
     train_lightgbm_classifier,
@@ -68,6 +71,13 @@ def test_generate_training_report_uses_valid_and_test_splits() -> None:
     assert _metric(test_report, "sample_count") == 4
     assert "brier_score" in test_report
     assert "calibrated" in valid_report
+
+
+def test_expected_calibration_error_uses_mean_label_not_thresholded_accuracy() -> None:
+    labels = [1, 0]
+    scores = [0.45, 0.46]
+
+    assert _expected_calibration_error(labels, scores) == pytest.approx(0.045)
 
 
 def test_train_fails_when_train_labels_have_one_class() -> None:

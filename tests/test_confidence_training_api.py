@@ -3,6 +3,10 @@ from __future__ import annotations
 import importlib
 from pathlib import Path
 
+import pytest
+
+from ranksmith.confidence_training import ConfidenceTrainingConfigError
+
 
 def test_confidence_training_public_submodule_exports_are_available() -> None:
     confidence_training = importlib.import_module("ranksmith.confidence_training")
@@ -46,3 +50,21 @@ def test_confidence_training_config_defaults_are_phase_2a_scope(
     assert config.valid_ratio == 0.1
     assert config.test_ratio == 0.1
     assert config.calibration_method == "sigmoid"
+
+
+def test_confidence_training_config_rejects_unsupported_calibration_method(
+    tmp_path: Path,
+) -> None:
+    confidence_training = importlib.import_module("ranksmith.confidence_training")
+
+    with pytest.raises(
+        ConfidenceTrainingConfigError,
+        match="unsupported calibration_method",
+    ):
+        confidence_training.ConfidenceTrainingConfig(
+            task_type="answer_confidence",
+            dataset_path=tmp_path / "dataset.jsonl",
+            output_dir=tmp_path / "run",
+            export_path=tmp_path / "artifact.joblib",
+            calibration_method="isotonic",
+        )
