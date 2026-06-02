@@ -131,6 +131,24 @@ def test_estimator_scores_judgment_input_with_matching_metadata() -> None:
     assert result.task_type == "judgment_confidence"
 
 
+def test_direct_constructor_rejects_task_type_metadata_mismatch() -> None:
+    with pytest.raises(ConfidenceArtifactError):
+        StructuralConfidenceEstimator(
+            encoder=FakeEncoder(),
+            scorer=FakeScorer(task_type="judgment_confidence"),
+            task_type="answer_confidence",
+        )
+
+
+def test_direct_constructor_rejects_max_length_metadata_mismatch() -> None:
+    with pytest.raises(ConfidenceArtifactError):
+        StructuralConfidenceEstimator(
+            encoder=FakeEncoder(max_length=64),
+            scorer=FakeScorer(max_length=128),
+            task_type="answer_confidence",
+        )
+
+
 def test_estimator_rejects_wrong_input_type() -> None:
     estimator = StructuralConfidenceEstimator(
         encoder=FakeEncoder(),

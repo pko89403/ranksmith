@@ -64,6 +64,13 @@ class StructuralConfidenceEstimator:
     scorer: StructuralConfidenceScorer
     task_type: TaskType
 
+    def __post_init__(self) -> None:
+        _validate_metadata_for_encoder(
+            scorer=self.scorer,
+            encoder=self.encoder,
+            task_type=self.task_type,
+        )
+
     @classmethod
     def from_pretrained(
         cls,
@@ -92,11 +99,6 @@ class StructuralConfidenceEstimator:
             device=device,
             max_length=max_length,
             allow_truncation=allow_truncation,
-        )
-        _validate_metadata_for_encoder(
-            scorer=scorer,
-            encoder=encoder,
-            task_type=task_type,
         )
         return cls(encoder=encoder, scorer=scorer, task_type=task_type)
 
