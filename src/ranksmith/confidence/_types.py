@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import Any, Literal, Protocol, TypeAlias
 
 TaskType: TypeAlias = Literal["answer_confidence", "judgment_confidence"]
@@ -32,7 +33,7 @@ class StructuralConfidenceResult:
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "metadata", dict(self.metadata))
+        object.__setattr__(self, "metadata", MappingProxyType(dict(self.metadata)))
 
 
 @dataclass(frozen=True)
@@ -57,7 +58,7 @@ class ScorerMetadata:
     extra: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "extra", dict(self.extra))
+        object.__setattr__(self, "extra", MappingProxyType(dict(self.extra)))
 
 
 class StructuralConfidenceScorer(Protocol):
