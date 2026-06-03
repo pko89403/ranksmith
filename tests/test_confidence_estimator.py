@@ -306,7 +306,7 @@ def test_from_artifact_rejects_override_metadata_mismatch(
         )
 
 
-def test_from_artifact_preserves_empty_encoder_name_override(
+def test_from_artifact_rejects_empty_encoder_name_override_before_encoder_load(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
