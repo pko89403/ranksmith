@@ -25,6 +25,7 @@ def test_confidence_names_are_not_root_exports() -> None:
 def test_score_batch_is_public_but_async_api_is_not_available() -> None:
     confidence = importlib.import_module("ranksmith.confidence")
 
+    assert hasattr(confidence.StructuralConfidenceEstimator, "from_artifact")
     assert hasattr(confidence.StructuralConfidenceEstimator, "score_batch")
     assert not hasattr(confidence.StructuralConfidenceEstimator, "ascore")
     assert not hasattr(confidence, "AsyncStructuralConfidenceEstimator")

@@ -36,6 +36,12 @@ from ranksmith.confidence._types import (
 
 
 class StructuralConfidenceEncoder(Protocol):
+    """Encoder contract used by structural confidence inference.
+
+    Implementations used with ``score_batch(..., max_workers>1)`` must be safe
+    for concurrent ``encode(...)`` calls on the same encoder instance.
+    """
+
     @property
     def encoder_name(self) -> str:
         """Encoder model name."""
@@ -199,6 +205,13 @@ class StructuralConfidenceEstimator:
         max_workers: int = 1,
         max_batch_items: int | None = None,
     ) -> list[StructuralConfidenceResult]:
+        """Score a bounded batch while preserving input order.
+
+        ``max_workers>1`` shares this estimator's encoder and scorer across
+        worker threads. Use it only when both backend implementations are safe
+        for concurrent calls on the same instances.
+        """
+
         _validate_batch_options(
             items,
             batch_size=batch_size,

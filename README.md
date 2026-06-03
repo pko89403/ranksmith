@@ -294,13 +294,10 @@ pip install "ranksmith[confidence]"
 from ranksmith.confidence import (
     AnswerConfidenceInput,
     StructuralConfidenceEstimator,
-    load_lightgbm_scorer,
 )
 
-scorer = load_lightgbm_scorer("structural-confidence.joblib")
-estimator = StructuralConfidenceEstimator.from_pretrained(
-    scorer=scorer,
-    task_type="answer_confidence",
+estimator = StructuralConfidenceEstimator.from_artifact(
+    "structural-confidence.joblib",
 )
 
 result = estimator.score(
@@ -316,9 +313,10 @@ batch_results = estimator.score_batch(
 ```
 
 This module does not train a scorer, does not add a reranking Strategy, and
-does not perform async inference. Parallel batch scoring cancels pending work
-on the first worker error, but Python threads that have already started may
-finish in the background.
+does not perform async inference. Parallel batch scoring shares the same
+encoder and scorer instances across worker threads, so use `max_workers>1` only
+with thread-safe backends. It cancels pending work on the first worker error,
+but Python threads that have already started may finish in the background.
 
 ### Training a compatible confidence scorer
 

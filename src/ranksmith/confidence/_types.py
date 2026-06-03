@@ -62,6 +62,13 @@ class ScorerMetadata:
 
 
 class StructuralConfidenceScorer(Protocol):
+    """Scorer contract used by structural confidence inference.
+
+    Implementations used with ``score_batch(..., max_workers>1)`` must be safe
+    for concurrent ``predict_confidence(...)`` calls on the same scorer
+    instance.
+    """
+
     metadata: ScorerMetadata
 
     def predict_confidence(self, features: Sequence[float]) -> float:

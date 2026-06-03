@@ -289,13 +289,10 @@ pip install "ranksmith[confidence]"
 from ranksmith.confidence import (
     AnswerConfidenceInput,
     StructuralConfidenceEstimator,
-    load_lightgbm_scorer,
 )
 
-scorer = load_lightgbm_scorer("structural-confidence.joblib")
-estimator = StructuralConfidenceEstimator.from_pretrained(
-    scorer=scorer,
-    task_type="answer_confidence",
+estimator = StructuralConfidenceEstimator.from_artifact(
+    "structural-confidence.joblib",
 )
 
 result = estimator.score(
@@ -311,8 +308,10 @@ batch_results = estimator.score_batch(
 ```
 
 이 모듈은 scorer를 학습하지 않고, reranking Strategy를 추가하지 않으며, async
-inference를 수행하지 않습니다. 병렬 batch scoring은 첫 worker error에서 pending
-work를 취소하지만, 이미 시작된 Python thread는 background에서 완료될 수 있습니다.
+inference를 수행하지 않습니다. 병렬 batch scoring은 같은 encoder/scorer instance를
+worker thread들이 공유하므로 thread-safe backend에서만 `max_workers>1`을 사용해야
+합니다. 첫 worker error에서 pending work를 취소하지만, 이미 시작된 Python thread는
+background에서 완료될 수 있습니다.
 
 ### compatible confidence scorer 학습
 

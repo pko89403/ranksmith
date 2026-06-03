@@ -95,6 +95,8 @@ v1 지원 algorithm:
 - bounded batch sync confidence inference
 - root import가 아닌 `ranksmith.confidence` submodule export
 
+`score_batch(..., max_workers>1)`은 같은 encoder/scorer instance를 worker thread들이 공유하므로, concurrent call에 안전한 backend에서만 사용한다. 기본값은 안정성을 위해 `max_workers=1`이다.
+
 제외:
 - semantic feature fusion
 - async inference

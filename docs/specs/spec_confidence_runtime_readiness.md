@@ -147,6 +147,7 @@ metadata: scorer/encoder compatibility metadata
 - worker 수는 `max_workers`를 넘지 않는다.
 - 병렬 단위는 chunk 내부 item이다.
 - estimator, encoder, scorer는 요청별 mutable state를 저장하지 않는 read-only object로 취급한다.
+- `max_workers > 1`은 같은 encoder/scorer instance를 worker thread들이 공유하므로, concurrent call에 안전한 backend에서만 사용한다.
 - 병렬 실행에서도 각 item의 hidden state와 feature vector는 해당 worker 안에서만 사용하고 결과에 저장하지 않는다.
 - 조용히 단일 worker로 낮추지 않는다.
 - provider/closed model 호출 병렬화는 이 스펙 범위가 아니다.
