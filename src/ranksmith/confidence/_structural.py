@@ -127,30 +127,46 @@ class StructuralConfidenceEstimator:
             metadata_path=metadata_path,
         )
         metadata = scorer.metadata
+        resolved_task_type = metadata.task_type if task_type is None else task_type
+        resolved_encoder_name = (
+            metadata.encoder_name if encoder_name is None else encoder_name
+        )
+        resolved_encoder_revision = (
+            metadata.encoder_revision if encoder_revision is None else encoder_revision
+        )
+        resolved_tokenizer_name = (
+            metadata.tokenizer_name if tokenizer_name is None else tokenizer_name
+        )
+        resolved_tokenizer_revision = (
+            metadata.tokenizer_revision
+            if tokenizer_revision is None
+            else tokenizer_revision
+        )
+        resolved_max_length = metadata.max_length if max_length is None else max_length
+        validate_scorer_metadata(
+            metadata,
+            encoder_name=resolved_encoder_name,
+            encoder_revision=resolved_encoder_revision,
+            tokenizer_name=resolved_tokenizer_name,
+            tokenizer_revision=resolved_tokenizer_revision,
+            task_type=resolved_task_type,
+            max_length=resolved_max_length,
+            input_template_version=INPUT_TEMPLATE_VERSION,
+            feature_schema_version=FEATURE_SCHEMA_VERSION,
+            feature_dim=FEATURE_DIM,
+        )
         return cls.from_pretrained(
             scorer=scorer,
-            task_type=metadata.task_type if task_type is None else task_type,
-            encoder_name=(
-                metadata.encoder_name if encoder_name is None else encoder_name
-            ),
-            encoder_revision=(
-                metadata.encoder_revision
-                if encoder_revision is None
-                else encoder_revision
-            ),
-            tokenizer_name=(
-                metadata.tokenizer_name if tokenizer_name is None else tokenizer_name
-            ),
-            tokenizer_revision=(
-                metadata.tokenizer_revision
-                if tokenizer_revision is None
-                else tokenizer_revision
-            ),
+            task_type=resolved_task_type,
+            encoder_name=resolved_encoder_name,
+            encoder_revision=resolved_encoder_revision,
+            tokenizer_name=resolved_tokenizer_name,
+            tokenizer_revision=resolved_tokenizer_revision,
             hf_token=hf_token,
             local_files_only=local_files_only,
             cache_dir=cache_dir,
             device=device,
-            max_length=metadata.max_length if max_length is None else max_length,
+            max_length=resolved_max_length,
             allow_truncation=allow_truncation,
         )
 

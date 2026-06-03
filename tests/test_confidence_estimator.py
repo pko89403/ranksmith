@@ -287,7 +287,7 @@ def test_from_artifact_rejects_override_metadata_mismatch(
 
     def fake_from_pretrained(**kwargs: object) -> FakeEncoder:
         del kwargs
-        return FakeEncoder(max_length=128)
+        raise AssertionError("encoder should not load before metadata validation")
 
     monkeypatch.setattr(
         "ranksmith.confidence._structural.load_lightgbm_scorer",
@@ -310,8 +310,6 @@ def test_from_artifact_preserves_empty_encoder_name_override(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    captured: dict[str, object] = {}
-
     def fake_load_lightgbm_scorer(
         artifact_path: object,
         *,
@@ -321,8 +319,8 @@ def test_from_artifact_preserves_empty_encoder_name_override(
         return FakeScorer(encoder_name="bert-base-uncased")
 
     def fake_from_pretrained(**kwargs: object) -> FakeEncoder:
-        captured.update(kwargs)
-        return FakeEncoder(encoder_name=str(kwargs["encoder_name"]))
+        del kwargs
+        raise AssertionError("encoder should not load before metadata validation")
 
     monkeypatch.setattr(
         "ranksmith.confidence._structural.load_lightgbm_scorer",
@@ -340,7 +338,38 @@ def test_from_artifact_preserves_empty_encoder_name_override(
             encoder_name="",
         )
 
-    assert captured["encoder_name"] == ""
+
+def test_from_artifact_rejects_empty_tokenizer_name_override_before_encoder_load(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    def fake_load_lightgbm_scorer(
+        artifact_path: object,
+        *,
+        metadata_path: object = None,
+    ) -> FakeScorer:
+        del artifact_path, metadata_path
+        return FakeScorer(tokenizer_name="bert-base-uncased")
+
+    def fake_from_pretrained(**kwargs: object) -> FakeEncoder:
+        del kwargs
+        raise AssertionError("encoder should not load before metadata validation")
+
+    monkeypatch.setattr(
+        "ranksmith.confidence._structural.load_lightgbm_scorer",
+        fake_load_lightgbm_scorer,
+    )
+    monkeypatch.setattr(
+        _encoder.FrozenAutoEncoder,
+        "from_pretrained",
+        fake_from_pretrained,
+    )
+
+    with pytest.raises(ConfidenceArtifactError):
+        StructuralConfidenceEstimator.from_artifact(
+            tmp_path / "answer_confidence.joblib",
+            tokenizer_name="",
+        )
 
 
 @pytest.mark.parametrize("score", [-0.1, 1.1, math.nan, math.inf, "0.5", None])
