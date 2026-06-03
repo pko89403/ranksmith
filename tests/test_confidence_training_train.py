@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Any
-
 import pytest
 
 from ranksmith.confidence_training import ConfidenceTrainingError
@@ -62,15 +60,14 @@ def test_generate_training_report_uses_valid_and_test_splits() -> None:
         valid_rows=valid_rows,
         test_rows=test_rows,
     )
-    valid_report = report["valid"]
-    test_report = report["test"]
+
+    assert report.valid.calibrated.sample_count == 6
+    assert report.test.sample_count == 4
+    assert report.test.brier_score >= 0.0
+    valid_report = report.to_dict()["valid"]
 
     assert isinstance(valid_report, dict)
-    assert isinstance(test_report, dict)
-    assert _metric(valid_report, "sample_count") == 6
-    assert _metric(test_report, "sample_count") == 4
-    assert "brier_score" in test_report
-    assert "calibrated" in valid_report
+    assert valid_report["calibrated"]["sample_count"] == 6
 
 
 def test_expected_calibration_error_uses_mean_label_not_thresholded_accuracy() -> None:
@@ -125,7 +122,3 @@ def test_training_fails_on_feature_length_mismatch() -> None:
 
     with pytest.raises(ConfidenceTrainingError, match="feature vector length"):
         train_lightgbm_classifier([row], seed=7)
-
-
-def _metric(report: dict[str, Any], name: str) -> object:
-    return report[name]

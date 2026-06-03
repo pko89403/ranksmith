@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from ranksmith.confidence._dependencies import import_optional_dependency
+from ranksmith.confidence._errors import ConfidenceArtifactError
 from ranksmith.confidence._features import (
     FEATURE_DIM,
     FEATURE_DTYPE,
@@ -102,7 +103,7 @@ def write_metadata_json(path: str | Path, metadata: dict[str, Any]) -> None:
 def _validate_phase_1_metadata(metadata: dict[str, Any]) -> None:
     try:
         metadata_from_dict(metadata)
-    except Exception as exc:
+    except (ConfidenceArtifactError, TypeError, ValueError) as exc:
         raise ConfidenceTrainingError(
             "metadata incompatible with Phase 1 loader"
         ) from exc

@@ -7,6 +7,7 @@ from types import MappingProxyType
 from typing import Any, Literal
 
 from ranksmith.confidence import TaskType
+from ranksmith.confidence._features import MIN_MAX_LENGTH
 from ranksmith.confidence_training._errors import ConfidenceTrainingConfigError
 
 CalibrationMethod = Literal["sigmoid"]
@@ -33,8 +34,19 @@ class ConfidenceTrainingConfig:
     calibration_method: CalibrationMethod = "sigmoid"
 
     def __post_init__(self) -> None:
+        if self.task_type not in {"answer_confidence", "judgment_confidence"}:
+            raise ConfidenceTrainingConfigError("unsupported task_type")
         if self.calibration_method != "sigmoid":
             raise ConfidenceTrainingConfigError("unsupported calibration_method")
+        if self.max_length < MIN_MAX_LENGTH:
+            raise ConfidenceTrainingConfigError(
+                f"max_length must be >= {MIN_MAX_LENGTH}"
+            )
+        if self.train_ratio <= 0 or self.valid_ratio <= 0 or self.test_ratio <= 0:
+            raise ConfidenceTrainingConfigError("split ratios must be positive")
+        ratio_sum = self.train_ratio + self.valid_ratio + self.test_ratio
+        if abs(ratio_sum - 1.0) > 1e-9:
+            raise ConfidenceTrainingConfigError("split ratios must sum to 1.0")
 
 
 @dataclass(frozen=True)
@@ -84,3 +96,54 @@ class ConfidenceFeatureRow:
     def __post_init__(self) -> None:
         object.__setattr__(self, "features", tuple(float(v) for v in self.features))
         object.__setattr__(self, "metadata", MappingProxyType(dict(self.metadata)))
+
+
+@dataclass(frozen=True)
+class ConfidenceMetricReport:
+    sample_count: int
+    positive_count: int
+    negative_count: int
+    accuracy: float
+    roc_auc: float
+    average_precision: float
+    brier_score: float
+    log_loss: float
+    calibration_error: float
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "sample_count": self.sample_count,
+            "positive_count": self.positive_count,
+            "negative_count": self.negative_count,
+            "accuracy": self.accuracy,
+            "roc_auc": self.roc_auc,
+            "average_precision": self.average_precision,
+            "brier_score": self.brier_score,
+            "log_loss": self.log_loss,
+            "calibration_error": self.calibration_error,
+        }
+
+
+@dataclass(frozen=True)
+class ConfidenceValidationReport:
+    uncalibrated: ConfidenceMetricReport
+    calibrated: ConfidenceMetricReport
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            **self.calibrated.to_dict(),
+            "uncalibrated": self.uncalibrated.to_dict(),
+            "calibrated": self.calibrated.to_dict(),
+        }
+
+
+@dataclass(frozen=True)
+class ConfidenceTrainingReport:
+    valid: ConfidenceValidationReport
+    test: ConfidenceMetricReport
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "valid": self.valid.to_dict(),
+            "test": self.test.to_dict(),
+        }

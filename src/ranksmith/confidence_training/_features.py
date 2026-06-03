@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Protocol
 
 from ranksmith.confidence import AnswerConfidenceInput, JudgmentConfidenceInput
+from ranksmith.confidence._errors import ConfidenceError
 from ranksmith.confidence._features import (
     FEATURE_DIM,
     FEATURE_SCHEMA_VERSION,
@@ -46,7 +47,7 @@ def _extract_feature_row(
             attention_mask,
             max_length=encoder.max_length,
         )
-    except Exception as exc:
+    except (ConfidenceError, TypeError, ValueError) as exc:
         raise ConfidenceTrainingError(
             f"feature extraction failed for sample {sample.id}"
         ) from exc

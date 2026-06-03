@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +22,48 @@ _JUDGMENT_ALLOWED = {
     "source",
     "group_id",
     "metadata",
+}
+
+
+@dataclass(frozen=True)
+class _TaskDatasetSchema:
+    required: tuple[str, ...]
+    allowed: set[str]
+    parser: Callable[[Mapping[str, Any]], CanonicalConfidenceSample]
+
+
+_TASK_SCHEMAS: dict[str, _TaskDatasetSchema] = {
+    "answer_confidence": _TaskDatasetSchema(
+        required=_ANSWER_REQUIRED,
+        allowed=_ANSWER_ALLOWED,
+        parser=lambda row: CanonicalConfidenceSample(
+            id=_required_text(row, "id"),
+            task_type="answer_confidence",
+            label=_label(row["label"]),
+            context=_required_text(row, "context"),
+            answer=_required_text(row, "answer"),
+            gold_answer=_optional_gold_answer(row.get("gold_answer")),
+            source=_optional_text(row.get("source"), "source"),
+            group_id=_optional_text(row.get("group_id"), "group_id"),
+            metadata=_metadata(row.get("metadata")),
+        ),
+    ),
+    "judgment_confidence": _TaskDatasetSchema(
+        required=_JUDGMENT_REQUIRED,
+        allowed=_JUDGMENT_ALLOWED,
+        parser=lambda row: CanonicalConfidenceSample(
+            id=_required_text(row, "id"),
+            task_type="judgment_confidence",
+            label=_label(row["label"]),
+            query=_required_text(row, "query"),
+            document=_required_text(row, "document"),
+            judgment=_required_text(row, "judgment"),
+            relevance_label=_optional_relevance_label(row.get("relevance_label")),
+            source=_optional_text(row.get("source"), "source"),
+            group_id=_optional_text(row.get("group_id"), "group_id"),
+            metadata=_metadata(row.get("metadata")),
+        ),
+    ),
 }
 
 
@@ -72,38 +115,18 @@ def _parse_row(
     task_type: TaskType,
     line_number: int,
 ) -> CanonicalConfidenceSample:
-    if task_type == "answer_confidence":
-        _validate_keys(row, required=_ANSWER_REQUIRED, allowed=_ANSWER_ALLOWED)
-        return CanonicalConfidenceSample(
-            id=_required_text(row, "id"),
-            task_type=task_type,
-            label=_label(row["label"]),
-            context=_required_text(row, "context"),
-            answer=_required_text(row, "answer"),
-            gold_answer=_optional_gold_answer(row.get("gold_answer")),
-            source=_optional_text(row.get("source"), "source"),
-            group_id=_optional_text(row.get("group_id"), "group_id"),
-            metadata=_metadata(row.get("metadata")),
-        )
-    if task_type == "judgment_confidence":
-        _validate_keys(row, required=_JUDGMENT_REQUIRED, allowed=_JUDGMENT_ALLOWED)
-        return CanonicalConfidenceSample(
-            id=_required_text(row, "id"),
-            task_type=task_type,
-            label=_label(row["label"]),
-            query=_required_text(row, "query"),
-            document=_required_text(row, "document"),
-            judgment=_required_text(row, "judgment"),
-            relevance_label=_optional_relevance_label(row.get("relevance_label")),
-            source=_optional_text(row.get("source"), "source"),
-            group_id=_optional_text(row.get("group_id"), "group_id"),
-            metadata=_metadata(row.get("metadata")),
-        )
-    raise ConfidenceDatasetError(f"unsupported task_type: {task_type}")
+    schema = _TASK_SCHEMAS.get(task_type)
+    if schema is None:
+        raise ConfidenceDatasetError(f"unsupported task_type: {task_type}")
+    try:
+        _validate_keys(row, required=schema.required, allowed=schema.allowed)
+        return schema.parser(row)
+    except (ConfidenceDatasetError, ConfidenceLabelError) as exc:
+        raise type(exc)(f"line {line_number}: {exc}") from exc
 
 
 def _validate_task_type(task_type: object) -> None:
-    if task_type not in {"answer_confidence", "judgment_confidence"}:
+    if task_type not in _TASK_SCHEMAS:
         raise ConfidenceDatasetError(f"unsupported task_type: {task_type}")
 
 

@@ -1,10 +1,14 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from ranksmith.confidence._dependencies import import_optional_dependency
 from ranksmith.confidence._features import FEATURE_DIM, FEATURE_SCHEMA_VERSION
-from ranksmith.confidence_training._calibration import CalibratedConfidenceScorer
+from ranksmith.confidence_training._calibration import (
+    CalibratedConfidenceScorer,
+    PredictiveModel,
+    PredictProbaModel,
+)
 from ranksmith.confidence_training._errors import ConfidenceTrainingError
 from ranksmith.confidence_training._types import ConfidenceFeatureRow
 
@@ -13,7 +17,7 @@ def train_lightgbm_classifier(
     rows: list[ConfidenceFeatureRow] | tuple[ConfidenceFeatureRow, ...],
     *,
     seed: int,
-) -> object:
+) -> PredictiveModel:
     matrix, labels = feature_matrix_and_labels(rows)
     _require_two_classes(labels, split_name="train")
     lightgbm = import_optional_dependency("lightgbm", extra="confidence-train")
@@ -29,11 +33,11 @@ def train_lightgbm_classifier(
         verbosity=-1,
     )
     model.fit(np.asarray(matrix, dtype=float), labels)
-    return model
+    return cast(PredictiveModel, model)
 
 
 def calibrate_classifier(
-    model: object,
+    model: PredictiveModel,
     valid_rows: list[ConfidenceFeatureRow] | tuple[ConfidenceFeatureRow, ...],
 ) -> CalibratedConfidenceScorer:
     matrix, labels = feature_matrix_and_labels(valid_rows)
@@ -49,7 +53,7 @@ def calibrate_classifier(
     calibrator.fit([[score] for score in base_scores], labels)
     return CalibratedConfidenceScorer(
         model=model,
-        calibrator=calibrator,
+        calibrator=_require_predict_proba(calibrator),
         feature_dim=FEATURE_DIM,
     )
 
@@ -85,3 +89,9 @@ def _require_two_classes(labels: list[int], *, split_name: str) -> None:
         raise ConfidenceTrainingError(
             f"{split_name} split must contain positive and negative labels"
         )
+
+
+def _require_predict_proba(value: object) -> PredictProbaModel:
+    if not callable(getattr(value, "predict_proba", None)):
+        raise ConfidenceTrainingError("calibrator must provide predict_proba()")
+    return cast(PredictProbaModel, value)

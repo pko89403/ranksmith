@@ -68,3 +68,43 @@ def test_confidence_training_config_rejects_unsupported_calibration_method(
             export_path=tmp_path / "artifact.joblib",
             calibration_method="isotonic",
         )
+
+
+def test_confidence_training_config_rejects_invalid_task_type(tmp_path: Path) -> None:
+    confidence_training = importlib.import_module("ranksmith.confidence_training")
+
+    with pytest.raises(ConfidenceTrainingConfigError, match="unsupported task_type"):
+        confidence_training.ConfidenceTrainingConfig(
+            task_type="other",
+            dataset_path=tmp_path / "dataset.jsonl",
+            output_dir=tmp_path / "run",
+            export_path=tmp_path / "artifact.joblib",
+        )
+
+
+def test_confidence_training_config_rejects_invalid_ratios(tmp_path: Path) -> None:
+    confidence_training = importlib.import_module("ranksmith.confidence_training")
+
+    with pytest.raises(ConfidenceTrainingConfigError, match="ratios must sum to 1.0"):
+        confidence_training.ConfidenceTrainingConfig(
+            task_type="answer_confidence",
+            dataset_path=tmp_path / "dataset.jsonl",
+            output_dir=tmp_path / "run",
+            export_path=tmp_path / "artifact.joblib",
+            train_ratio=0.7,
+            valid_ratio=0.2,
+            test_ratio=0.2,
+        )
+
+
+def test_confidence_training_config_rejects_small_max_length(tmp_path: Path) -> None:
+    confidence_training = importlib.import_module("ranksmith.confidence_training")
+
+    with pytest.raises(ConfidenceTrainingConfigError, match="max_length"):
+        confidence_training.ConfidenceTrainingConfig(
+            task_type="answer_confidence",
+            dataset_path=tmp_path / "dataset.jsonl",
+            output_dir=tmp_path / "run",
+            export_path=tmp_path / "artifact.joblib",
+            max_length=10,
+        )
