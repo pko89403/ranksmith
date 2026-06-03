@@ -6,7 +6,7 @@
   - `docs/specs/spec_structural_confidence.md`
   - `docs/specs/spec_confidence_training_pipeline.md`
   - `docs/wiki/references/structural_confidence.md`
-- **상태**: `[x] Draft` | `[ ] In Progress` | `[ ] Completed`
+- **상태**: `[ ] Draft` | `[ ] In Progress` | `[x] Completed`
 
 이 스펙은 reranking `Strategy` 또는 `Algorithm`을 구현하지 않는다.
 
@@ -344,7 +344,7 @@ uv run mypy src/ranksmith/confidence tests/test_confidence_*.py
 - [x] `spec_structural_confidence.md` 확인
 - [x] `spec_confidence_training_pipeline.md` 확인
 - [x] CBDR 직전 준비 범위 확정
-- [ ] 스펙 문서 리뷰 및 최종 승인
+- [x] 스펙 문서 리뷰 및 최종 승인
 
 ### Phase 2: Runtime Artifact API 구현
 - [x] `src/ranksmith/confidence/_structural.py`: `from_artifact(...)` 구현
@@ -356,17 +356,18 @@ uv run mypy src/ranksmith/confidence tests/test_confidence_*.py
 - [x] `src/ranksmith/confidence/_structural.py`: batch option validation helper 구현
 - [x] `src/ranksmith/confidence/_structural.py`: chunk helper 구현
 - [x] `src/ranksmith/confidence/_structural.py`: `max_workers` 정책 구현
-- [ ] `src/ranksmith/confidence/_structural.py`: memory-safe result metadata 유지
+- [x] `src/ranksmith/confidence/_structural.py`: memory-safe result metadata 유지
 
 ### Phase 4: 검증
 - [x] `tests/test_confidence_estimator.py`: `from_artifact(...)` 정상/실패 테스트 추가
 - [x] `tests/test_confidence_estimator.py`: `score_batch(...)` 정상/실패 테스트 추가
-- [ ] `tests/test_confidence_training_artifact.py`: training artifact -> runtime batch smoke test 추가
-- [ ] `uv run pytest tests/test_confidence_*.py tests/test_confidence_training_*.py -q`
-- [ ] `uv run ruff check src/ranksmith/confidence tests/test_confidence_*.py`
-- [ ] `uv run mypy src/ranksmith/confidence tests/test_confidence_*.py`
-- [ ] `./scripts/verify.sh`
+- [x] `tests/test_confidence_training_artifact.py`: training artifact -> runtime batch smoke test 추가
+- [x] `uv run pytest tests/test_confidence_estimator.py tests/test_confidence_training_artifact.py -q`
+- [x] `uv run pytest tests/test_confidence_*.py tests/test_confidence_training_*.py -q`
+- [x] `uv run ruff check src/ranksmith/confidence tests/test_confidence_*.py`
+- [x] `uv run mypy src/ranksmith/confidence tests/test_confidence_*.py`
+- [x] `./scripts/verify.sh`
 
 ### Phase 5: 완료 및 정리
-- [ ] 필요 시 `docs/wiki/02_architecture.md` Confidence 범위 업데이트
-- [ ] 본 문서 상태를 `Completed`로 변경
+- [x] 필요 시 `docs/wiki/02_architecture.md` Confidence 범위 업데이트
+- [x] 본 문서 상태를 `Completed`로 변경

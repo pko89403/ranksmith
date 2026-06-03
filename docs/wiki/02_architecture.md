@@ -92,11 +92,12 @@ v1 지원 algorithm:
 - frozen HuggingFace encoder 기반 token-level trajectory 생성
 - `structural-v1` 70차원 feature extraction
 - 학습된 scorer artifact 기반 single-item sync confidence inference
+- bounded batch sync confidence inference
 - root import가 아닌 `ranksmith.confidence` submodule export
 
 제외:
 - semantic feature fusion
-- batch/async inference
+- async inference
 - reranking Strategy
 
 `ranksmith.confidence_training`은 Phase 1 compatible scorer artifact를 만들기 위한 별도 training utility layer다.

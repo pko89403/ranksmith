@@ -8,6 +8,7 @@ import pytest
 
 from ranksmith.confidence import (
     AnswerConfidenceInput,
+    JudgmentConfidenceInput,
     StructuralConfidenceEstimator,
     load_lightgbm_scorer,
 )
@@ -69,6 +70,25 @@ def _write_answer_dataset(path: Path, count: int = 40) -> None:
                 "id": f"a{i}",
                 "context": f"{'positive' if label else 'negative'} context {i}",
                 "answer": f"answer {i}",
+                "label": label,
+            }
+        )
+    path.write_text(
+        "".join(json.dumps(row) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+
+
+def _write_judgment_dataset(path: Path, count: int = 40) -> None:
+    rows = []
+    for i in range(count):
+        label = i % 2
+        rows.append(
+            {
+                "id": f"j{i}",
+                "query": "query",
+                "document": f"{'positive' if label else 'negative'} document {i}",
+                "judgment": f"{'direct evidence' if label else 'no evidence'} {i}",
                 "label": label,
             }
         )
@@ -170,3 +190,59 @@ def test_train_confidence_scorer_pipeline_exports_artifact(
     assert export_path.exists()
     assert (output_dir / "report.json").exists()
     assert load_lightgbm_scorer(export_path).metadata.task_type == "answer_confidence"
+
+
+def test_train_confidence_scorer_artifact_scores_judgment_batch(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dataset_path = tmp_path / "judgment_dataset.jsonl"
+    export_path = tmp_path / "judgment_artifact.joblib"
+    output_dir = tmp_path / "judgment_run"
+    _write_judgment_dataset(dataset_path)
+
+    monkeypatch.setattr(
+        "ranksmith.confidence_training._pipeline.FrozenAutoEncoder.from_pretrained",
+        _fake_from_pretrained,
+    )
+    monkeypatch.setattr(
+        "ranksmith.confidence._structural.FrozenAutoEncoder.from_pretrained",
+        _fake_from_pretrained,
+    )
+
+    train_confidence_scorer(
+        ConfidenceTrainingConfig(
+            task_type="judgment_confidence",
+            dataset_path=dataset_path,
+            output_dir=output_dir,
+            export_path=export_path,
+            max_length=34,
+            seed=7,
+        )
+    )
+
+    estimator = StructuralConfidenceEstimator.from_artifact(export_path)
+    results = estimator.score_batch(
+        [
+            JudgmentConfidenceInput(
+                query="query",
+                document="positive document",
+                judgment="direct evidence",
+            ),
+            JudgmentConfidenceInput(
+                query="query",
+                document="negative document",
+                judgment="no evidence",
+            ),
+        ],
+        batch_size=1,
+        max_workers=1,
+        max_batch_items=2,
+    )
+
+    assert len(results) == 2
+    assert [result.task_type for result in results] == [
+        "judgment_confidence",
+        "judgment_confidence",
+    ]
+    assert all(0.0 <= result.score <= 1.0 for result in results)

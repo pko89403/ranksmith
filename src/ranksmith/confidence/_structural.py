@@ -62,7 +62,7 @@ class StructuralConfidenceEncoder(Protocol):
 
 @dataclass(frozen=True)
 class StructuralConfidenceEstimator:
-    """Single-item structural confidence estimator."""
+    """Structural confidence estimator for single-item and bounded batch scoring."""
 
     encoder: StructuralConfidenceEncoder
     scorer: StructuralConfidenceScorer

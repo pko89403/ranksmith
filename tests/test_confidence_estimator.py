@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import math
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import FrozenInstanceError, dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -409,6 +409,31 @@ def test_result_metadata_excludes_sensitive_and_heavy_values() -> None:
     assert forbidden.isdisjoint(result.metadata)
 
 
+def test_score_batch_metadata_excludes_sensitive_and_heavy_values() -> None:
+    estimator = StructuralConfidenceEstimator(
+        encoder=FakeEncoder(),
+        scorer=FakeScorer(),
+        task_type="answer_confidence",
+    )
+
+    results = estimator.score_batch(
+        [AnswerConfidenceInput(context="context", answer="answer")]
+    )
+
+    forbidden = {
+        "hf_token",
+        "token",
+        "cache_dir",
+        "model",
+        "tokenizer",
+        "features",
+        "feature_vector",
+        "hidden_states",
+        "local_path",
+    }
+    assert forbidden.isdisjoint(results[0].metadata)
+
+
 @dataclass(frozen=True)
 class CountingEncoder:
     encoder_name: str = "bert-base-uncased"
@@ -491,7 +516,7 @@ def test_score_batch_rejects_invalid_options(kwargs: dict[str, object]) -> None:
     with pytest.raises(ConfidenceInputError):
         estimator.score_batch(
             [AnswerConfidenceInput(context="context", answer="answer")],
-            **kwargs,
+            **cast(Any, kwargs),
         )
 
 
@@ -549,11 +574,14 @@ def test_score_batch_parallel_preserves_input_order(
 
         def submit(
             self,
-            fn: object,
+            fn: Callable[
+                [tuple[int, JudgmentConfidenceInput]],
+                tuple[int, StructuralConfidenceResult],
+            ],
             value: tuple[int, JudgmentConfidenceInput],
         ) -> FakeFuture:
             submitted.append(value[0])
-            return FakeFuture(value[0], fn(value))  # type: ignore[misc]
+            return FakeFuture(value[0], fn(value))
 
         def shutdown(
             self,
@@ -564,8 +592,8 @@ def test_score_batch_parallel_preserves_input_order(
             assert wait is True
             assert cancel_futures is False
 
-    def fake_as_completed(futures: object) -> list[FakeFuture]:
-        return list(reversed(list(futures)))  # type: ignore[arg-type]
+    def fake_as_completed(futures: Iterable[FakeFuture]) -> list[FakeFuture]:
+        return list(reversed(list(futures)))
 
     def fake_score(
         self: StructuralConfidenceEstimator,
@@ -718,8 +746,8 @@ def test_score_batch_parallel_raises_first_completed_error(
         ) -> None:
             shutdown_calls.append((wait, cancel_futures))
 
-    def fake_as_completed(futures: object) -> list[FakeFuture]:
-        by_index = {future.index: future for future in futures}  # type: ignore[union-attr]
+    def fake_as_completed(futures: Iterable[FakeFuture]) -> list[FakeFuture]:
+        by_index = {future.index: future for future in futures}
         return [by_index[1], by_index[0]]
 
     monkeypatch.setattr(
@@ -770,8 +798,8 @@ def test_score_batch_parallel_uses_executor_branch(
         def __init__(self, *, max_workers: int) -> None:
             called.append(max_workers)
 
-        def submit(self, fn: object, value: object) -> FakeFuture:
-            return FakeFuture(fn(value))  # type: ignore[misc]
+        def submit(self, fn: Callable[[object], object], value: object) -> FakeFuture:
+            return FakeFuture(fn(value))
 
         def shutdown(
             self,
@@ -781,7 +809,7 @@ def test_score_batch_parallel_uses_executor_branch(
         ) -> None:
             shutdown_calls.append((wait, cancel_futures))
 
-    def fake_as_completed(futures: object) -> object:
+    def fake_as_completed(futures: Iterable[FakeFuture]) -> Iterable[FakeFuture]:
         return futures
 
     monkeypatch.setattr(
