@@ -15,6 +15,7 @@ from ranksmith.confidence import (
     JudgmentConfidenceInput,
     ScorerMetadata,
     StructuralConfidenceEstimator,
+    StructuralConfidenceResult,
     TaskType,
     _encoder,
 )
@@ -437,15 +438,6 @@ class CyclingScorer(FakeScorer):
         return score
 
 
-class IndexedScorer(FakeScorer):
-    def __init__(self, *, task_type: TaskType = "answer_confidence") -> None:
-        super().__init__(score=0.0, task_type=task_type)
-
-    def predict_confidence(self, features: Sequence[float]) -> float:
-        assert len(features) == 70
-        return 0.5
-
-
 def test_score_batch_preserves_input_order_with_chunking() -> None:
     calls: list[str] = []
     estimator = StructuralConfidenceEstimator(
@@ -520,10 +512,26 @@ def test_score_batch_rejects_too_many_items() -> None:
         )
 
 
-def test_score_batch_parallel_preserves_input_order() -> None:
+def test_score_batch_parallel_preserves_input_order(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_score(
+        self: StructuralConfidenceEstimator,
+        item: JudgmentConfidenceInput,
+    ) -> StructuralConfidenceResult:
+        del self
+        index = int(item.document.removeprefix("doc "))
+        return StructuralConfidenceResult(
+            score=(index + 1) / 10,
+            task_type="judgment_confidence",
+            feature_schema_version="structural-v1",
+            metadata={"document": item.document},
+        )
+
+    monkeypatch.setattr(StructuralConfidenceEstimator, "score", fake_score)
     estimator = StructuralConfidenceEstimator(
         encoder=FakeEncoder(),
-        scorer=IndexedScorer(task_type="judgment_confidence"),
+        scorer=FakeScorer(task_type="judgment_confidence"),
         task_type="judgment_confidence",
     )
 
@@ -537,7 +545,7 @@ def test_score_batch_parallel_preserves_input_order() -> None:
     )
 
     assert len(results) == 6
-    assert [result.score for result in results] == [0.5] * 6
+    assert [result.score for result in results] == [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
     assert [result.task_type for result in results] == ["judgment_confidence"] * 6
 
 
