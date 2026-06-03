@@ -129,14 +129,18 @@ class StructuralConfidenceEstimator:
         metadata = scorer.metadata
         return cls.from_pretrained(
             scorer=scorer,
-            task_type=task_type or metadata.task_type,
-            encoder_name=encoder_name or metadata.encoder_name,
+            task_type=metadata.task_type if task_type is None else task_type,
+            encoder_name=(
+                metadata.encoder_name if encoder_name is None else encoder_name
+            ),
             encoder_revision=(
                 metadata.encoder_revision
                 if encoder_revision is None
                 else encoder_revision
             ),
-            tokenizer_name=tokenizer_name or metadata.tokenizer_name,
+            tokenizer_name=(
+                metadata.tokenizer_name if tokenizer_name is None else tokenizer_name
+            ),
             tokenizer_revision=(
                 metadata.tokenizer_revision
                 if tokenizer_revision is None

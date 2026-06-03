@@ -306,6 +306,43 @@ def test_from_artifact_rejects_override_metadata_mismatch(
         )
 
 
+def test_from_artifact_preserves_empty_encoder_name_override(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_load_lightgbm_scorer(
+        artifact_path: object,
+        *,
+        metadata_path: object = None,
+    ) -> FakeScorer:
+        del artifact_path, metadata_path
+        return FakeScorer(encoder_name="bert-base-uncased")
+
+    def fake_from_pretrained(**kwargs: object) -> FakeEncoder:
+        captured.update(kwargs)
+        return FakeEncoder(encoder_name=str(kwargs["encoder_name"]))
+
+    monkeypatch.setattr(
+        "ranksmith.confidence._structural.load_lightgbm_scorer",
+        fake_load_lightgbm_scorer,
+    )
+    monkeypatch.setattr(
+        _encoder.FrozenAutoEncoder,
+        "from_pretrained",
+        fake_from_pretrained,
+    )
+
+    with pytest.raises(ConfidenceArtifactError):
+        StructuralConfidenceEstimator.from_artifact(
+            tmp_path / "answer_confidence.joblib",
+            encoder_name="",
+        )
+
+    assert captured["encoder_name"] == ""
+
+
 @pytest.mark.parametrize("score", [-0.1, 1.1, math.nan, math.inf, "0.5", None])
 def test_estimator_rejects_invalid_scores(score: object) -> None:
     estimator = StructuralConfidenceEstimator(
