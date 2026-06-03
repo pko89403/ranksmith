@@ -157,6 +157,11 @@ metadata: scorer/encoder compatibility metadata
 - worker별 결과는 원래 batch index와 함께 수집한 뒤 정렬 또는 index assignment로 순서를 복원한다.
 - worker에서 발생한 첫 번째 confidence error는 전체 batch 실패로 전파한다.
 
+구현 단계:
+- Task 2 완료 시점에는 `max_workers=1` sequential batch만 지원한다.
+- Task 2 완료 시점의 `max_workers > 1`은 조용히 sequential fallback하지 않고 `ConfidenceInputError`로 실패한다.
+- Task 3에서 위 fast-fail을 bounded worker pool 구현으로 대체한다.
+
 ### 메모리 관리 정책
 
 - 전체 item을 한 번에 encoder에 넣지 않는다.
