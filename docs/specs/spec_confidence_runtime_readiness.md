@@ -157,10 +157,10 @@ metadata: scorer/encoder compatibility metadata
 - worker별 결과는 원래 batch index와 함께 수집한 뒤 정렬 또는 index assignment로 순서를 복원한다.
 - worker에서 발생한 첫 번째 confidence error는 전체 batch 실패로 전파한다.
 
-구현 단계:
-- Task 2 완료 시점에는 `max_workers=1` sequential batch만 지원한다.
-- Task 2 완료 시점의 `max_workers > 1`은 조용히 sequential fallback하지 않고 `ConfidenceInputError`로 실패한다.
-- Task 3에서 위 fast-fail을 bounded worker pool 구현으로 대체한다.
+구현 상태:
+- `max_workers=1`은 sequential batch로 처리한다.
+- `max_workers > 1`은 bounded worker pool로 처리한다.
+- `max_workers < 1`은 `ConfidenceInputError`로 실패한다.
 
 ### 메모리 관리 정책
 
@@ -325,8 +325,7 @@ partial result를 반환하지 않는다.
 - artifact metadata와 override가 다르면 실패한다.
 - `answer_confidence` estimator에 `JudgmentConfidenceInput` batch를 넣으면 실패한다.
 - `judgment_confidence` estimator에 `AnswerConfidenceInput` batch를 넣으면 실패한다.
-- Task 2에서는 `max_workers > 1`이 명시적으로 실패한다.
-- Task 3에서 bounded parallel scoring을 구현하면 입력 순서 보존과 worker error 전파를 검증한다.
+- `max_workers > 1`은 bounded parallel scoring으로 입력 순서 보존과 worker error 전파를 검증한다.
 - batch 중간 item이 실패하면 partial result 없이 전체 호출이 실패한다.
 - result metadata에 token, cache path, feature vector, hidden state가 없어야 한다.
 
@@ -356,7 +355,7 @@ uv run mypy src/ranksmith/confidence tests/test_confidence_*.py
 - [x] `src/ranksmith/confidence/_structural.py`: `score_batch(...)` 구현
 - [x] `src/ranksmith/confidence/_structural.py`: batch option validation helper 구현
 - [x] `src/ranksmith/confidence/_structural.py`: chunk helper 구현
-- [x] `src/ranksmith/confidence/_structural.py`: Task 2 `max_workers > 1` fast-fail 정책 구현
+- [x] `src/ranksmith/confidence/_structural.py`: `max_workers` 정책 구현
 - [ ] `src/ranksmith/confidence/_structural.py`: memory-safe result metadata 유지
 
 ### Phase 4: 검증

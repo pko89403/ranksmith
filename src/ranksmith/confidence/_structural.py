@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Iterator, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -253,12 +254,28 @@ def _score_chunk_parallel(
     *,
     max_workers: int,
 ) -> list[StructuralConfidenceResult]:
-    del estimator, items
-    if max_workers > 1:
-        raise ConfidenceInputError(
-            "max_workers > 1 is not available until parallel scoring is implemented."
-        )
-    raise ConfidenceInputError("max_workers must be >= 1.")
+    indexed_items = list(enumerate(items))
+
+    def score_indexed(
+        value: tuple[int, StructuralConfidenceInput],
+    ) -> tuple[int, StructuralConfidenceResult]:
+        index, item = value
+        return index, estimator.score(item)
+
+    results: list[StructuralConfidenceResult | None] = [None] * len(indexed_items)
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        for index, result in executor.map(score_indexed, indexed_items):
+            results[index] = result
+
+    return [_require_result(result) for result in results]
+
+
+def _require_result(
+    result: StructuralConfidenceResult | None,
+) -> StructuralConfidenceResult:
+    if result is None:
+        raise ConfidenceArtifactError("parallel confidence result is missing.")
+    return result
 
 
 def _validate_metadata_for_encoder(

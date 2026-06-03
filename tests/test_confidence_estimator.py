@@ -437,6 +437,15 @@ class CyclingScorer(FakeScorer):
         return score
 
 
+class IndexedScorer(FakeScorer):
+    def __init__(self, *, task_type: TaskType = "answer_confidence") -> None:
+        super().__init__(score=0.0, task_type=task_type)
+
+    def predict_confidence(self, features: Sequence[float]) -> float:
+        assert len(features) == 70
+        return 0.5
+
+
 def test_score_batch_preserves_input_order_with_chunking() -> None:
     calls: list[str] = []
     estimator = StructuralConfidenceEstimator(
@@ -511,18 +520,79 @@ def test_score_batch_rejects_too_many_items() -> None:
         )
 
 
-def test_score_batch_rejects_parallel_workers_until_parallel_scoring_exists() -> None:
+def test_score_batch_parallel_preserves_input_order() -> None:
+    estimator = StructuralConfidenceEstimator(
+        encoder=FakeEncoder(),
+        scorer=IndexedScorer(task_type="judgment_confidence"),
+        task_type="judgment_confidence",
+    )
+
+    results = estimator.score_batch(
+        [
+            JudgmentConfidenceInput(query="q", document=f"doc {index}", judgment="j")
+            for index in range(6)
+        ],
+        batch_size=3,
+        max_workers=2,
+    )
+
+    assert len(results) == 6
+    assert [result.score for result in results] == [0.5] * 6
+    assert [result.task_type for result in results] == ["judgment_confidence"] * 6
+
+
+def test_score_batch_parallel_propagates_worker_error() -> None:
+    estimator = StructuralConfidenceEstimator(
+        encoder=FakeEncoder(),
+        scorer=FakeScorer(task_type="answer_confidence"),
+        task_type="answer_confidence",
+    )
+
+    with pytest.raises(ConfidenceInputError):
+        estimator.score_batch(
+            [
+                AnswerConfidenceInput(context="context", answer="answer"),
+                JudgmentConfidenceInput(
+                    query="query",
+                    document="document",
+                    judgment="direct evidence",
+                ),
+            ],
+            max_workers=2,
+        )
+
+
+def test_score_batch_parallel_uses_executor_branch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    called: list[int] = []
+
+    class FakeExecutor:
+        def __init__(self, *, max_workers: int) -> None:
+            called.append(max_workers)
+
+        def __enter__(self) -> FakeExecutor:
+            return self
+
+        def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
+            return None
+
+        def map(self, fn: object, values: object) -> list[object]:
+            return [fn(value) for value in values]  # type: ignore[misc]
+
+    monkeypatch.setattr(
+        "ranksmith.confidence._structural.ThreadPoolExecutor",
+        FakeExecutor,
+    )
     estimator = StructuralConfidenceEstimator(
         encoder=FakeEncoder(),
         scorer=FakeScorer(),
         task_type="answer_confidence",
     )
 
-    with pytest.raises(
-        ConfidenceInputError,
-        match="max_workers > 1 is not available until parallel scoring is implemented.",
-    ):
-        estimator.score_batch(
-            [AnswerConfidenceInput(context="context", answer="answer")],
-            max_workers=2,
-        )
+    estimator.score_batch(
+        [AnswerConfidenceInput(context="context", answer="answer")],
+        max_workers=3,
+    )
+
+    assert called == [3]
