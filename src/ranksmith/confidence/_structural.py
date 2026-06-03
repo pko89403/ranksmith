@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -242,8 +242,9 @@ def _validate_batch_options(
 def _chunked(
     items: Sequence[StructuralConfidenceInput],
     size: int,
-) -> list[Sequence[StructuralConfidenceInput]]:
-    return [items[index : index + size] for index in range(0, len(items), size)]
+) -> Iterator[Sequence[StructuralConfidenceInput]]:
+    for index in range(0, len(items), size):
+        yield items[index : index + size]
 
 
 def _score_chunk_parallel(
@@ -252,8 +253,12 @@ def _score_chunk_parallel(
     *,
     max_workers: int,
 ) -> list[StructuralConfidenceResult]:
-    del max_workers
-    return [estimator.score(item) for item in items]
+    del estimator, items
+    if max_workers > 1:
+        raise ConfidenceInputError(
+            "max_workers > 1 is not available until parallel scoring is implemented."
+        )
+    raise ConfidenceInputError("max_workers must be >= 1.")
 
 
 def _validate_metadata_for_encoder(

@@ -320,8 +320,8 @@ partial result를 반환하지 않는다.
 - artifact metadata와 override가 다르면 실패한다.
 - `answer_confidence` estimator에 `JudgmentConfidenceInput` batch를 넣으면 실패한다.
 - `judgment_confidence` estimator에 `AnswerConfidenceInput` batch를 넣으면 실패한다.
-- `max_workers > 1`에서도 입력 순서가 보존된다.
-- `max_workers > 1`에서 worker error가 전체 batch 실패로 전파된다.
+- Task 2에서는 `max_workers > 1`이 명시적으로 실패한다.
+- Task 3에서 bounded parallel scoring을 구현하면 입력 순서 보존과 worker error 전파를 검증한다.
 - batch 중간 item이 실패하면 partial result 없이 전체 호출이 실패한다.
 - result metadata에 token, cache path, feature vector, hidden state가 없어야 한다.
 
@@ -351,7 +351,7 @@ uv run mypy src/ranksmith/confidence tests/test_confidence_*.py
 - [x] `src/ranksmith/confidence/_structural.py`: `score_batch(...)` 구현
 - [x] `src/ranksmith/confidence/_structural.py`: batch option validation helper 구현
 - [x] `src/ranksmith/confidence/_structural.py`: chunk helper 구현
-- [ ] `src/ranksmith/confidence/_structural.py`: `max_workers` 정책 구현
+- [x] `src/ranksmith/confidence/_structural.py`: Task 2 `max_workers > 1` fast-fail 정책 구현
 - [ ] `src/ranksmith/confidence/_structural.py`: memory-safe result metadata 유지
 
 ### Phase 4: 검증

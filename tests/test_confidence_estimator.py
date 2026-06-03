@@ -509,3 +509,20 @@ def test_score_batch_rejects_too_many_items() -> None:
             ],
             max_batch_items=1,
         )
+
+
+def test_score_batch_rejects_parallel_workers_until_parallel_scoring_exists() -> None:
+    estimator = StructuralConfidenceEstimator(
+        encoder=FakeEncoder(),
+        scorer=FakeScorer(),
+        task_type="answer_confidence",
+    )
+
+    with pytest.raises(
+        ConfidenceInputError,
+        match="max_workers > 1 is not available until parallel scoring is implemented.",
+    ):
+        estimator.score_batch(
+            [AnswerConfidenceInput(context="context", answer="answer")],
+            max_workers=2,
+        )
