@@ -268,7 +268,9 @@ def _score_chunk_parallel(
         return index, estimator.score(item)
 
     results: list[StructuralConfidenceResult | None] = [None] * len(indexed_items)
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+    executor = ThreadPoolExecutor(max_workers=max_workers)
+    shutdown_called = False
+    try:
         future_to_index = {
             executor.submit(score_indexed, indexed): indexed[0]
             for indexed in indexed_items
@@ -280,9 +282,28 @@ def _score_chunk_parallel(
         except Exception:
             for future in future_to_index:
                 future.cancel()
+            _shutdown_executor(executor, wait=False, cancel_futures=True)
+            shutdown_called = True
             raise
+        executor.shutdown(wait=True)
+        shutdown_called = True
+    finally:
+        if not shutdown_called:
+            _shutdown_executor(executor, wait=False, cancel_futures=True)
 
     return [_require_result(result) for result in results]
+
+
+def _shutdown_executor(
+    executor: ThreadPoolExecutor,
+    *,
+    wait: bool,
+    cancel_futures: bool = False,
+) -> None:
+    try:
+        executor.shutdown(wait=wait, cancel_futures=cancel_futures)
+    except TypeError:
+        executor.shutdown(wait=wait)
 
 
 def _require_result(

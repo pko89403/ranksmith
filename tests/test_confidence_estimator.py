@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import time
 from collections.abc import Sequence
 from dataclasses import FrozenInstanceError, dataclass
 from pathlib import Path
@@ -542,12 +543,6 @@ def test_score_batch_parallel_preserves_input_order(
         def __init__(self, *, max_workers: int) -> None:
             assert max_workers == 2
 
-        def __enter__(self) -> FakeExecutor:
-            return self
-
-        def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
-            return None
-
         def submit(
             self,
             fn: object,
@@ -555,6 +550,15 @@ def test_score_batch_parallel_preserves_input_order(
         ) -> FakeFuture:
             submitted.append(value[0])
             return FakeFuture(value[0], fn(value))  # type: ignore[misc]
+
+        def shutdown(
+            self,
+            *,
+            wait: bool,
+            cancel_futures: bool = False,
+        ) -> None:
+            assert wait is True
+            assert cancel_futures is False
 
     def fake_as_completed(futures: object) -> list[FakeFuture]:
         return list(reversed(list(futures)))  # type: ignore[arg-type]
@@ -624,10 +628,50 @@ def test_score_batch_parallel_propagates_worker_error() -> None:
         )
 
 
+def test_score_batch_parallel_fast_fails_without_waiting_for_slow_worker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_score(
+        self: StructuralConfidenceEstimator,
+        item: AnswerConfidenceInput,
+    ) -> StructuralConfidenceResult:
+        del self
+        if item.context == "slow":
+            time.sleep(0.5)
+            return StructuralConfidenceResult(
+                score=0.1,
+                task_type="answer_confidence",
+                feature_schema_version="structural-v1",
+                metadata={},
+            )
+        raise ConfidenceInputError("fast failure")
+
+    monkeypatch.setattr(StructuralConfidenceEstimator, "score", fake_score)
+    estimator = StructuralConfidenceEstimator(
+        encoder=FakeEncoder(),
+        scorer=FakeScorer(),
+        task_type="answer_confidence",
+    )
+
+    started_at = time.perf_counter()
+    with pytest.raises(ConfidenceInputError, match="fast failure"):
+        estimator.score_batch(
+            [
+                AnswerConfidenceInput(context="slow", answer="answer 0"),
+                AnswerConfidenceInput(context="fast", answer="answer 1"),
+            ],
+            max_workers=2,
+        )
+    elapsed = time.perf_counter() - started_at
+
+    assert elapsed < 0.3
+
+
 def test_score_batch_parallel_raises_first_completed_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     cancelled: list[int] = []
+    shutdown_calls: list[tuple[bool, bool]] = []
 
     class FakeFuture:
         def __init__(self, index: int) -> None:
@@ -646,12 +690,6 @@ def test_score_batch_parallel_raises_first_completed_error(
         def __init__(self, *, max_workers: int) -> None:
             assert max_workers == 2
 
-        def __enter__(self) -> FakeExecutor:
-            return self
-
-        def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
-            return None
-
         def submit(
             self,
             fn: object,
@@ -659,6 +697,14 @@ def test_score_batch_parallel_raises_first_completed_error(
         ) -> FakeFuture:
             del fn
             return FakeFuture(value[0])
+
+        def shutdown(
+            self,
+            *,
+            wait: bool,
+            cancel_futures: bool = False,
+        ) -> None:
+            shutdown_calls.append((wait, cancel_futures))
 
     def fake_as_completed(futures: object) -> list[FakeFuture]:
         by_index = {future.index: future for future in futures}  # type: ignore[union-attr]
@@ -689,12 +735,14 @@ def test_score_batch_parallel_raises_first_completed_error(
         )
 
     assert cancelled == [0, 1]
+    assert shutdown_calls == [(False, True)]
 
 
 def test_score_batch_parallel_uses_executor_branch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     called: list[int] = []
+    shutdown_calls: list[tuple[bool, bool]] = []
 
     class FakeFuture:
         def __init__(self, result: object) -> None:
@@ -710,14 +758,16 @@ def test_score_batch_parallel_uses_executor_branch(
         def __init__(self, *, max_workers: int) -> None:
             called.append(max_workers)
 
-        def __enter__(self) -> FakeExecutor:
-            return self
-
-        def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
-            return None
-
         def submit(self, fn: object, value: object) -> FakeFuture:
             return FakeFuture(fn(value))  # type: ignore[misc]
+
+        def shutdown(
+            self,
+            *,
+            wait: bool,
+            cancel_futures: bool = False,
+        ) -> None:
+            shutdown_calls.append((wait, cancel_futures))
 
     def fake_as_completed(futures: object) -> object:
         return futures
@@ -743,3 +793,4 @@ def test_score_batch_parallel_uses_executor_branch(
     )
 
     assert called == [3]
+    assert shutdown_calls == [(True, False)]
