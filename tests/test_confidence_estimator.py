@@ -20,6 +20,7 @@ from ranksmith.confidence import (
     TaskType,
     _encoder,
 )
+from ranksmith.confidence._structural import _require_result
 
 
 @dataclass(frozen=True)
@@ -626,6 +627,14 @@ def test_score_batch_parallel_propagates_worker_error() -> None:
             ],
             max_workers=2,
         )
+
+
+def test_require_result_rejects_missing_parallel_result() -> None:
+    with pytest.raises(
+        ConfidenceArtifactError,
+        match=r"^parallel confidence result is missing\.$",
+    ):
+        _require_result(None)
 
 
 def test_score_batch_parallel_fast_fails_without_waiting_for_slow_worker(
