@@ -476,6 +476,9 @@ def test_score_batch_preserves_input_order_with_chunking() -> None:
         {"batch_size": 1.5},
         {"max_workers": 1.5},
         {"max_batch_items": 1.5},
+        {"batch_size": "1"},
+        {"max_workers": "1"},
+        {"max_batch_items": "1"},
     ],
 )
 def test_score_batch_rejects_invalid_options(kwargs: dict[str, object]) -> None:
