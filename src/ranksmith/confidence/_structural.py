@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
 from ranksmith.confidence._encoder import FrozenAutoEncoder
-from ranksmith.confidence._errors import ConfidenceArtifactError
+from ranksmith.confidence._errors import ConfidenceArtifactError, ConfidenceInputError
 from ranksmith.confidence._features import (
     FEATURE_DIM,
     FEATURE_DTYPE,
@@ -188,6 +189,71 @@ class StructuralConfidenceEstimator:
                 scorer=self.scorer,
             ),
         )
+
+    def score_batch(
+        self,
+        items: Sequence[StructuralConfidenceInput],
+        *,
+        batch_size: int = 8,
+        max_workers: int = 1,
+        max_batch_items: int | None = None,
+    ) -> list[StructuralConfidenceResult]:
+        _validate_batch_options(
+            items,
+            batch_size=batch_size,
+            max_workers=max_workers,
+            max_batch_items=max_batch_items,
+        )
+        results: list[StructuralConfidenceResult] = []
+        for chunk in _chunked(items, batch_size):
+            results.extend(self._score_chunk(chunk, max_workers=max_workers))
+        return results
+
+    def _score_chunk(
+        self,
+        items: Sequence[StructuralConfidenceInput],
+        *,
+        max_workers: int,
+    ) -> list[StructuralConfidenceResult]:
+        if max_workers == 1:
+            return [self.score(item) for item in items]
+        return _score_chunk_parallel(self, items, max_workers=max_workers)
+
+
+def _validate_batch_options(
+    items: Sequence[StructuralConfidenceInput],
+    *,
+    batch_size: int,
+    max_workers: int,
+    max_batch_items: int | None,
+) -> None:
+    if not items:
+        raise ConfidenceInputError("items must not be empty.")
+    if batch_size < 1:
+        raise ConfidenceInputError("batch_size must be >= 1.")
+    if max_workers < 1:
+        raise ConfidenceInputError("max_workers must be >= 1.")
+    if max_batch_items is not None and max_batch_items < 1:
+        raise ConfidenceInputError("max_batch_items must be >= 1.")
+    if max_batch_items is not None and len(items) > max_batch_items:
+        raise ConfidenceInputError("items exceeds max_batch_items.")
+
+
+def _chunked(
+    items: Sequence[StructuralConfidenceInput],
+    size: int,
+) -> list[Sequence[StructuralConfidenceInput]]:
+    return [items[index : index + size] for index in range(0, len(items), size)]
+
+
+def _score_chunk_parallel(
+    estimator: StructuralConfidenceEstimator,
+    items: Sequence[StructuralConfidenceInput],
+    *,
+    max_workers: int,
+) -> list[StructuralConfidenceResult]:
+    del max_workers
+    return [estimator.score(item) for item in items]
 
 
 def _validate_metadata_for_encoder(

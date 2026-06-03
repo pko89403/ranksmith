@@ -404,3 +404,108 @@ def test_result_metadata_excludes_sensitive_and_heavy_values() -> None:
         "local_path",
     }
     assert forbidden.isdisjoint(result.metadata)
+
+
+@dataclass(frozen=True)
+class CountingEncoder:
+    encoder_name: str = "bert-base-uncased"
+    encoder_revision: str | None = None
+    tokenizer_name: str = "bert-base-uncased"
+    tokenizer_revision: str | None = None
+    max_length: int = 64
+    calls: list[str] | None = None
+
+    def encode(self, text: str) -> tuple[list[list[float]], list[int]]:
+        assert self.calls is not None
+        self.calls.append(text)
+        signal = float(len(self.calls))
+        hidden = [[signal + float(row + col) for col in range(4)] for row in range(8)]
+        mask = [1] * 8
+        return hidden, mask
+
+
+class CyclingScorer(FakeScorer):
+    def __init__(self, scores: list[float], *, task_type: TaskType) -> None:
+        super().__init__(score=0.0, task_type=task_type)
+        self._scores = scores
+        self._index = 0
+
+    def predict_confidence(self, features: Sequence[float]) -> float:
+        assert len(features) == 70
+        score = self._scores[self._index]
+        self._index += 1
+        return score
+
+
+def test_score_batch_preserves_input_order_with_chunking() -> None:
+    calls: list[str] = []
+    estimator = StructuralConfidenceEstimator(
+        encoder=CountingEncoder(calls=calls),
+        scorer=CyclingScorer([0.1, 0.2, 0.3], task_type="judgment_confidence"),
+        task_type="judgment_confidence",
+    )
+
+    results = estimator.score_batch(
+        [
+            JudgmentConfidenceInput(query="q", document="doc a", judgment="direct"),
+            JudgmentConfidenceInput(query="q", document="doc b", judgment="partial"),
+            JudgmentConfidenceInput(query="q", document="doc c", judgment="none"),
+        ],
+        batch_size=2,
+    )
+
+    assert [result.score for result in results] == [0.1, 0.2, 0.3]
+    assert len(calls) == 3
+    assert "doc a" in calls[0]
+    assert "doc b" in calls[1]
+    assert "doc c" in calls[2]
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"batch_size": 0},
+        {"max_workers": 0},
+        {"max_batch_items": 0},
+    ],
+)
+def test_score_batch_rejects_invalid_options(kwargs: dict[str, int]) -> None:
+    estimator = StructuralConfidenceEstimator(
+        encoder=FakeEncoder(),
+        scorer=FakeScorer(),
+        task_type="answer_confidence",
+    )
+
+    with pytest.raises(ConfidenceInputError):
+        estimator.score_batch(
+            [AnswerConfidenceInput(context="context", answer="answer")],
+            **kwargs,
+        )
+
+
+def test_score_batch_rejects_empty_items() -> None:
+    estimator = StructuralConfidenceEstimator(
+        encoder=FakeEncoder(),
+        scorer=FakeScorer(),
+        task_type="answer_confidence",
+    )
+
+    with pytest.raises(ConfidenceInputError):
+        estimator.score_batch([])
+
+
+def test_score_batch_rejects_too_many_items() -> None:
+    estimator = StructuralConfidenceEstimator(
+        encoder=FakeEncoder(),
+        scorer=FakeScorer(),
+        task_type="answer_confidence",
+    )
+
+    with pytest.raises(ConfidenceInputError):
+        estimator.score_batch(
+            [
+                AnswerConfidenceInput(context="context 1", answer="answer 1"),
+                AnswerConfidenceInput(context="context 2", answer="answer 2"),
+            ],
+            max_batch_items=1,
+        )

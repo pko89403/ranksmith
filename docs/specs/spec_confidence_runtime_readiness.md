@@ -348,15 +348,15 @@ uv run mypy src/ranksmith/confidence tests/test_confidence_*.py
 - [x] `src/ranksmith/confidence/_structural.py`: override mismatch fast fail 테스트 보강
 
 ### Phase 3: Batch Scoring 구현
-- [ ] `src/ranksmith/confidence/_structural.py`: `score_batch(...)` 구현
-- [ ] `src/ranksmith/confidence/_structural.py`: batch option validation helper 구현
-- [ ] `src/ranksmith/confidence/_structural.py`: chunk helper 구현
+- [x] `src/ranksmith/confidence/_structural.py`: `score_batch(...)` 구현
+- [x] `src/ranksmith/confidence/_structural.py`: batch option validation helper 구현
+- [x] `src/ranksmith/confidence/_structural.py`: chunk helper 구현
 - [ ] `src/ranksmith/confidence/_structural.py`: `max_workers` 정책 구현
 - [ ] `src/ranksmith/confidence/_structural.py`: memory-safe result metadata 유지
 
 ### Phase 4: 검증
 - [x] `tests/test_confidence_estimator.py`: `from_artifact(...)` 정상/실패 테스트 추가
-- [ ] `tests/test_confidence_estimator.py`: `score_batch(...)` 정상/실패 테스트 추가
+- [x] `tests/test_confidence_estimator.py`: `score_batch(...)` 정상/실패 테스트 추가
 - [ ] `tests/test_confidence_training_artifact.py`: training artifact -> runtime batch smoke test 추가
 - [ ] `uv run pytest tests/test_confidence_*.py tests/test_confidence_training_*.py -q`
 - [ ] `uv run ruff check src/ranksmith/confidence tests/test_confidence_*.py`
