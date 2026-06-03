@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-import time
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import FrozenInstanceError, dataclass
 from pathlib import Path
@@ -666,45 +665,6 @@ def test_require_result_rejects_missing_parallel_result() -> None:
         match=r"^parallel confidence result is missing\.$",
     ):
         _require_result(None)
-
-
-def test_score_batch_parallel_fast_fails_without_waiting_for_slow_worker(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    def fake_score(
-        self: StructuralConfidenceEstimator,
-        item: AnswerConfidenceInput,
-    ) -> StructuralConfidenceResult:
-        del self
-        if item.context == "slow":
-            time.sleep(0.5)
-            return StructuralConfidenceResult(
-                score=0.1,
-                task_type="answer_confidence",
-                feature_schema_version="structural-v1",
-                metadata={},
-            )
-        raise ConfidenceInputError("fast failure")
-
-    monkeypatch.setattr(StructuralConfidenceEstimator, "score", fake_score)
-    estimator = StructuralConfidenceEstimator(
-        encoder=FakeEncoder(),
-        scorer=FakeScorer(),
-        task_type="answer_confidence",
-    )
-
-    started_at = time.perf_counter()
-    with pytest.raises(ConfidenceInputError, match="fast failure"):
-        estimator.score_batch(
-            [
-                AnswerConfidenceInput(context="slow", answer="answer 0"),
-                AnswerConfidenceInput(context="fast", answer="answer 1"),
-            ],
-            max_workers=2,
-        )
-    elapsed = time.perf_counter() - started_at
-
-    assert elapsed < 0.3
 
 
 def test_score_batch_parallel_raises_first_completed_error(

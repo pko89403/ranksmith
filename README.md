@@ -280,9 +280,9 @@ results = await reranker.rerank("query", documents)
 
 ## Structural Confidence
 
-`ranksmith.confidence` provides single-item sync confidence inference for
-closed-model outputs using a frozen HuggingFace encoder, `structural-v1`
-features, and a trained compatible scorer artifact.
+`ranksmith.confidence` provides single-item and bounded batch sync confidence
+inference for closed-model outputs using a frozen HuggingFace encoder,
+`structural-v1` features, and a trained compatible scorer artifact.
 
 Install optional dependencies:
 
@@ -307,10 +307,18 @@ result = estimator.score(
     AnswerConfidenceInput(context="...", answer="...")
 )
 print(result.score)
+
+batch_results = estimator.score_batch(
+    [AnswerConfidenceInput(context="...", answer="...")],
+    batch_size=8,
+    max_workers=1,
+)
 ```
 
 This module does not train a scorer, does not add a reranking Strategy, and
-does not perform batch or async inference.
+does not perform async inference. Parallel batch scoring cancels pending work
+on the first worker error, but Python threads that have already started may
+finish in the background.
 
 ### Training a compatible confidence scorer
 

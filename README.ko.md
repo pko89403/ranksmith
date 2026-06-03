@@ -277,7 +277,7 @@ results = await reranker.rerank("query", documents)
 
 `ranksmith.confidence`는 frozen HuggingFace encoder, `structural-v1` feature,
 학습된 compatible scorer artifact를 사용해 closed-model output에 대한 single-item
-sync confidence inference를 제공합니다.
+및 bounded batch sync confidence inference를 제공합니다.
 
 선택 dependency 설치:
 
@@ -302,10 +302,17 @@ result = estimator.score(
     AnswerConfidenceInput(context="...", answer="...")
 )
 print(result.score)
+
+batch_results = estimator.score_batch(
+    [AnswerConfidenceInput(context="...", answer="...")],
+    batch_size=8,
+    max_workers=1,
+)
 ```
 
-이 모듈은 scorer를 학습하지 않고, reranking Strategy를 추가하지 않으며, batch 또는
-async inference를 수행하지 않습니다.
+이 모듈은 scorer를 학습하지 않고, reranking Strategy를 추가하지 않으며, async
+inference를 수행하지 않습니다. 병렬 batch scoring은 첫 worker error에서 pending
+work를 취소하지만, 이미 시작된 Python thread는 background에서 완료될 수 있습니다.
 
 ### compatible confidence scorer 학습
 

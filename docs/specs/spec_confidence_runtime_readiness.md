@@ -156,6 +156,8 @@ metadata: scorer/encoder compatibility metadata
 - `max_workers > 1`은 `ThreadPoolExecutor` 같은 bounded worker pool로 구현한다.
 - worker별 결과는 원래 batch index와 함께 수집한 뒤 정렬 또는 index assignment로 순서를 복원한다.
 - worker에서 발생한 첫 번째 confidence error는 전체 batch 실패로 전파한다.
+- 실패 시 pending future는 취소하고 executor shutdown은 반환 지연을 피하기 위해 `wait=False` 경로를 사용한다.
+- Python thread는 강제 종료할 수 없으므로 이미 시작된 worker는 caller에게 실패가 반환된 뒤 background에서 완료될 수 있다.
 
 구현 상태:
 - `max_workers=1`은 sequential batch로 처리한다.
