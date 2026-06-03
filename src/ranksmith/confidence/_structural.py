@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol
 
 from ranksmith.confidence._encoder import FrozenAutoEncoder
@@ -17,6 +18,7 @@ from ranksmith.confidence._features import (
 )
 from ranksmith.confidence._scorer import (
     ARTIFACT_SCHEMA_VERSION,
+    load_lightgbm_scorer,
     validate_scorer_metadata,
 )
 from ranksmith.confidence._templates import (
@@ -101,6 +103,52 @@ class StructuralConfidenceEstimator:
             allow_truncation=allow_truncation,
         )
         return cls(encoder=encoder, scorer=scorer, task_type=task_type)
+
+    @classmethod
+    def from_artifact(
+        cls,
+        artifact_path: str | Path,
+        *,
+        metadata_path: str | Path | None = None,
+        encoder_name: str | None = None,
+        encoder_revision: str | None = None,
+        tokenizer_name: str | None = None,
+        tokenizer_revision: str | None = None,
+        task_type: TaskType | None = None,
+        hf_token: str | None = None,
+        local_files_only: bool = False,
+        cache_dir: str | None = None,
+        device: str = "cpu",
+        max_length: int | None = None,
+        allow_truncation: bool = False,
+    ) -> StructuralConfidenceEstimator:
+        scorer = load_lightgbm_scorer(
+            artifact_path,
+            metadata_path=metadata_path,
+        )
+        metadata = scorer.metadata
+        return cls.from_pretrained(
+            scorer=scorer,
+            task_type=task_type or metadata.task_type,
+            encoder_name=encoder_name or metadata.encoder_name,
+            encoder_revision=(
+                metadata.encoder_revision
+                if encoder_revision is None
+                else encoder_revision
+            ),
+            tokenizer_name=tokenizer_name or metadata.tokenizer_name,
+            tokenizer_revision=(
+                metadata.tokenizer_revision
+                if tokenizer_revision is None
+                else tokenizer_revision
+            ),
+            hf_token=hf_token,
+            local_files_only=local_files_only,
+            cache_dir=cache_dir,
+            device=device,
+            max_length=metadata.max_length if max_length is None else max_length,
+            allow_truncation=allow_truncation,
+        )
 
     def score(self, item: StructuralConfidenceInput) -> StructuralConfidenceResult:
         text = format_confidence_input(self.task_type, item)

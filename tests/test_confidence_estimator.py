@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 from dataclasses import FrozenInstanceError, dataclass
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -216,6 +217,93 @@ def test_from_pretrained_accepts_matching_scorer_metadata(
     )
 
     assert estimator.encoder.encoder_name == "bert-base-uncased"
+
+
+def test_from_artifact_uses_scorer_metadata_defaults(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    captured_encoder_kwargs: dict[str, object] = {}
+    captured_loader_kwargs: dict[str, object] = {}
+    scorer = FakeScorer(task_type="judgment_confidence", max_length=64)
+
+    def fake_load_lightgbm_scorer(
+        artifact_path: object,
+        *,
+        metadata_path: object = None,
+    ) -> FakeScorer:
+        captured_loader_kwargs["artifact_path"] = artifact_path
+        captured_loader_kwargs["metadata_path"] = metadata_path
+        return scorer
+
+    def fake_from_pretrained(**kwargs: object) -> FakeEncoder:
+        captured_encoder_kwargs.update(kwargs)
+        return FakeEncoder(max_length=64)
+
+    monkeypatch.setattr(
+        "ranksmith.confidence._structural.load_lightgbm_scorer",
+        fake_load_lightgbm_scorer,
+    )
+    monkeypatch.setattr(
+        _encoder.FrozenAutoEncoder,
+        "from_pretrained",
+        fake_from_pretrained,
+    )
+
+    artifact_path = tmp_path / "judgment_confidence.joblib"
+    metadata_path = tmp_path / "metadata.json"
+    estimator = StructuralConfidenceEstimator.from_artifact(
+        artifact_path,
+        metadata_path=metadata_path,
+        hf_token="secret-token",
+        cache_dir="/tmp/private-cache",
+    )
+
+    assert estimator.task_type == "judgment_confidence"
+    assert captured_loader_kwargs == {
+        "artifact_path": artifact_path,
+        "metadata_path": metadata_path,
+    }
+    assert captured_encoder_kwargs["encoder_name"] == "bert-base-uncased"
+    assert captured_encoder_kwargs["encoder_revision"] is None
+    assert captured_encoder_kwargs["tokenizer_name"] == "bert-base-uncased"
+    assert captured_encoder_kwargs["tokenizer_revision"] is None
+    assert captured_encoder_kwargs["max_length"] == 64
+    assert captured_encoder_kwargs["hf_token"] == "secret-token"
+    assert captured_encoder_kwargs["cache_dir"] == "/tmp/private-cache"
+
+
+def test_from_artifact_rejects_override_metadata_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    def fake_load_lightgbm_scorer(
+        artifact_path: object,
+        *,
+        metadata_path: object = None,
+    ) -> FakeScorer:
+        del artifact_path, metadata_path
+        return FakeScorer(max_length=64)
+
+    def fake_from_pretrained(**kwargs: object) -> FakeEncoder:
+        del kwargs
+        return FakeEncoder(max_length=128)
+
+    monkeypatch.setattr(
+        "ranksmith.confidence._structural.load_lightgbm_scorer",
+        fake_load_lightgbm_scorer,
+    )
+    monkeypatch.setattr(
+        _encoder.FrozenAutoEncoder,
+        "from_pretrained",
+        fake_from_pretrained,
+    )
+
+    with pytest.raises(ConfidenceArtifactError):
+        StructuralConfidenceEstimator.from_artifact(
+            tmp_path / "answer_confidence.joblib",
+            max_length=128,
+        )
 
 
 @pytest.mark.parametrize("score", [-0.1, 1.1, math.nan, math.inf, "0.5", None])
