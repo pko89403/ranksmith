@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Iterator, Sequence
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -230,14 +230,19 @@ def _validate_batch_options(
 ) -> None:
     if not items:
         raise ConfidenceInputError("items must not be empty.")
-    if batch_size < 1:
-        raise ConfidenceInputError("batch_size must be >= 1.")
-    if max_workers < 1:
-        raise ConfidenceInputError("max_workers must be >= 1.")
-    if max_batch_items is not None and max_batch_items < 1:
-        raise ConfidenceInputError("max_batch_items must be >= 1.")
+    _validate_positive_int_option("batch_size", batch_size)
+    _validate_positive_int_option("max_workers", max_workers)
+    if max_batch_items is not None:
+        _validate_positive_int_option("max_batch_items", max_batch_items)
     if max_batch_items is not None and len(items) > max_batch_items:
         raise ConfidenceInputError("items exceeds max_batch_items.")
+
+
+def _validate_positive_int_option(name: str, value: object) -> None:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ConfidenceInputError(f"{name} must be an int.")
+    if value < 1:
+        raise ConfidenceInputError(f"{name} must be >= 1.")
 
 
 def _chunked(
@@ -264,8 +269,18 @@ def _score_chunk_parallel(
 
     results: list[StructuralConfidenceResult | None] = [None] * len(indexed_items)
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        for index, result in executor.map(score_indexed, indexed_items):
-            results[index] = result
+        future_to_index = {
+            executor.submit(score_indexed, indexed): indexed[0]
+            for indexed in indexed_items
+        }
+        try:
+            for future in as_completed(future_to_index):
+                index, result = future.result()
+                results[index] = result
+        except Exception:
+            for future in future_to_index:
+                future.cancel()
+            raise
 
     return [_require_result(result) for result in results]
 

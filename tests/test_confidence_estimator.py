@@ -468,9 +468,15 @@ def test_score_batch_preserves_input_order_with_chunking() -> None:
         {"batch_size": 0},
         {"max_workers": 0},
         {"max_batch_items": 0},
+        {"batch_size": True},
+        {"max_workers": True},
+        {"max_batch_items": True},
+        {"batch_size": 1.5},
+        {"max_workers": 1.5},
+        {"max_batch_items": 1.5},
     ],
 )
-def test_score_batch_rejects_invalid_options(kwargs: dict[str, int]) -> None:
+def test_score_batch_rejects_invalid_options(kwargs: dict[str, object]) -> None:
     estimator = StructuralConfidenceEstimator(
         encoder=FakeEncoder(),
         scorer=FakeScorer(),
@@ -515,6 +521,44 @@ def test_score_batch_rejects_too_many_items() -> None:
 def test_score_batch_parallel_preserves_input_order(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    submitted: list[int] = []
+
+    class FakeFuture:
+        def __init__(
+            self,
+            index: int,
+            result: tuple[int, StructuralConfidenceResult],
+        ) -> None:
+            self.index = index
+            self._result = result
+
+        def result(self) -> tuple[int, StructuralConfidenceResult]:
+            return self._result
+
+        def cancel(self) -> bool:
+            return False
+
+    class FakeExecutor:
+        def __init__(self, *, max_workers: int) -> None:
+            assert max_workers == 2
+
+        def __enter__(self) -> FakeExecutor:
+            return self
+
+        def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
+            return None
+
+        def submit(
+            self,
+            fn: object,
+            value: tuple[int, JudgmentConfidenceInput],
+        ) -> FakeFuture:
+            submitted.append(value[0])
+            return FakeFuture(value[0], fn(value))  # type: ignore[misc]
+
+    def fake_as_completed(futures: object) -> list[FakeFuture]:
+        return list(reversed(list(futures)))  # type: ignore[arg-type]
+
     def fake_score(
         self: StructuralConfidenceEstimator,
         item: JudgmentConfidenceInput,
@@ -529,6 +573,15 @@ def test_score_batch_parallel_preserves_input_order(
         )
 
     monkeypatch.setattr(StructuralConfidenceEstimator, "score", fake_score)
+    monkeypatch.setattr(
+        "ranksmith.confidence._structural.ThreadPoolExecutor",
+        FakeExecutor,
+    )
+    monkeypatch.setattr(
+        "ranksmith.confidence._structural.as_completed",
+        fake_as_completed,
+        raising=False,
+    )
     estimator = StructuralConfidenceEstimator(
         encoder=FakeEncoder(),
         scorer=FakeScorer(task_type="judgment_confidence"),
@@ -547,6 +600,7 @@ def test_score_batch_parallel_preserves_input_order(
     assert len(results) == 6
     assert [result.score for result in results] == [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
     assert [result.task_type for result in results] == ["judgment_confidence"] * 6
+    assert submitted == [0, 1, 2, 0, 1, 2]
 
 
 def test_score_batch_parallel_propagates_worker_error() -> None:
@@ -570,10 +624,87 @@ def test_score_batch_parallel_propagates_worker_error() -> None:
         )
 
 
+def test_score_batch_parallel_raises_first_completed_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cancelled: list[int] = []
+
+    class FakeFuture:
+        def __init__(self, index: int) -> None:
+            self.index = index
+
+        def result(self) -> tuple[int, StructuralConfidenceResult]:
+            if self.index == 0:
+                raise AssertionError("slow earlier future should not be consumed first")
+            raise ConfidenceInputError("fast failure")
+
+        def cancel(self) -> bool:
+            cancelled.append(self.index)
+            return True
+
+    class FakeExecutor:
+        def __init__(self, *, max_workers: int) -> None:
+            assert max_workers == 2
+
+        def __enter__(self) -> FakeExecutor:
+            return self
+
+        def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
+            return None
+
+        def submit(
+            self,
+            fn: object,
+            value: tuple[int, AnswerConfidenceInput],
+        ) -> FakeFuture:
+            del fn
+            return FakeFuture(value[0])
+
+    def fake_as_completed(futures: object) -> list[FakeFuture]:
+        by_index = {future.index: future for future in futures}  # type: ignore[union-attr]
+        return [by_index[1], by_index[0]]
+
+    monkeypatch.setattr(
+        "ranksmith.confidence._structural.ThreadPoolExecutor",
+        FakeExecutor,
+    )
+    monkeypatch.setattr(
+        "ranksmith.confidence._structural.as_completed",
+        fake_as_completed,
+        raising=False,
+    )
+    estimator = StructuralConfidenceEstimator(
+        encoder=FakeEncoder(),
+        scorer=FakeScorer(),
+        task_type="answer_confidence",
+    )
+
+    with pytest.raises(ConfidenceInputError, match="fast failure"):
+        estimator.score_batch(
+            [
+                AnswerConfidenceInput(context="context 0", answer="answer 0"),
+                AnswerConfidenceInput(context="context 1", answer="answer 1"),
+            ],
+            max_workers=2,
+        )
+
+    assert cancelled == [0, 1]
+
+
 def test_score_batch_parallel_uses_executor_branch(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     called: list[int] = []
+
+    class FakeFuture:
+        def __init__(self, result: object) -> None:
+            self._result = result
+
+        def result(self) -> object:
+            return self._result
+
+        def cancel(self) -> bool:
+            return False
 
     class FakeExecutor:
         def __init__(self, *, max_workers: int) -> None:
@@ -585,12 +716,20 @@ def test_score_batch_parallel_uses_executor_branch(
         def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
             return None
 
-        def map(self, fn: object, values: object) -> list[object]:
-            return [fn(value) for value in values]  # type: ignore[misc]
+        def submit(self, fn: object, value: object) -> FakeFuture:
+            return FakeFuture(fn(value))  # type: ignore[misc]
+
+    def fake_as_completed(futures: object) -> object:
+        return futures
 
     monkeypatch.setattr(
         "ranksmith.confidence._structural.ThreadPoolExecutor",
         FakeExecutor,
+    )
+    monkeypatch.setattr(
+        "ranksmith.confidence._structural.as_completed",
+        fake_as_completed,
+        raising=False,
     )
     estimator = StructuralConfidenceEstimator(
         encoder=FakeEncoder(),
