@@ -9,6 +9,8 @@ from ranksmith.confidence._structural import StructuralConfidenceEstimator
 from ranksmith.confidence._types import (
     AnswerConfidenceInput,
     JudgmentConfidenceInput,
+    QueryAnswerabilityConfidenceInput,
+    QueryContextAnswerabilityConfidenceInput,
     ScoreOutput,
     ScorerMetadata,
     StructuralConfidenceInput,
@@ -24,6 +26,8 @@ __all__ = [
     "ConfidenceError",
     "ConfidenceInputError",
     "JudgmentConfidenceInput",
+    "QueryAnswerabilityConfidenceInput",
+    "QueryContextAnswerabilityConfidenceInput",
     "ScorerMetadata",
     "ScoreOutput",
     "StructuralConfidenceEstimator",

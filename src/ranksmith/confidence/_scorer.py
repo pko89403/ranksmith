@@ -274,7 +274,12 @@ def _validate_metadata_values(metadata: ScorerMetadata) -> None:
         raise ConfidenceArtifactError("unsupported local_stride")
     if metadata.input_template_version != INPUT_TEMPLATE_VERSION:
         raise ConfidenceArtifactError("unsupported input_template_version")
-    if metadata.task_type not in {"answer_confidence", "judgment_confidence"}:
+    if metadata.task_type not in {
+        "answer_confidence",
+        "judgment_confidence",
+        "query_answerability_confidence",
+        "query_context_answerability_confidence",
+    }:
         raise ConfidenceArtifactError("invalid task_type")
     if not metadata.scorer_type.strip():
         raise ConfidenceArtifactError("scorer_type must be non-empty")
@@ -314,6 +319,10 @@ def _task_type(value: object) -> TaskType:
         return "answer_confidence"
     if value == "judgment_confidence":
         return "judgment_confidence"
+    if value == "query_answerability_confidence":
+        return "query_answerability_confidence"
+    if value == "query_context_answerability_confidence":
+        return "query_context_answerability_confidence"
     raise ConfidenceArtifactError("invalid task_type")
 
 
