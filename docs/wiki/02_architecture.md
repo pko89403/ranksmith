@@ -85,6 +85,53 @@ v1 지원 algorithm:
 향후 algorithm 후보:
 - `confidence`
 
+## Confidence
+`ranksmith.confidence`는 reranking Strategy나 Algorithm이 아니라, closed model output confidence를 계산하는 utility layer다.
+
+현재 범위:
+- frozen HuggingFace encoder 기반 token-level trajectory 생성
+- `structural-v1` 70차원 feature extraction
+- 학습된 scorer artifact 기반 single-item sync confidence inference
+- bounded batch sync confidence inference
+- root import가 아닌 `ranksmith.confidence` submodule export
+
+`score_batch(..., max_workers>1)`은 같은 encoder/scorer instance를 worker thread들이 공유하므로, concurrent call에 안전한 backend에서만 사용한다. 기본값은 안정성을 위해 `max_workers=1`이다.
+
+제외:
+- semantic feature fusion
+- async inference
+- reranking Strategy
+
+`ranksmith.confidence_training`은 Phase 1 compatible scorer artifact를 만들기 위한 별도 training utility layer다.
+
+현재 범위:
+- task별 canonical JSONL validation/loading
+- deterministic train/valid/test split
+- frozen HuggingFace encoder와 `structural-v1` feature extraction 재사용
+- LightGBM binary classifier training
+- validation split 기반 sigmoid calibration
+- Phase 1 `ScorerMetadata` compatible artifact export
+
+제외:
+- 외부 benchmark/source adapter
+- label 생성
+- CLI
+- reranking Strategy 또는 Algorithm
+
+`ranksmith.confidence_generation`은 closed model output을 생성해 confidence training canonical JSONL로 저장하는 utility layer다.
+
+현재 범위:
+- answer-oriented raw JSONL -> `answer_confidence` canonical JSONL
+- relevance-oriented raw JSONL -> `judgment_confidence` canonical JSONL
+- sync closed model call
+- resume 가능한 JSONL output
+
+제외:
+- async generation
+- dataset adapter
+- CLI
+- runtime reranking Strategy 또는 Algorithm
+
 ## LLM 응답 계약
 Listwise JSON permutation:
 

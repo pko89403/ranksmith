@@ -278,6 +278,79 @@ reranker = AsyncAzureOpenAIReranker(
 results = await reranker.rerank("query", documents)
 ```
 
+## Structural Confidence
+
+`ranksmith.confidence` provides single-item and bounded batch sync confidence
+inference for closed-model outputs using a frozen HuggingFace encoder,
+`structural-v1` features, and a trained compatible scorer artifact.
+
+Install optional dependencies:
+
+```bash
+pip install "ranksmith[confidence]"
+```
+
+```python
+from ranksmith.confidence import (
+    AnswerConfidenceInput,
+    StructuralConfidenceEstimator,
+)
+
+estimator = StructuralConfidenceEstimator.from_artifact(
+    "structural-confidence.joblib",
+)
+
+result = estimator.score(
+    AnswerConfidenceInput(context="...", answer="...")
+)
+print(result.score)
+
+batch_results = estimator.score_batch(
+    [AnswerConfidenceInput(context="...", answer="...")],
+    batch_size=8,
+    max_workers=1,
+)
+```
+
+This module does not train a scorer, does not add a reranking Strategy, and
+does not perform async inference. Parallel batch scoring shares the same
+encoder and scorer instances across worker threads, so use `max_workers>1` only
+with thread-safe backends. It cancels pending work on the first worker error,
+but Python threads that have already started may finish in the background.
+
+`ranksmith.confidence_generation` can create supervised canonical JSONL for
+confidence training by calling a closed model over raw answer or relevance
+examples. It is a data-generation utility, not a reranking Strategy.
+
+### Training a compatible confidence scorer
+
+`ranksmith.confidence_training` can train a Phase 1-compatible scorer artifact
+from supervised canonical JSONL. It does not generate labels, call closed
+models, provide dataset adapters, or report reranking benchmark numbers.
+
+Install training dependencies:
+
+```bash
+pip install "ranksmith[confidence-train]"
+```
+
+```python
+from ranksmith.confidence_training import (
+    ConfidenceTrainingConfig,
+    train_confidence_scorer,
+)
+
+result = train_confidence_scorer(
+    ConfidenceTrainingConfig(
+        task_type="answer_confidence",
+        dataset_path="answer_confidence.jsonl",
+        output_dir="confidence-runs/answer-v1",
+        export_path="artifacts/answer_confidence.joblib",
+    )
+)
+print(result.export_path)
+```
+
 ## Examples
 
 Runnable examples live in the `examples/` directory.
