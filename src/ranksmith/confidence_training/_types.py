@@ -34,7 +34,12 @@ class ConfidenceTrainingConfig:
     calibration_method: CalibrationMethod = "sigmoid"
 
     def __post_init__(self) -> None:
-        if self.task_type not in {"answer_confidence", "judgment_confidence"}:
+        if self.task_type not in {
+            "answer_confidence",
+            "judgment_confidence",
+            "query_answerability_confidence",
+            "query_context_answerability_confidence",
+        }:
             raise ConfidenceTrainingConfigError("unsupported task_type")
         if self.calibration_method != "sigmoid":
             raise ConfidenceTrainingConfigError("unsupported calibration_method")
