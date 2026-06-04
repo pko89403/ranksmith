@@ -46,6 +46,13 @@ def test_answer_generation_config_rejects_invalid_options(tmp_path: Path) -> Non
         generation.AnswerGenerationConfig(
             input_path=tmp_path / "in.jsonl",
             output_path=tmp_path / "out.jsonl",
+            provider=cast(Any, object()),
+        )
+
+    with pytest.raises(generation.ConfidenceGenerationInputError):
+        generation.AnswerGenerationConfig(
+            input_path=tmp_path / "in.jsonl",
+            output_path=tmp_path / "out.jsonl",
             provider=FakeProvider(),
             overwrite=True,
             resume=True,
@@ -83,6 +90,13 @@ def test_relevance_generation_config_rejects_invalid_options(tmp_path: Path) -> 
         generation.RelevanceGenerationConfig(
             input_path=tmp_path / "in.jsonl",
             output_path=tmp_path / "out.jsonl",
+            provider=cast(Any, object()),
+        )
+
+    with pytest.raises(generation.ConfidenceGenerationInputError):
+        generation.RelevanceGenerationConfig(
+            input_path=tmp_path / "in.jsonl",
+            output_path=tmp_path / "out.jsonl",
             provider=FakeProvider(),
             truth_positive_operator="eq",
         )
@@ -102,4 +116,13 @@ def test_relevance_generation_config_rejects_invalid_options(tmp_path: Path) -> 
                 output_path=tmp_path / "out.jsonl",
                 provider=FakeProvider(),
                 truth_positive_threshold=cast(Any, invalid_threshold),
+            )
+
+    for non_finite_threshold in (float("nan"), float("inf"), float("-inf")):
+        with pytest.raises(generation.ConfidenceGenerationInputError):
+            generation.RelevanceGenerationConfig(
+                input_path=tmp_path / "in.jsonl",
+                output_path=tmp_path / "out.jsonl",
+                provider=FakeProvider(),
+                truth_positive_threshold=non_finite_threshold,
             )

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -30,6 +31,7 @@ class AnswerGenerationConfig:
 
     def __post_init__(self) -> None:
         _validate_common_config(
+            provider=self.provider,
             overwrite=self.overwrite,
             resume=self.resume,
             max_items=self.max_items,
@@ -62,6 +64,7 @@ class RelevanceGenerationConfig:
 
     def __post_init__(self) -> None:
         _validate_common_config(
+            provider=self.provider,
             overwrite=self.overwrite,
             resume=self.resume,
             max_items=self.max_items,
@@ -77,6 +80,10 @@ class RelevanceGenerationConfig:
         ):
             raise ConfidenceGenerationInputError(
                 "truth_positive_threshold must be numeric"
+            )
+        if not math.isfinite(self.truth_positive_threshold):
+            raise ConfidenceGenerationInputError(
+                "truth_positive_threshold must be finite"
             )
         _validate_positive_int("max_document_chars", self.max_document_chars)
 
@@ -121,11 +128,14 @@ class RelevanceGenerationSample:
 
 def _validate_common_config(
     *,
+    provider: object,
     overwrite: bool,
     resume: bool,
     max_items: int | None,
     source: str | None,
 ) -> None:
+    if not callable(getattr(provider, "complete", None)):
+        raise ConfidenceGenerationInputError("provider must define complete()")
     if overwrite and resume:
         raise ConfidenceGenerationInputError("overwrite and resume cannot both be true")
     if max_items is not None:
