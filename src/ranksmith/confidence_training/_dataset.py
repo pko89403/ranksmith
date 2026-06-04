@@ -15,6 +15,8 @@ from ranksmith.confidence_training._types import CanonicalConfidenceSample
 
 _ANSWER_REQUIRED = ("id", "context", "answer", "label")
 _JUDGMENT_REQUIRED = ("id", "query", "document", "judgment", "label")
+_QUERY_ANSWERABILITY_REQUIRED = ("id", "query", "answer", "label")
+_QUERY_CONTEXT_ANSWERABILITY_REQUIRED = ("id", "query", "context", "answer", "label")
 _ANSWER_ALLOWED = {*_ANSWER_REQUIRED, "gold_answer", "source", "group_id", "metadata"}
 _JUDGMENT_ALLOWED = {
     *_JUDGMENT_REQUIRED,
@@ -22,6 +24,21 @@ _JUDGMENT_ALLOWED = {
     "source",
     "group_id",
     "metadata",
+}
+_ANSWERABILITY_OPTIONAL_ALLOWED = {
+    "task_type",
+    "gold_answer",
+    "source",
+    "group_id",
+    "metadata",
+}
+_QUERY_ANSWERABILITY_ALLOWED = {
+    *_QUERY_ANSWERABILITY_REQUIRED,
+    *_ANSWERABILITY_OPTIONAL_ALLOWED,
+}
+_QUERY_CONTEXT_ANSWERABILITY_ALLOWED = {
+    *_QUERY_CONTEXT_ANSWERABILITY_REQUIRED,
+    *_ANSWERABILITY_OPTIONAL_ALLOWED,
 }
 
 
@@ -59,6 +76,37 @@ _TASK_SCHEMAS: dict[str, _TaskDatasetSchema] = {
             document=_required_text(row, "document"),
             judgment=_required_text(row, "judgment"),
             relevance_label=_optional_relevance_label(row.get("relevance_label")),
+            source=_optional_text(row.get("source"), "source"),
+            group_id=_optional_text(row.get("group_id"), "group_id"),
+            metadata=_metadata(row.get("metadata")),
+        ),
+    ),
+    "query_answerability_confidence": _TaskDatasetSchema(
+        required=_QUERY_ANSWERABILITY_REQUIRED,
+        allowed=_QUERY_ANSWERABILITY_ALLOWED,
+        parser=lambda row: CanonicalConfidenceSample(
+            id=_required_text(row, "id"),
+            task_type="query_answerability_confidence",
+            label=_label(row["label"]),
+            query=_required_text(row, "query"),
+            answer=_required_text(row, "answer"),
+            gold_answer=_optional_gold_answer(row.get("gold_answer")),
+            source=_optional_text(row.get("source"), "source"),
+            group_id=_optional_text(row.get("group_id"), "group_id"),
+            metadata=_metadata(row.get("metadata")),
+        ),
+    ),
+    "query_context_answerability_confidence": _TaskDatasetSchema(
+        required=_QUERY_CONTEXT_ANSWERABILITY_REQUIRED,
+        allowed=_QUERY_CONTEXT_ANSWERABILITY_ALLOWED,
+        parser=lambda row: CanonicalConfidenceSample(
+            id=_required_text(row, "id"),
+            task_type="query_context_answerability_confidence",
+            label=_label(row["label"]),
+            query=_required_text(row, "query"),
+            context=_required_text(row, "context"),
+            answer=_required_text(row, "answer"),
+            gold_answer=_optional_gold_answer(row.get("gold_answer")),
             source=_optional_text(row.get("source"), "source"),
             group_id=_optional_text(row.get("group_id"), "group_id"),
             metadata=_metadata(row.get("metadata")),
@@ -120,6 +168,7 @@ def _parse_row(
         raise ConfidenceDatasetError(f"unsupported task_type: {task_type}")
     try:
         _validate_keys(row, required=schema.required, allowed=schema.allowed)
+        _validate_row_task_type(row, task_type=task_type)
         return schema.parser(row)
     except (ConfidenceDatasetError, ConfidenceLabelError) as exc:
         raise type(exc)(f"line {line_number}: {exc}") from exc
@@ -142,6 +191,14 @@ def _validate_keys(
     unexpected = sorted(key for key in row if key not in allowed)
     if unexpected:
         raise ConfidenceDatasetError(f"unexpected field for task: {unexpected[0]}")
+
+
+def _validate_row_task_type(row: Mapping[str, Any], *, task_type: TaskType) -> None:
+    value = row.get("task_type")
+    if value is None:
+        return
+    if value != task_type:
+        raise ConfidenceDatasetError("task_type field must match requested task_type")
 
 
 def _required_text(row: Mapping[str, Any], name: str) -> str:
