@@ -211,6 +211,77 @@ def test_cbdr_exports_are_submodule_only() -> None:
     assert not hasattr(root, "CBDRStrategy")
 
 
+def test_cbdr_from_artifacts_builds_estimators_with_hf_options(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    calls: list[dict[str, object]] = []
+    base_estimator = FakeEstimator(
+        task_type="query_answerability_confidence",
+        scores=[0.9],
+    )
+    context_estimator = FakeEstimator(
+        task_type="query_context_answerability_confidence",
+        scores=[0.5],
+    )
+
+    def fake_from_artifact(path: str | Path, **kwargs: object) -> FakeEstimator:
+        calls.append({"path": Path(path), **kwargs})
+        return base_estimator if len(calls) == 1 else context_estimator
+
+    monkeypatch.setattr(
+        "ranksmith.confidence.StructuralConfidenceEstimator.from_artifact",
+        fake_from_artifact,
+    )
+    generator = FakeGenerator(context_answers=[])
+
+    strategy = CBDRStrategy.from_artifacts(
+        base_artifact_path=tmp_path / "base.joblib",
+        context_artifact_path=tmp_path / "context.joblib",
+        base_metadata_path=tmp_path / "base.metadata.json",
+        context_metadata_path=tmp_path / "context.metadata.json",
+        answer_generator=generator,
+        skip_threshold=0.7,
+        max_document_chars=123,
+        hf_token="token",
+        cache_dir="/tmp/hf",
+        device="cpu",
+        local_files_only=True,
+        max_length=128,
+        allow_truncation=True,
+    )
+
+    assert strategy.base_estimator is base_estimator
+    assert strategy.context_estimator is context_estimator
+    assert strategy.answer_generator is generator
+    assert strategy.skip_threshold == 0.7
+    assert strategy.max_document_chars == 123
+    assert calls == [
+        {
+            "path": tmp_path / "base.joblib",
+            "metadata_path": tmp_path / "base.metadata.json",
+            "task_type": "query_answerability_confidence",
+            "hf_token": "token",
+            "cache_dir": "/tmp/hf",
+            "device": "cpu",
+            "local_files_only": True,
+            "max_length": 128,
+            "allow_truncation": True,
+        },
+        {
+            "path": tmp_path / "context.joblib",
+            "metadata_path": tmp_path / "context.metadata.json",
+            "task_type": "query_context_answerability_confidence",
+            "hf_token": "token",
+            "cache_dir": "/tmp/hf",
+            "device": "cpu",
+            "local_files_only": True,
+            "max_length": 128,
+            "allow_truncation": True,
+        },
+    ]
+
+
 def test_cbdr_empty_documents_returns_empty_without_calls() -> None:
     generator = FakeGenerator(context_answers=[])
     strategy = _strategy(generator=generator)

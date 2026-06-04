@@ -31,11 +31,14 @@ src/ranksmith/
     __init__.py            # public provider exports
     _azure.py              # Azure OpenAI implementation
     _stubs.py              # unimplemented provider stubs
+  integrations/
+    __init__.py            # public runtime helper exports
+    _azure_answer_generator.py
   _providers.py            # backward-compatible re-export layer
 ```
 
-외부 사용자는 root import 또는 `ranksmith.strategies`, `ranksmith.providers`의 public export를 사용한다.
-`strategies/_*.py`, `providers/_*.py`는 내부 구현 모듈로 취급한다.
+외부 사용자는 root import 또는 `ranksmith.strategies`, `ranksmith.providers`, `ranksmith.integrations`의 public export를 사용한다.
+`strategies/_*.py`, `providers/_*.py`, `integrations/_*.py`는 내부 구현 모듈로 취급한다.
 
 ## ModelProvider
 실제 SDK 호출은 Azure OpenAI만 구현한다.
@@ -43,6 +46,20 @@ OpenAI, Anthropic, Gemini provider는 향후 구현을 위한 public stub이며 
 
 Provider는 `ModelRequest`를 받아 `ModelResponse`를 반환한다.
 Provider는 ranking 도메인 prompt의 의미를 알지 않는다.
+
+## Integrations
+`ranksmith.integrations`는 closed model runtime helper layer다.
+Strategy나 Algorithm을 추가하지 않고, 기존 Strategy가 필요로 하는 외부 hook을 공식 조립 경로로 제공한다.
+
+현재 범위:
+- `AzureAnswerGenerator`: Azure OpenAI JSON answer generation helper
+- confidence generation과 같은 no-answer sentinel prompt contract
+- root import가 아닌 `ranksmith.integrations` submodule export
+
+제외:
+- async answer generation
+- non-Azure provider implementation
+- scorer training
 
 ## ModelClient
 

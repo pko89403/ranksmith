@@ -23,6 +23,9 @@ from ._common import validate_documents_max_chars, validate_top_k
 ConfidenceGainAlgorithm = Literal["confidence_gain"]
 QUERY_ANSWERABILITY_TASK = "query_answerability_confidence"
 QUERY_CONTEXT_ANSWERABILITY_TASK = "query_context_answerability_confidence"
+AnswerabilityConfidenceInput = (
+    QueryAnswerabilityConfidenceInput | QueryContextAnswerabilityConfidenceInput
+)
 
 
 class AnswerGenerator(Protocol):
@@ -35,7 +38,10 @@ class ConfidenceEstimator(Protocol):
     @property
     def task_type(self) -> str: ...
 
-    def score(self, item: object) -> StructuralConfidenceResult: ...
+    def score(
+        self,
+        item: AnswerabilityConfidenceInput,
+    ) -> StructuralConfidenceResult: ...
 
 
 @dataclass(frozen=True)
