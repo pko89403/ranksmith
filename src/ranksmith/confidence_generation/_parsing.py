@@ -34,12 +34,23 @@ def _parse_json_object(content: str) -> Mapping[str, object]:
     if content == "":
         raise ConfidenceGenerationParseError("model output must not be empty")
     try:
-        value: Any = json.loads(content)
+        value: Any = json.loads(content, object_pairs_hook=_reject_duplicate_keys)
     except json.JSONDecodeError as exc:
         raise ConfidenceGenerationParseError("model output must be valid JSON") from exc
     if not isinstance(value, Mapping):
         raise ConfidenceGenerationParseError("model output must be a JSON object")
     return cast(Mapping[str, object], value)
+
+
+def _reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    data: dict[str, object] = {}
+    for key, value in pairs:
+        if key in data:
+            raise ConfidenceGenerationParseError(
+                f"model output has duplicate field: {key}"
+            )
+        data[key] = value
+    return data
 
 
 def _require_exact_keys(data: Mapping[str, object], expected: set[str]) -> None:
