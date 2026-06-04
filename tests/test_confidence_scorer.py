@@ -8,7 +8,7 @@ from types import ModuleType
 
 import pytest
 
-from ranksmith.confidence import ConfidenceArtifactError, ScorerMetadata
+from ranksmith.confidence import ConfidenceArtifactError, ScorerMetadata, TaskType
 from ranksmith.confidence._scorer import (
     ARTIFACT_SCHEMA_VERSION,
     JoblibScorerWrapper,
@@ -131,6 +131,33 @@ def test_validate_scorer_metadata_accepts_matching_metadata() -> None:
         tokenizer_name="bert-base-uncased",
         tokenizer_revision=None,
         task_type="answer_confidence",
+        max_length=256,
+        input_template_version="structural-template-v1",
+        feature_schema_version="structural-v1",
+        feature_dim=70,
+    )
+
+
+@pytest.mark.parametrize(
+    "task_type",
+    [
+        "query_answerability_confidence",
+        "query_context_answerability_confidence",
+    ],
+)
+def test_metadata_parser_and_validator_accept_answerability_task_types(
+    task_type: TaskType,
+) -> None:
+    parsed = metadata_from_dict(metadata_dict(task_type=task_type))
+
+    assert parsed.task_type == task_type
+    validate_scorer_metadata(
+        parsed,
+        encoder_name="bert-base-uncased",
+        encoder_revision=None,
+        tokenizer_name="bert-base-uncased",
+        tokenizer_revision=None,
+        task_type=task_type,
         max_length=256,
         input_template_version="structural-template-v1",
         feature_schema_version="structural-v1",
