@@ -7,7 +7,7 @@
   - `docs/specs/spec_structural_confidence.md`
   - `docs/specs/spec_confidence_training_pipeline.md`
   - `docs/specs/spec_confidence_runtime_readiness.md`
-- **상태**: `[x] Draft` | `[ ] In Progress` | `[ ] Completed`
+- **상태**: `[ ] Draft` | `[ ] In Progress` | `[x] Completed`
 
 기존 `ranksmith.confidence_training`은 이미 생성된 canonical JSONL만 학습한다.
 이번 기능은 그 앞 단계인 **closed model generation**을 별도 utility layer로 추가한다.
@@ -697,24 +697,24 @@ UV_NATIVE_TLS=true ./scripts/verify.sh
 - [x] 사용자 spec review 및 최종 승인
 
 ### Phase 2: 로직 구현 (Implementation)
-- [ ] `src/ranksmith/confidence_generation/_errors.py`: generation error hierarchy 구현
-- [ ] `src/ranksmith/confidence_generation/_types.py`: config/result/raw sample dataclass 구현
-- [ ] `src/ranksmith/confidence_generation/_io.py`: JSONL load/write/resume helper 구현
-- [ ] `src/ranksmith/confidence_generation/_prompts.py`: answer/relevance prompt builder 구현
-- [ ] `src/ranksmith/confidence_generation/_parsing.py`: strict output parser 구현
-- [ ] `src/ranksmith/confidence_generation/_labeling.py`: answer match/relevance truth helper 구현
-- [ ] `src/ranksmith/confidence_generation/_pipeline.py`: public generation functions 구현
-- [ ] `src/ranksmith/confidence_generation/__init__.py`: submodule public export 구현
+- [x] `src/ranksmith/confidence_generation/_errors.py`: generation error hierarchy 구현
+- [x] `src/ranksmith/confidence_generation/_types.py`: config/result/raw sample dataclass 구현
+- [x] `src/ranksmith/confidence_generation/_io.py`: JSONL load/write/resume helper 구현
+- [x] `src/ranksmith/confidence_generation/_prompts.py`: answer/relevance prompt builder 구현
+- [x] `src/ranksmith/confidence_generation/_parsing.py`: strict output parser 구현
+- [x] `src/ranksmith/confidence_generation/_labeling.py`: answer match/relevance truth helper 구현
+- [x] `src/ranksmith/confidence_generation/_pipeline.py`: public generation functions 구현
+- [x] `src/ranksmith/confidence_generation/__init__.py`: submodule public export 구현
 
 ### Phase 3: 검증 (Verification)
-- [ ] `tests/test_confidence_generation_io.py`: raw/canonical JSONL IO 테스트 추가
-- [ ] `tests/test_confidence_generation_parsing.py`: model output parser 테스트 추가
-- [ ] `tests/test_confidence_generation_labeling.py`: answer/relevance label 테스트 추가
-- [ ] `tests/test_confidence_generation_pipeline.py`: provider fake 기반 end-to-end 테스트 추가
-- [ ] `tests/test_confidence_generation_api.py`: submodule export/root non-export 테스트 추가
-- [ ] `./scripts/verify.sh` 통과 확인
+- [x] `tests/test_confidence_generation_io.py`: raw/canonical JSONL IO 테스트 추가
+- [x] `tests/test_confidence_generation_parsing.py`: model output parser 테스트 추가
+- [x] `tests/test_confidence_generation_labeling.py`: answer/relevance label 테스트 추가
+- [x] `tests/test_confidence_generation_pipeline.py`: provider fake 기반 end-to-end 테스트 추가
+- [x] `tests/test_confidence_generation_api.py`: submodule export/root non-export 테스트 추가
+- [x] `./scripts/verify.sh` 통과 확인
 
 ### Phase 4: 완료 및 정리
-- [ ] `docs/wiki/02_architecture.md`: confidence generation layer 추가
-- [ ] `README.md` / `README.ko.md`: 구현된 public submodule 설명 동기화
-- [ ] 본 문서 상태를 `Completed`로 변경
+- [x] `docs/wiki/02_architecture.md`: confidence generation layer 추가
+- [x] `README.md` / `README.ko.md`: 구현된 public submodule 설명 동기화
+- [x] 본 문서 상태를 `Completed`로 변경

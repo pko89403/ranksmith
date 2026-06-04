@@ -118,6 +118,20 @@ v1 지원 algorithm:
 - CLI
 - reranking Strategy 또는 Algorithm
 
+`ranksmith.confidence_generation`은 closed model output을 생성해 confidence training canonical JSONL로 저장하는 utility layer다.
+
+현재 범위:
+- answer-oriented raw JSONL -> `answer_confidence` canonical JSONL
+- relevance-oriented raw JSONL -> `judgment_confidence` canonical JSONL
+- sync closed model call
+- resume 가능한 JSONL output
+
+제외:
+- async generation
+- dataset adapter
+- CLI
+- runtime reranking Strategy 또는 Algorithm
+
 ## LLM 응답 계약
 Listwise JSON permutation:
 

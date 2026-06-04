@@ -313,6 +313,10 @@ worker thread들이 공유하므로 thread-safe backend에서만 `max_workers>1`
 합니다. 첫 worker error에서 pending work를 취소하지만, 이미 시작된 Python thread는
 background에서 완료될 수 있습니다.
 
+`ranksmith.confidence_generation`은 raw answer/relevance 예시에 대해 closed
+model을 호출해 confidence training용 supervised canonical JSONL을 생성할 수
+있습니다. 이 모듈은 reranking Strategy가 아니라 데이터 생성 utility입니다.
+
 ### compatible confidence scorer 학습
 
 `ranksmith.confidence_training`은 supervised canonical JSONL에서 Phase 1 compatible

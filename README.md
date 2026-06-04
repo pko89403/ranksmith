@@ -318,6 +318,10 @@ encoder and scorer instances across worker threads, so use `max_workers>1` only
 with thread-safe backends. It cancels pending work on the first worker error,
 but Python threads that have already started may finish in the background.
 
+`ranksmith.confidence_generation` can create supervised canonical JSONL for
+confidence training by calling a closed model over raw answer or relevance
+examples. It is a data-generation utility, not a reranking Strategy.
+
 ### Training a compatible confidence scorer
 
 `ranksmith.confidence_training` can train a Phase 1-compatible scorer artifact
