@@ -9,7 +9,7 @@
   - `docs/specs/spec_confidence_runtime_readiness.md`
   - `docs/specs/spec_confidence_training_pipeline.md`
   - `docs/specs/spec_confidence_generation_pipeline.md`
-- **상태**: `[x] Draft` | `[ ] In Progress` | `[ ] Completed`
+- **상태**: `[ ] Draft` | `[ ] In Progress` | `[x] Completed`
 
 이 스펙은 논문 원형을 그대로 재현하지 않는다.
 
@@ -389,27 +389,27 @@ uv run mypy src/ranksmith tests
 - [x] 스펙 문서(본 문서) 상의 의사 코드 설계 검토 및 확정
 
 ### Phase 2: Confidence task 확장
-- [ ] `src/ranksmith/confidence/_types.py`: query-only/contextual answerability input type 추가
-- [ ] `src/ranksmith/confidence/_templates.py`: 새 input template 추가
-- [ ] `src/ranksmith/confidence/_scorer.py`: metadata task validation 확장
-- [ ] `src/ranksmith/confidence/__init__.py`: submodule export 추가
-- [ ] `tests/test_confidence_*.py`: 새 task runtime tests 추가
+- [x] `src/ranksmith/confidence/_types.py`: query-only/contextual answerability input type 추가
+- [x] `src/ranksmith/confidence/_templates.py`: 새 input template 추가
+- [x] `src/ranksmith/confidence/_scorer.py`: metadata task validation 확장
+- [x] `src/ranksmith/confidence/__init__.py`: submodule export 추가
+- [x] `tests/test_confidence_*.py`: 새 task runtime tests 추가
 
 ### Phase 3: Generation/Training 확장
-- [ ] `src/ranksmith/confidence_generation/*`: answerability generation config/pipeline 추가
-- [ ] `src/ranksmith/confidence_training/*`: canonical schema/task validation 확장
-- [ ] `tests/test_confidence_generation_*.py`: 새 generation tests 추가
-- [ ] `tests/test_confidence_training_*.py`: 새 training tests 추가
+- [x] `src/ranksmith/confidence_generation/*`: answerability generation config/pipeline 추가
+- [x] `src/ranksmith/confidence_training/*`: canonical schema/task validation 확장
+- [x] `tests/test_confidence_generation_*.py`: 새 generation tests 추가
+- [x] `tests/test_confidence_training_*.py`: 새 training tests 추가
 
 ### Phase 4: Confidence gain Strategy
-- [ ] `src/ranksmith/strategies/_confidence_gain.py`: `ConfidenceGainStrategy` 구현
-- [ ] `src/ranksmith/strategies/__init__.py`: strategy export 추가
-- [ ] `tests/test_confidence_gain_strategy.py`: deterministic unit tests 추가
-- [ ] 필요 시 `tests/fixtures/reranking_smoke_fixture.jsonl` 기반 smoke test 추가
+- [x] `src/ranksmith/strategies/_confidence_gain.py`: `ConfidenceGainStrategy` 구현
+- [x] `src/ranksmith/strategies/__init__.py`: strategy export 추가
+- [x] `tests/test_confidence_gain_strategy.py`: deterministic unit tests 추가
+- [x] 필요 시 `tests/fixtures/reranking_smoke_fixture.jsonl` 기반 smoke test 추가/검토
 
 ### Phase 5: 문서 및 검증
-- [ ] `docs/wiki/02_architecture.md`: confidence gain strategy 위치 추가
-- [ ] `docs/wiki/04_references_index.md`: reference 상태 갱신
-- [ ] `README.md` / `README.ko.md`: benchmark 없는 usage 문서 추가
-- [ ] `./scripts/verify.sh` 스크립트를 통한 린트/타입/전체 테스트 통과 확인
-- [ ] 본 문서 최상단의 **상태**를 `Completed`로 변경
+- [x] `docs/wiki/02_architecture.md`: confidence gain strategy 위치 추가
+- [x] `docs/wiki/04_references_index.md`: reference 상태 갱신
+- [x] `README.md` / `README.ko.md`: benchmark 없는 usage 문서 추가
+- [x] `./scripts/verify.sh` 스크립트를 통한 린트/타입/전체 테스트 통과 확인
+- [x] 본 문서 최상단의 **상태**를 `Completed`로 변경

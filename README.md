@@ -14,8 +14,8 @@ documents.
 
 Highlights:
 
-- Built-in listwise RankGPT, pairwise PRP, tournament-style TourRank-r, and
-  uncertainty-aware AcuRank strategies
+- Built-in listwise RankGPT, pairwise PRP, tournament-style TourRank-r,
+  uncertainty-aware AcuRank, and confidence-gain strategies
 - Public strategy contracts for custom reranking methods
 - `ModelClient` / `ModelProvider` boundary for vendor-independent LLM calls
 - Strict JSON parsing and fast-fail error behavior
@@ -70,6 +70,7 @@ logic (Algorithm).
 | `tourrank_r`, `rounds=2` | `TourRankStrategy` | You want stronger quality than listwise on a moderate call budget. | More calls than RankGPT, much fewer than TourRank-10. |
 | `tourrank_r`, `rounds=10` | `TourRankStrategy` | You are doing quality-focused offline reranking, paper-style evaluation, or final reranking where latency is acceptable. | Highest call cost among built-in methods in normal use. |
 | `acurank` | `AcuRankStrategy` | You want adaptive listwise reranking that spends calls on uncertain candidates near the top-k boundary. | Uses TrueSkill state and may issue more calls than basic listwise reranking unless capped. |
+| `confidence_gain` | `ConfidenceGainStrategy` | You have trained query-only and query+context confidence scorers and want to rank documents by `Conf(Q+C)-Conf(Q)`. | Requires scorer artifacts and an answer generator hook. Runtime calls answer generation `N+1` times and confidence scoring `N+1` times for `N` documents. |
 | Custom strategy | `RerankStrategy` / `AsyncRerankStrategy` | You need deterministic business logic, a proprietary ranking process, or a new research method. | You own the ranking contract and validation behavior. |
 
 ### Applying a Strategy
@@ -318,9 +319,34 @@ encoder and scorer instances across worker threads, so use `max_workers>1` only
 with thread-safe backends. It cancels pending work on the first worker error,
 but Python threads that have already started may finish in the background.
 
+`ConfidenceGainStrategy` is a separate sync reranking Strategy that consumes
+two compatible confidence estimators and an answer generator hook:
+
+```python
+from ranksmith.confidence import StructuralConfidenceEstimator
+from ranksmith.strategies import ConfidenceGainStrategy
+
+base_estimator = StructuralConfidenceEstimator.from_artifact(
+    "query-answerability.joblib"
+)
+context_estimator = StructuralConfidenceEstimator.from_artifact(
+    "query-context-answerability.joblib"
+)
+
+strategy = ConfidenceGainStrategy(
+    base_estimator=base_estimator,
+    context_estimator=context_estimator,
+    answer_generator=my_answer_generator,
+)
+```
+
+It ranks by `Conf(Q+C)-Conf(Q)`. It does not implement CBDR retrieval skipping,
+async reranking, or scorer training.
+
 `ranksmith.confidence_generation` can create supervised canonical JSONL for
-confidence training by calling a closed model over raw answer or relevance
-examples. It is a data-generation utility, not a reranking Strategy.
+confidence training by calling a closed model over raw answer, relevance, or
+answerability examples. It is a data-generation utility, not a reranking
+Strategy.
 
 ### Training a compatible confidence scorer
 
