@@ -10,18 +10,62 @@ from typing import IO, Any, Literal
 from ranksmith.confidence_generation._errors import ConfidenceGenerationInputError
 from ranksmith.confidence_generation._types import (
     AnswerGenerationSample,
+    QueryAnswerabilityGenerationSample,
+    QueryContextAnswerabilityGenerationSample,
     RelevanceGenerationSample,
 )
 
-TaskType = Literal["answer_confidence", "judgment_confidence"]
+TaskType = Literal[
+    "answer_confidence",
+    "judgment_confidence",
+    "query_answerability_confidence",
+    "query_context_answerability_confidence",
+]
 
 _ANSWER_REQUIRED = ("id", "query", "context", "gold_answer")
 _ANSWER_ALLOWED = {*_ANSWER_REQUIRED, "source", "group_id", "metadata"}
+_QUERY_ANSWERABILITY_REQUIRED = ("id", "query", "gold_answer")
+_QUERY_ANSWERABILITY_ALLOWED = {
+    *_QUERY_ANSWERABILITY_REQUIRED,
+    "source",
+    "group_id",
+    "metadata",
+}
+_QUERY_CONTEXT_ANSWERABILITY_REQUIRED = ("id", "query", "context", "gold_answer")
+_QUERY_CONTEXT_ANSWERABILITY_ALLOWED = {
+    *_QUERY_CONTEXT_ANSWERABILITY_REQUIRED,
+    "source",
+    "group_id",
+    "metadata",
+}
 _RELEVANCE_REQUIRED = ("id", "query", "document", "relevance_label")
 _RELEVANCE_ALLOWED = {*_RELEVANCE_REQUIRED, "source", "group_id", "metadata"}
 _ANSWER_OUTPUT_REQUIRED = ("id", "context", "answer", "label")
 _ANSWER_OUTPUT_ALLOWED = {
     *_ANSWER_OUTPUT_REQUIRED,
+    "gold_answer",
+    "source",
+    "group_id",
+    "metadata",
+}
+_QUERY_ANSWERABILITY_OUTPUT_REQUIRED = ("id", "task_type", "query", "answer", "label")
+_QUERY_ANSWERABILITY_OUTPUT_ALLOWED = {
+    *_QUERY_ANSWERABILITY_OUTPUT_REQUIRED,
+    "gold_answer",
+    "source",
+    "group_id",
+    "metadata",
+}
+_QUERY_CONTEXT_ANSWERABILITY_OUTPUT_REQUIRED = (
+    "id",
+    "task_type",
+    "query",
+    "context",
+    "answer",
+    "label",
+)
+_QUERY_CONTEXT_ANSWERABILITY_OUTPUT_ALLOWED = {
+    *_QUERY_CONTEXT_ANSWERABILITY_OUTPUT_REQUIRED,
     "gold_answer",
     "source",
     "group_id",
@@ -55,6 +99,63 @@ def load_answer_generation_samples(
         try:
             _validate_keys(row, required=_ANSWER_REQUIRED, allowed=_ANSWER_ALLOWED)
             sample = AnswerGenerationSample(
+                id=_required_text(row, "id"),
+                query=_required_text(row, "query"),
+                context=_bounded_text(row, "context", max_context_chars),
+                gold_answer=_gold_answer(row["gold_answer"]),
+                source=_optional_text(row.get("source"), "source"),
+                group_id=_optional_text(row.get("group_id"), "group_id"),
+                metadata=_metadata(row.get("metadata")),
+            )
+        except ConfidenceGenerationInputError as exc:
+            raise ConfidenceGenerationInputError(f"line {line_number}: {exc}") from exc
+        _check_duplicate(sample.id, seen)
+        samples.append(sample)
+    return samples
+
+
+def load_query_answerability_generation_samples(
+    path: str | Path,
+) -> list[QueryAnswerabilityGenerationSample]:
+    samples: list[QueryAnswerabilityGenerationSample] = []
+    seen: set[str] = set()
+    for line_number, row in _read_jsonl_objects(Path(path)):
+        try:
+            _validate_keys(
+                row,
+                required=_QUERY_ANSWERABILITY_REQUIRED,
+                allowed=_QUERY_ANSWERABILITY_ALLOWED,
+            )
+            sample = QueryAnswerabilityGenerationSample(
+                id=_required_text(row, "id"),
+                query=_required_text(row, "query"),
+                gold_answer=_gold_answer(row["gold_answer"]),
+                source=_optional_text(row.get("source"), "source"),
+                group_id=_optional_text(row.get("group_id"), "group_id"),
+                metadata=_metadata(row.get("metadata")),
+            )
+        except ConfidenceGenerationInputError as exc:
+            raise ConfidenceGenerationInputError(f"line {line_number}: {exc}") from exc
+        _check_duplicate(sample.id, seen)
+        samples.append(sample)
+    return samples
+
+
+def load_query_context_answerability_generation_samples(
+    path: str | Path,
+    *,
+    max_context_chars: int,
+) -> list[QueryContextAnswerabilityGenerationSample]:
+    samples: list[QueryContextAnswerabilityGenerationSample] = []
+    seen: set[str] = set()
+    for line_number, row in _read_jsonl_objects(Path(path)):
+        try:
+            _validate_keys(
+                row,
+                required=_QUERY_CONTEXT_ANSWERABILITY_REQUIRED,
+                allowed=_QUERY_CONTEXT_ANSWERABILITY_ALLOWED,
+            )
+            sample = QueryContextAnswerabilityGenerationSample(
                 id=_required_text(row, "id"),
                 query=_required_text(row, "query"),
                 context=_bounded_text(row, "context", max_context_chars),
@@ -294,7 +395,7 @@ def _validate_output_task(row: Mapping[str, Any], task_type: TaskType) -> str:
         _label(row["label"])
         if "gold_answer" in row:
             _gold_answer(row["gold_answer"])
-    else:
+    elif task_type == "judgment_confidence":
         _validate_keys(
             row,
             required=_JUDGMENT_OUTPUT_REQUIRED,
@@ -306,6 +407,33 @@ def _validate_output_task(row: Mapping[str, Any], task_type: TaskType) -> str:
         _judgment(row["judgment"])
         _label(row["label"])
         _relevance_label(row["relevance_label"])
+    elif task_type == "query_answerability_confidence":
+        _validate_keys(
+            row,
+            required=_QUERY_ANSWERABILITY_OUTPUT_REQUIRED,
+            allowed=_QUERY_ANSWERABILITY_OUTPUT_ALLOWED,
+        )
+        _validate_task_type_field(row, task_type)
+        row_id = _required_text(row, "id")
+        _required_text(row, "query")
+        _required_text(row, "answer")
+        _label(row["label"])
+        if "gold_answer" in row:
+            _gold_answer(row["gold_answer"])
+    else:
+        _validate_keys(
+            row,
+            required=_QUERY_CONTEXT_ANSWERABILITY_OUTPUT_REQUIRED,
+            allowed=_QUERY_CONTEXT_ANSWERABILITY_OUTPUT_ALLOWED,
+        )
+        _validate_task_type_field(row, task_type)
+        row_id = _required_text(row, "id")
+        _required_text(row, "query")
+        _required_text(row, "context")
+        _required_text(row, "answer")
+        _label(row["label"])
+        if "gold_answer" in row:
+            _gold_answer(row["gold_answer"])
 
     if "source" in row:
         _required_text(row, "source")
@@ -314,6 +442,14 @@ def _validate_output_task(row: Mapping[str, Any], task_type: TaskType) -> str:
     if "metadata" in row:
         _metadata_present(row["metadata"])
     return row_id
+
+
+def _validate_task_type_field(row: Mapping[str, Any], task_type: TaskType) -> None:
+    value = row["task_type"]
+    if value != task_type:
+        raise ConfidenceGenerationInputError(
+            f"task_type must be {task_type!r} for requested task"
+        )
 
 
 def _label(value: object) -> int:
