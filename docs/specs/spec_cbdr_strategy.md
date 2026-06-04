@@ -83,12 +83,18 @@ class AnswerGenerator(Protocol):
     def answer_with_context(self, query: str, context: str) -> str: ...
 ```
 
+`model_client`는 `RerankStrategy` protocol 때문에 `rerank()` 인자로 받지만 사용하지 않는다.
+answer generation은 `answer_generator` 책임이다.
+CBDRStrategy는 `model_client` capability를 검사하지 않는다.
+
 ### 출력 (Outputs)
 
 #### skip path
 
 `Conf(Q) >= skip_threshold`이면 context answer generation과 context confidence scoring을 수행하지 않는다.
 입력 documents의 original order를 보존해 `RerankResult`를 반환한다.
+rank는 반환 결과 기준 1-based로 부여한다.
+original_index는 입력 documents 기준 0-based를 보존한다.
 
 ```python
 {
@@ -105,6 +111,8 @@ class AnswerGenerator(Protocol):
 #### rerank path
 
 `Conf(Q) < skip_threshold`이면 confidence gain으로 정렬한다.
+rank는 반환 결과 기준 1-based로 부여한다.
+original_index는 입력 documents 기준 0-based를 보존한다.
 
 ```python
 {
@@ -122,17 +130,25 @@ class AnswerGenerator(Protocol):
 - hidden state, logits, attention에 직접 접근하지 않는다.
 - runtime Strategy는 scorer artifact를 학습하지 않는다.
 - `Conf(Q)`는 query당 한 번만 계산한다.
+- 빈 documents 또는 `top_k == 0`이면 base answer generation과 confidence scoring을 수행하지 않고 `[]`를 반환한다.
 - skip path에서는 `answer_with_context()`와 `context_estimator.score()`를 호출하지 않는다.
 - skip path에서는 document text를 context로 읽지 않으므로 `max_document_chars` 검증도 수행하지 않는다.
 - rerank path에서는 문서별로 `Conf(Q+C_i)`를 계산한다.
 - skip 여부를 metadata에 반드시 남긴다.
 - skip path에서 original order를 조용히 수정하지 않는다.
 - rerank path에서 gain 동점은 original index 오름차순으로 안정 정렬한다.
-- `top_k`는 skip/rerank path 모두 최종 결과에 slicing으로만 적용한다.
+- `top_k > 0`은 skip/rerank path 모두 최종 결과에 slicing으로만 적용한다.
 - score는 finite float이며 `[0, 1]` 범위여야 한다.
 - `skip_threshold`는 finite float이며 `[0, 1]` 범위여야 한다.
+- bool은 numeric score 또는 `skip_threshold`로 인정하지 않는다.
+- `skip_threshold=0.0`이면 non-empty documents에서 항상 skip된다.
+- `skip_threshold=1.0`이면 `base_confidence == 1.0`일 때만 skip된다.
+- skip path는 answer generation 1회와 confidence scoring 1회를 수행한다.
+- rerank path는 문서 수가 `N`이면 answer generation `N + 1`회와 confidence scoring `N + 1`회를 수행한다.
+- rerank path에서는 `top_k`가 작아도 모든 문서를 scoring한 뒤 slicing한다.
 - confidence scoring 실패 시 기존 ranking으로 fallback하지 않는다.
 - rerank path에서 `max_document_chars`를 초과하면 `DocumentTooLongError`로 실패한다.
+- metadata에 answer text, scorer artifact path, HuggingFace token, raw hidden state, raw feature vector를 넣지 않는다.
 - root import 확장은 사용자 승인 없이는 하지 않는다.
 
 ## 3. 상세 설계 (Architecture & Design)
@@ -156,7 +172,7 @@ class AnswerGenerator(Protocol):
 cbdr_rerank(query, documents, top_k):
   validate query, top_k
 
-  if documents is empty:
+  if documents is empty or top_k == 0:
     return []
 
   base_answer = answer_generator.answer_query(query)
@@ -171,6 +187,7 @@ cbdr_rerank(query, documents, top_k):
     )
     if top_k is not None:
       results = results[:top_k]
+    assign rank from 1 over returned results
     return results
 
   validate document lengths
@@ -185,6 +202,7 @@ cbdr_rerank(query, documents, top_k):
   results = scored_results(scored)
   if top_k is not None:
     results = results[:top_k]
+  assign rank from 1 over returned results
   return results
 ```
 
@@ -229,6 +247,35 @@ Docs:
 
 ## 4. 재사용 및 모듈화 (Reusability & Modularization)
 
+### Metadata contract
+공통 confidence key:
+
+```python
+{
+    "base_confidence": float,
+    "context_confidence": float | None,
+    "confidence_gain": float | None,
+}
+```
+
+CBDR 전용 key:
+
+```python
+{
+    "strategy": "cbdr",
+    "algorithm": "cbdr",
+    "cbdr_skipped": bool,
+    "skip_threshold": float,
+}
+```
+
+metadata에는 다음 값을 넣지 않는다.
+- generated answer text
+- scorer artifact path
+- HuggingFace token
+- raw hidden state
+- raw structural feature vector
+
 ### 공통 컴포넌트 식별 (Shared Components)
 - `AnswerGenerator` protocol은 `ConfidenceGainStrategy`와 공유한다.
 - `ConfidenceEstimator` protocol은 `ConfidenceGainStrategy`와 공유한다.
@@ -261,10 +308,11 @@ _cbdr.py
 ## 5. 에러 핸들링 (Error Handling)
 - 빈 query: `RerankInputError`
 - 빈 documents: `[]`
+- `top_k == 0`: `[]`
 - `top_k < 0`: `RerankInputError`
-- `skip_threshold`가 finite probability가 아님: `ValueError`
+- `skip_threshold`가 finite probability가 아니거나 bool이면 `ValueError`
 - `max_document_chars < 1`: `ValueError`
-- document length 초과: `DocumentTooLongError`
+- low-confidence rerank path에서 document length 초과: `DocumentTooLongError`
 - base/context estimator task mismatch: `RerankInputError`
 - answer generator가 빈 answer 반환: `RerankProviderError`
 - answer generator가 예외 발생: `RerankProviderError`로 래핑
@@ -278,7 +326,13 @@ _cbdr.py
 ## 6. 테스트 계획 (Test Plan)
 
 ### 성공 케이스 (Happy Paths)
+- 빈 documents이면 `[]` 반환.
+- 빈 documents에서 `answer_query()`와 estimator가 호출되지 않음.
+- `top_k == 0`이면 `[]` 반환.
+- `top_k == 0`에서 `answer_query()`와 estimator가 호출되지 않음.
 - `base_confidence >= skip_threshold`이면 original order 보존.
+- skip path rank는 반환 결과 기준 1-based.
+- skip path original_index는 입력 documents 기준 0-based.
 - skip path에서 `answer_with_context()`가 호출되지 않음.
 - skip path에서 `context_estimator.score()`가 호출되지 않음.
 - skip path metadata에 `cbdr_skipped=True` 기록.
@@ -287,10 +341,14 @@ _cbdr.py
 - `base_confidence < skip_threshold`이면 confidence gain으로 rerank.
 - rerank path metadata에 `cbdr_skipped=False`, base/context/gain 기록.
 - gain 동점 시 original index 유지.
+- rerank path에서 `top_k`가 작아도 모든 문서를 scoring한 뒤 slicing.
+- `skip_threshold=0.0`이면 non-empty documents에서 skip.
+- `skip_threshold=1.0`이면 `base_confidence == 1.0`일 때만 skip.
 - `AzureOpenAIReranker` facade에서 `CBDRStrategy` 예외 surface가 built-in strategy와 동일함.
 
 ### 엣지/실패 케이스 (Edge & Failure Cases)
 - 잘못된 `skip_threshold` 실패.
+- bool `skip_threshold` 실패.
 - 잘못된 estimator task type 실패.
 - 빈 query 실패.
 - low-confidence rerank path에서만 긴 document 실패.
@@ -302,7 +360,8 @@ _cbdr.py
 
 ### 공통 Reranking Smoke/Benchmark
 - fake answer generator와 fake confidence estimator로 deterministic smoke test를 추가한다.
-- artifact load 기반 E2E smoke를 추가해 `from_artifact()` -> `CBDRStrategy` -> `AzureOpenAIReranker` 경로를 검증한다.
+- artifact load 기반 skip path E2E smoke를 추가해 `from_artifact()` -> `CBDRStrategy` -> `AzureOpenAIReranker` 경로를 검증한다.
+- artifact load 기반 rerank path E2E smoke를 추가해 `from_artifact()` -> `CBDRStrategy` -> `AzureOpenAIReranker` 경로를 검증한다.
 - 실제 closed model live test는 credential/cost 때문에 opt-in으로 분리한다.
 - README benchmark 수치는 추가하지 않는다.
 
@@ -333,7 +392,8 @@ uv run pytest tests/test_cbdr_strategy.py tests/test_confidence_gain_strategy.py
 - [ ] `tests/test_cbdr_strategy.py`: rerank path 정상 케이스 추가
 - [ ] `tests/test_cbdr_strategy.py`: 엣지/실패 케이스 추가
 - [ ] `tests/test_cbdr_strategy.py`: Azure facade smoke 추가
-- [ ] `tests/test_cbdr_strategy.py`: artifact load 기반 E2E smoke 추가
+- [ ] `tests/test_cbdr_strategy.py`: artifact load 기반 skip path E2E smoke 추가
+- [ ] `tests/test_cbdr_strategy.py`: artifact load 기반 rerank path E2E smoke 추가
 - [ ] `./scripts/verify.sh` 스크립트를 통한 린트/타입/전체 테스트 통과 확인
 
 ### Phase 4: 완료 및 정리
