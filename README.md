@@ -71,6 +71,7 @@ logic (Algorithm).
 | `tourrank_r`, `rounds=10` | `TourRankStrategy` | You are doing quality-focused offline reranking, paper-style evaluation, or final reranking where latency is acceptable. | Highest call cost among built-in methods in normal use. |
 | `acurank` | `AcuRankStrategy` | You want adaptive listwise reranking that spends calls on uncertain candidates near the top-k boundary. | Uses TrueSkill state and may issue more calls than basic listwise reranking unless capped. |
 | `confidence_gain` | `ConfidenceGainStrategy` | You have trained query-only and query+context confidence scorers and want to rank documents by `Conf(Q+C)-Conf(Q)`. | Requires scorer artifacts and an answer generator hook. Runtime calls answer generation `N+1` times and confidence scoring `N+1` times for `N` documents. |
+| `cbdr` | `CBDRStrategy` | You have trained answerability confidence scorers and want to skip context reranking when `Conf(Q)` is already high, otherwise rerank by confidence gain. | Requires scorer artifacts and an answer generator hook. Skip path uses 1 answer generation call and 1 confidence score; rerank path uses `N+1` answer generations and `N+1` confidence scores. |
 | Custom strategy | `RerankStrategy` / `AsyncRerankStrategy` | You need deterministic business logic, a proprietary ranking process, or a new research method. | You own the ranking contract and validation behavior. |
 
 ### Applying a Strategy
@@ -342,6 +343,33 @@ strategy = ConfidenceGainStrategy(
 
 It ranks by `Conf(Q+C)-Conf(Q)`. It does not implement CBDR retrieval skipping,
 async reranking, or scorer training.
+
+`CBDRStrategy` is a sync reranking-side router. It does not integrate with a
+retriever or stop upstream retrieval calls; it only skips context reranking once
+documents have already been passed to `rerank(...)`.
+
+```python
+from ranksmith import AzureOpenAIReranker
+from ranksmith.strategies import CBDRStrategy
+
+strategy = CBDRStrategy(
+    base_estimator=query_estimator,
+    context_estimator=query_context_estimator,
+    answer_generator=answer_generator,
+    skip_threshold=0.8,
+)
+
+reranker = AzureOpenAIReranker(
+    model_client=model_client,
+    strategy=strategy,
+)
+
+results = reranker.rerank(query, documents)
+```
+
+When `Conf(Q) >= skip_threshold`, results preserve original document order and
+include `metadata["cbdr_skipped"] == True`. When `Conf(Q) < skip_threshold`, all
+documents are scored before `top_k` slicing.
 
 `ranksmith.confidence_generation` can create supervised canonical JSONL for
 confidence training by calling a closed model over raw answer, relevance, or

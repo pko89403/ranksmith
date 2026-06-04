@@ -65,6 +65,7 @@ v1 공개 strategy:
 - `AcuRankStrategy`
 - `AsyncAcuRankStrategy`
 - `ConfidenceGainStrategy`
+- `CBDRStrategy`
 
 공식 확장 지점:
 - 새 reranking 방법은 새 Strategy 클래스로 추가한다.
@@ -84,6 +85,7 @@ v1 지원 algorithm:
 - `tourrank_r`
 - `acurank`
 - `confidence_gain`
+- `cbdr`
 
 향후 algorithm 후보:
 - `Pointwise`
@@ -111,7 +113,10 @@ v1 지원 algorithm:
 
 `ConfidenceGainStrategy`는 confidence utility layer 자체가 아니라, `ranksmith.confidence`의 query-only 및 query+context answerability scorer를 소비하는 별도 sync Strategy다.
 `Conf(Q+C)-Conf(Q)`를 계산해 confidence gain 내림차순으로 문서를 정렬한다.
-CBDR retrieval skip과 async confidence gain reranking은 아직 구현하지 않는다.
+
+`CBDRStrategy`는 `Conf(Q)`가 `skip_threshold` 이상이면 context reranking을 skip하고 original order를 보존한다.
+`Conf(Q)`가 threshold보다 낮으면 `Conf(Q+C)-Conf(Q)` confidence gain으로 문서를 정렬한다.
+true pre-retrieval skip, retriever integration, async CBDR은 구현하지 않는다.
 
 `ranksmith.confidence_training`은 Phase 1 compatible scorer artifact를 만들기 위한 별도 training utility layer다.
 
