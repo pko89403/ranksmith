@@ -1,4 +1,5 @@
 from ranksmith.strategies._acurank import AcuRankStrategy, AsyncAcuRankStrategy
+from ranksmith.strategies._cbdr import CBDRStrategy
 from ranksmith.strategies._confidence_gain import (
     AnswerGenerator,
     ConfidenceEstimator,
@@ -22,6 +23,7 @@ __all__ = [
     "AsyncPairwiseStrategy",
     "AsyncSetwiseStrategy",
     "AsyncTourRankStrategy",
+    "CBDRStrategy",
     "ConfidenceEstimator",
     "ConfidenceGainResult",
     "ConfidenceGainStrategy",
