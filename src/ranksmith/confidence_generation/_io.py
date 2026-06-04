@@ -166,10 +166,9 @@ def _required_text(row: Mapping[str, Any], name: str) -> str:
     value = row[name]
     if not isinstance(value, str):
         raise ConfidenceGenerationInputError(f"{name} must be a string")
-    stripped = value.strip()
-    if not stripped:
+    if not value.strip():
         raise ConfidenceGenerationInputError(f"{name} must not be empty")
-    return stripped
+    return value
 
 
 def _bounded_text(row: Mapping[str, Any], name: str, max_chars: int) -> str:
@@ -184,10 +183,9 @@ def _optional_text(value: object, name: str) -> str | None:
         return None
     if not isinstance(value, str):
         raise ConfidenceGenerationInputError(f"{name} must be a string")
-    stripped = value.strip()
-    if not stripped:
+    if not value.strip():
         raise ConfidenceGenerationInputError(f"{name} must not be empty")
-    return stripped
+    return value
 
 
 def _gold_answer(value: object) -> str | list[str]:

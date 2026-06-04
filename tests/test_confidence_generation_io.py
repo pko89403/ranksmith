@@ -145,6 +145,19 @@ def test_load_answer_generation_samples_rejects_too_long_context(
         load_answer_generation_samples(path, max_context_chars=4)
 
 
+def test_load_answer_generation_samples_uses_raw_context_length_guard(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "answer.jsonl"
+    _write_jsonl(
+        path,
+        [{"id": "a1", "query": "q", "context": " 12345 ", "gold_answer": "g"}],
+    )
+
+    with pytest.raises(ConfidenceGenerationInputError, match="context"):
+        load_answer_generation_samples(path, max_context_chars=5)
+
+
 def test_load_relevance_generation_samples_rejects_too_long_document(
     tmp_path: Path,
 ) -> None:
@@ -170,6 +183,43 @@ def test_duplicate_input_ids_fail(tmp_path: Path) -> None:
 
     with pytest.raises(ConfidenceGenerationInputError, match="duplicate id"):
         load_answer_generation_samples(path, max_context_chars=4000)
+
+
+def test_duplicate_input_ids_use_raw_id_and_preserve_id(tmp_path: Path) -> None:
+    path = tmp_path / "answer.jsonl"
+    _write_jsonl(
+        path,
+        [
+            {"id": " a1 ", "query": "q", "context": "c", "gold_answer": "g"},
+            {"id": "a1", "query": "q", "context": "c", "gold_answer": "g"},
+        ],
+    )
+
+    samples = load_answer_generation_samples(path, max_context_chars=4000)
+
+    assert [sample.id for sample in samples] == [" a1 ", "a1"]
+
+
+def test_source_and_group_id_preserve_surrounding_spaces(tmp_path: Path) -> None:
+    path = tmp_path / "answer.jsonl"
+    _write_jsonl(
+        path,
+        [
+            {
+                "id": "a1",
+                "query": "q",
+                "context": "c",
+                "gold_answer": "g",
+                "source": " source ",
+                "group_id": " group ",
+            }
+        ],
+    )
+
+    samples = load_answer_generation_samples(path, max_context_chars=4000)
+
+    assert samples[0].source == " source "
+    assert samples[0].group_id == " group "
 
 
 def test_metadata_must_have_string_keys_and_json_serializable_values(
