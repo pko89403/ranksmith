@@ -12,7 +12,10 @@
 
 논문 원형의 CBDR은 query-only confidence가 높으면 retrieval 자체를 skip한다.
 ranksmith는 retriever, indexer, vector search를 소유하지 않으므로 true pre-retrieval skip은 구현하지 않는다.
-대신 ranksmith 내부에서는 **reranking-side CBDR router**를 구현한다.
+이번 스펙은 **reranking-side CBDR router**만 구현한다.
+
+즉, 이미 documents가 전달된 `rerank()` 호출 안에서 context reranking을 skip할 수 있다.
+외부 retriever가 retrieval 호출 전에 사용할 query-only decision API는 이번 범위에 포함하지 않는다.
 
 핵심 목표:
 
@@ -43,6 +46,7 @@ else:
 - retriever integration.
 - vector search/indexing.
 - upstream retrieval 호출 자체를 중단하는 orchestration API.
+- query-only `should_retrieve()` helper.
 - async `CBDRStrategy`.
 - closed model provider 병렬 호출.
 - answer generation cache.
@@ -119,6 +123,7 @@ class AnswerGenerator(Protocol):
 - runtime Strategy는 scorer artifact를 학습하지 않는다.
 - `Conf(Q)`는 query당 한 번만 계산한다.
 - skip path에서는 `answer_with_context()`와 `context_estimator.score()`를 호출하지 않는다.
+- skip path에서는 document text를 context로 읽지 않으므로 `max_document_chars` 검증도 수행하지 않는다.
 - rerank path에서는 문서별로 `Conf(Q+C_i)`를 계산한다.
 - skip 여부를 metadata에 반드시 남긴다.
 - skip path에서 original order를 조용히 수정하지 않는다.
@@ -127,28 +132,29 @@ class AnswerGenerator(Protocol):
 - score는 finite float이며 `[0, 1]` 범위여야 한다.
 - `skip_threshold`는 finite float이며 `[0, 1]` 범위여야 한다.
 - confidence scoring 실패 시 기존 ranking으로 fallback하지 않는다.
-- `max_document_chars`를 초과하면 `DocumentTooLongError`로 실패한다.
+- rerank path에서 `max_document_chars`를 초과하면 `DocumentTooLongError`로 실패한다.
 - root import 확장은 사용자 승인 없이는 하지 않는다.
 
 ## 3. 상세 설계 (Architecture & Design)
 
 ### 동작 메커니즘
-1. query와 documents를 검증한다.
+1. query와 `top_k`를 검증한다.
 2. `answer_generator.answer_query(query)`로 base answer를 생성한다.
 3. `base_estimator.score(QueryAnswerabilityConfidenceInput(...))`로 `Conf(Q)`를 계산한다.
 4. `base_confidence >= skip_threshold`이면 skip path로 간다.
-5. skip path는 context 호출 없이 original order를 보존해 결과를 만든다.
+5. skip path는 document length 검증과 context 호출 없이 original order를 보존해 결과를 만든다.
 6. `base_confidence < skip_threshold`이면 rerank path로 간다.
-7. 문서별 `answer_with_context(query, document.text)`를 호출한다.
-8. 문서별 `Conf(Q+C_i)`를 계산한다.
-9. `gain_i = context_confidence_i - base_confidence`를 계산한다.
-10. gain 내림차순, original index 오름차순으로 정렬한다.
+7. rerank path에서 document length를 검증한다.
+8. 문서별 `answer_with_context(query, document.text)`를 호출한다.
+9. 문서별 `Conf(Q+C_i)`를 계산한다.
+10. `gain_i = context_confidence_i - base_confidence`를 계산한다.
+11. gain 내림차순, original index 오름차순으로 정렬한다.
 
 ### 의사 알고리즘 (Pseudo-algorithm)
 
 ```text
 cbdr_rerank(query, documents, top_k):
-  validate query, top_k, document lengths
+  validate query, top_k
 
   if documents is empty:
     return []
@@ -163,8 +169,11 @@ cbdr_rerank(query, documents, top_k):
       context_confidence=None,
       confidence_gain=None,
     )
-    return results[:top_k]
+    if top_k is not None:
+      results = results[:top_k]
+    return results
 
+  validate document lengths
   scored = []
   for each document with original_index:
     context_answer = answer_generator.answer_with_context(query, document.text)
@@ -173,7 +182,10 @@ cbdr_rerank(query, documents, top_k):
     scored.append(original_index, context, gain)
 
   scored = sort scored by (-gain, original_index)
-  return scored_results[:top_k]
+  results = scored_results(scored)
+  if top_k is not None:
+    results = results[:top_k]
+  return results
 ```
 
 ### 의사 코드 (Pseudo-code)
@@ -256,7 +268,9 @@ _cbdr.py
 - base/context estimator task mismatch: `RerankInputError`
 - answer generator가 빈 answer 반환: `RerankProviderError`
 - answer generator가 예외 발생: `RerankProviderError`로 래핑
-- confidence estimator score 실패: 기존 confidence/rerank error는 그대로 전파
+- direct `CBDRStrategy.rerank()`에서 confidence estimator의 기존 `RerankError`는 그대로 전파
+- direct `CBDRStrategy.rerank()`에서 confidence estimator의 unexpected exception은 그대로 전파
+- `AzureOpenAIReranker` facade에서 built-in strategy의 unexpected exception은 `RerankProviderError`로 래핑
 - confidence score가 finite probability가 아님: `RerankStrategyError`
 - gain이 finite float가 아님: `RerankStrategyError`
 - output ranking 보정 필요 상황: 조용히 보정하지 않고 실패
@@ -269,6 +283,7 @@ _cbdr.py
 - skip path에서 `context_estimator.score()`가 호출되지 않음.
 - skip path metadata에 `cbdr_skipped=True` 기록.
 - skip path에서 `top_k` slicing 적용.
+- skip path에서 긴 document가 있어도 `DocumentTooLongError`가 발생하지 않음.
 - `base_confidence < skip_threshold`이면 confidence gain으로 rerank.
 - rerank path metadata에 `cbdr_skipped=False`, base/context/gain 기록.
 - gain 동점 시 original index 유지.
@@ -278,7 +293,7 @@ _cbdr.py
 - 잘못된 `skip_threshold` 실패.
 - 잘못된 estimator task type 실패.
 - 빈 query 실패.
-- 긴 document 실패.
+- low-confidence rerank path에서만 긴 document 실패.
 - answer generator empty output 실패.
 - base confidence score 범위 밖 실패.
 - context confidence score 범위 밖 실패.
