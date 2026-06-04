@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+from typing import Any
+
 import pytest
 
+from ranksmith.confidence_generation import AnswerGenerationConfig
 from ranksmith.confidence_generation._pipeline import _call_provider
 from ranksmith.confidence_generation._prompts import (
     build_answer_prompt,
@@ -132,3 +137,166 @@ def test_call_provider_rejects_empty_content() -> None:
             user="user",
             on_usage=None,
         )
+
+
+def _write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
+    path.write_text(
+        "".join(json.dumps(row) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+
+
+def _read_jsonl(path: Path) -> list[dict[str, Any]]:
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+
+def test_generate_answer_confidence_dataset_writes_canonical_rows(
+    tmp_path: Path,
+) -> None:
+    from ranksmith.confidence_generation import generate_answer_confidence_dataset
+
+    input_path = tmp_path / "answer_input.jsonl"
+    output_path = tmp_path / "answer_output.jsonl"
+    _write_jsonl(
+        input_path,
+        [
+            {
+                "id": "a1",
+                "query": "Who?",
+                "context": "Nancy Travis played Karen.",
+                "gold_answer": ["nancy travis"],
+                "metadata": {"dataset": "unit"},
+            },
+            {
+                "id": "a2",
+                "query": "Who?",
+                "context": "No answer here.",
+                "gold_answer": "Nancy Travis",
+                "source": "row-source",
+            },
+        ],
+    )
+    provider = RecordingProvider(
+        [
+            ModelResponse(content='{"answer":" Nancy   Travis "}'),
+            ModelResponse(content='{"answer":"__NO_ANSWER__"}'),
+        ]
+    )
+
+    result = generate_answer_confidence_dataset(
+        AnswerGenerationConfig(
+            input_path=input_path,
+            output_path=output_path,
+            provider=provider,
+            source="config-source",
+        )
+    )
+
+    rows = _read_jsonl(output_path)
+    assert result.input_count == 2
+    assert result.generated_count == 2
+    assert result.skipped_count == 0
+    assert result.positive_count == 1
+    assert result.negative_count == 1
+    assert rows[0]["label"] == 1
+    assert rows[0]["source"] == "config-source"
+    assert rows[0]["metadata"]["input_metadata"] == {"dataset": "unit"}
+    assert rows[0]["metadata"]["generation"]["generation_task"] == "answer_oriented"
+    assert rows[0]["metadata"]["generation"]["match_policy"] == "normalized_exact"
+    assert rows[0]["metadata"]["generation"]["query"] == "Who?"
+    assert rows[0]["metadata"]["generation"]["raw_model_output"] == (
+        '{"answer":" Nancy   Travis "}'
+    )
+    assert rows[1]["label"] == 0
+    assert rows[1]["source"] == "row-source"
+    assert provider.requests[0].messages == [
+        ModelMessage(
+            role="system",
+            content=(
+                "You answer questions using only the provided context. "
+                'Return only JSON with an "answer" string.'
+            ),
+        ),
+        ModelMessage(
+            role="user",
+            content=build_answer_prompt(
+                AnswerGenerationSample(
+                    id="a1",
+                    query="Who?",
+                    context="Nancy Travis played Karen.",
+                    gold_answer=["nancy travis"],
+                    metadata={"dataset": "unit"},
+                ),
+                no_answer_value="__NO_ANSWER__",
+            ),
+        ),
+    ]
+
+
+def test_generate_answer_confidence_dataset_respects_resume_and_max_items(
+    tmp_path: Path,
+) -> None:
+    from ranksmith.confidence_generation import generate_answer_confidence_dataset
+
+    input_path = tmp_path / "answer_input.jsonl"
+    output_path = tmp_path / "answer_output.jsonl"
+    _write_jsonl(
+        input_path,
+        [
+            {"id": "a1", "query": "q", "context": "c", "gold_answer": "g"},
+            {"id": "a2", "query": "q", "context": "c", "gold_answer": "g"},
+            {"id": "a3", "query": "q", "context": "c", "gold_answer": "g"},
+        ],
+    )
+    _write_jsonl(
+        output_path,
+        [{"id": "a1", "context": "c", "answer": "g", "label": 1}],
+    )
+    provider = RecordingProvider([ModelResponse(content='{"answer":"g"}')])
+
+    result = generate_answer_confidence_dataset(
+        AnswerGenerationConfig(
+            input_path=input_path,
+            output_path=output_path,
+            provider=provider,
+            resume=True,
+            max_items=1,
+        )
+    )
+
+    rows = _read_jsonl(output_path)
+    assert result.input_count == 3
+    assert result.skipped_count == 1
+    assert result.generated_count == 1
+    assert result.positive_count == 1
+    assert result.negative_count == 0
+    assert [row["id"] for row in rows] == ["a1", "a2"]
+
+
+def test_generate_answer_confidence_dataset_can_omit_raw_output(
+    tmp_path: Path,
+) -> None:
+    from ranksmith.confidence_generation import generate_answer_confidence_dataset
+
+    input_path = tmp_path / "answer_input.jsonl"
+    output_path = tmp_path / "answer_output.jsonl"
+    _write_jsonl(
+        input_path,
+        [{"id": "a1", "query": "q", "context": "c", "gold_answer": "g"}],
+    )
+
+    generate_answer_confidence_dataset(
+        AnswerGenerationConfig(
+            input_path=input_path,
+            output_path=output_path,
+            provider=RecordingProvider([ModelResponse(content='{"answer":"g"}')]),
+            include_raw_model_output=False,
+        )
+    )
+
+    row = _read_jsonl(output_path)[0]
+    assert "raw_model_output" not in row["metadata"]["generation"]
