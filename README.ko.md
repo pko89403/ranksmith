@@ -69,6 +69,7 @@ for result in results:
 | `tourrank_r`, `rounds=10` | `TourRankStrategy` | 품질 중심 offline reranking, 논문식 평가, 최종 reranking처럼 latency를 감수할 수 있을 때 | 일반 사용 기준 built-in 중 호출 비용이 가장 큼 |
 | `acurank` | `AcuRankStrategy` | top-k 경계 근처의 불확실한 후보에 listwise 호출을 집중하고 싶을 때 | TrueSkill 상태를 사용하며, cap을 두지 않으면 기본 listwise보다 호출 수가 늘 수 있음 |
 | `confidence_gain` | `ConfidenceGainStrategy` | query-only 및 query+context confidence scorer를 학습했고 `Conf(Q+C)-Conf(Q)`로 문서를 정렬하고 싶을 때 | scorer artifact와 answer generator hook이 필요함. 문서 수가 `N`이면 runtime에서 answer generation `N+1`회, confidence scoring `N+1`회를 수행함 |
+| `cbdr` | `CBDRStrategy` | answerability confidence scorer를 학습했고 `Conf(Q)`가 충분히 높으면 context reranking을 건너뛰고, 낮으면 confidence gain으로 정렬하고 싶을 때 | scorer artifact와 answer generator hook이 필요함. skip path는 answer generation 1회와 confidence scoring 1회, rerank path는 각각 `N+1`회를 수행함 |
 | Custom strategy | `RerankStrategy` / `AsyncRerankStrategy` | deterministic business logic, proprietary ranking, 새 research method가 필요할 때 | ranking contract와 validation을 직접 책임져야 함 |
 
 ### 전략 적용 방법
@@ -337,6 +338,33 @@ strategy = ConfidenceGainStrategy(
 
 이 Strategy는 `Conf(Q+C)-Conf(Q)` 기준으로 정렬합니다. CBDR retrieval skip, async
 reranking, scorer 학습은 구현하지 않습니다.
+
+`CBDRStrategy`는 sync reranking-side router입니다. retriever와 통합하거나 upstream
+retrieval 호출 자체를 멈추지는 않습니다. 이미 `rerank(...)`에 documents가 전달된
+뒤 context reranking을 건너뛸지 결정합니다.
+
+```python
+from ranksmith import AzureOpenAIReranker
+from ranksmith.strategies import CBDRStrategy
+
+strategy = CBDRStrategy(
+    base_estimator=query_estimator,
+    context_estimator=query_context_estimator,
+    answer_generator=answer_generator,
+    skip_threshold=0.8,
+)
+
+reranker = AzureOpenAIReranker(
+    model_client=model_client,
+    strategy=strategy,
+)
+
+results = reranker.rerank(query, documents)
+```
+
+`Conf(Q) >= skip_threshold`이면 original document order를 보존하고
+`metadata["cbdr_skipped"] == True`를 남깁니다. `Conf(Q) < skip_threshold`이면
+모든 문서를 scoring한 뒤 `top_k`를 적용합니다.
 
 `ranksmith.confidence_generation`은 raw answer/relevance/answerability 예시에 대해
 closed model을 호출해 confidence training용 supervised canonical JSONL을 생성할 수

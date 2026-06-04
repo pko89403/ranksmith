@@ -6,7 +6,7 @@
   - `docs/wiki/references/parametric_post_retrieval_confidence.md`
   - `docs/specs/spec_confidence_runtime_readiness.md`
   - `docs/specs/spec_confidence_gain_reranking.md`
-- **상태**: `[x] Draft` | `[ ] In Progress` | `[ ] Completed`
+- **상태**: `[ ] Draft` | `[ ] In Progress` | `[x] Completed`
 
 이 스펙은 논문 원형을 그대로 재현하지 않는다.
 
@@ -382,21 +382,21 @@ uv run pytest tests/test_cbdr_strategy.py tests/test_confidence_gain_strategy.py
 - [x] 스펙 문서 작성
 
 ### Phase 2: 로직 구현 (Implementation)
-- [ ] `src/ranksmith/strategies/_confidence_gain.py`: 공통 protocol/helper 정리
-- [ ] `src/ranksmith/strategies/_cbdr.py`: `CBDRStrategy` 구현
-- [ ] `src/ranksmith/strategies/__init__.py`: strategy export 추가
-- [ ] `src/ranksmith/azure.py`: built-in sync strategy 처리 추가
+- [x] `src/ranksmith/strategies/_confidence_gain.py`: 공통 protocol/helper 정리
+- [x] `src/ranksmith/strategies/_cbdr.py`: `CBDRStrategy` 구현
+- [x] `src/ranksmith/strategies/__init__.py`: strategy export 추가
+- [x] `src/ranksmith/azure.py`: built-in sync strategy 처리 추가
 
 ### Phase 3: 검증 (Verification)
-- [ ] `tests/test_cbdr_strategy.py`: skip path 정상 케이스 추가
-- [ ] `tests/test_cbdr_strategy.py`: rerank path 정상 케이스 추가
-- [ ] `tests/test_cbdr_strategy.py`: 엣지/실패 케이스 추가
-- [ ] `tests/test_cbdr_strategy.py`: Azure facade smoke 추가
-- [ ] `tests/test_cbdr_strategy.py`: artifact load 기반 skip path E2E smoke 추가
-- [ ] `tests/test_cbdr_strategy.py`: artifact load 기반 rerank path E2E smoke 추가
-- [ ] `./scripts/verify.sh` 스크립트를 통한 린트/타입/전체 테스트 통과 확인
+- [x] `tests/test_cbdr_strategy.py`: skip path 정상 케이스 추가
+- [x] `tests/test_cbdr_strategy.py`: rerank path 정상 케이스 추가
+- [x] `tests/test_cbdr_strategy.py`: 엣지/실패 케이스 추가
+- [x] `tests/test_cbdr_strategy.py`: Azure facade smoke 추가
+- [x] `tests/test_cbdr_strategy.py`: artifact load 기반 skip path E2E smoke 추가
+- [x] `tests/test_cbdr_strategy.py`: artifact load 기반 rerank path E2E smoke 추가
+- [x] `./scripts/verify.sh` 스크립트를 통한 린트/타입/전체 테스트 통과 확인
 
 ### Phase 4: 완료 및 정리
-- [ ] `docs/wiki/02_architecture.md`: CBDR strategy 위치 추가
-- [ ] `README.md` / `README.ko.md`: benchmark 없는 usage 문서 추가
-- [ ] 본 문서 최상단의 **상태**를 `Completed`로 변경
+- [x] `docs/wiki/02_architecture.md`: CBDR strategy 위치 추가
+- [x] `README.md` / `README.ko.md`: benchmark 없는 usage 문서 추가
+- [x] 본 문서 최상단의 **상태**를 `Completed`로 변경
