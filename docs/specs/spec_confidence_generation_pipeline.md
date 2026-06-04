@@ -85,6 +85,9 @@ Root import에는 추가하지 않는다.
 - `group_id: str`
 - `metadata: dict[str, object]`
 
+그 외 field는 허용하지 않는다.
+unexpected field는 `ConfidenceGenerationInputError`로 실패한다.
+
 예시:
 
 ```json
@@ -105,6 +108,9 @@ Root import에는 추가하지 않는다.
 - `source: str`
 - `group_id: str`
 - `metadata: dict[str, object]`
+
+그 외 field는 허용하지 않는다.
+unexpected field는 `ConfidenceGenerationInputError`로 실패한다.
 
 예시:
 
@@ -157,10 +163,14 @@ Root import에는 추가하지 않는다.
   "source": "optional",
   "group_id": "optional",
   "metadata": {
-    "generation_task": "answer_oriented",
-    "query": "Who played Karen?",
-    "match_policy": "normalized_exact",
-    "raw_model_output": "{\"answer\":\"Nancy Travis\"}"
+    "input_metadata": {},
+    "generation": {
+      "generation_task": "answer_oriented",
+      "query": "Who played Karen?",
+      "match_policy": "normalized_exact",
+      "no_answer_value": "__NO_ANSWER__",
+      "raw_model_output": "{\"answer\":\"Nancy Travis\"}"
+    }
   }
 }
 ```
@@ -184,12 +194,15 @@ Root import에는 추가하지 않는다.
   "source": "optional",
   "group_id": "optional",
   "metadata": {
-    "generation_task": "relevance_oriented",
-    "parsed_judgment": "relevant",
-    "truth_judgment": "relevant",
-    "truth_positive_threshold": 0.0,
-    "truth_positive_operator": "gt",
-    "raw_model_output": "{\"judgment\":\"relevant\"}"
+    "input_metadata": {},
+    "generation": {
+      "generation_task": "relevance_oriented",
+      "parsed_judgment": "relevant",
+      "truth_judgment": "relevant",
+      "truth_positive_threshold": 0.0,
+      "truth_positive_operator": "gt",
+      "raw_model_output": "{\"judgment\":\"relevant\"}"
+    }
   }
 }
 ```
@@ -208,6 +221,12 @@ Normalization:
 - strip leading/trailing whitespace
 - lowercase
 - collapse internal whitespace
+
+No-answer policy:
+- `no_answer_value`는 non-empty string이어야 한다.
+- closed model answer가 `no_answer_value`와 정확히 같으면 항상 `label=0`이다.
+- `gold_answer`가 우연히 `no_answer_value`와 같아도 match로 인정하지 않는다.
+- 기본 sentinel은 `"__NO_ANSWER__"`이다.
 
 제외:
 - punctuation removal
@@ -230,6 +249,42 @@ truth_positive_operator = "gt"  # "gt" | "gte"
 - `bool`은 threshold와 무관하게 `True -> relevant`, `False -> not_relevant`.
 - `relevance_label`이 numeric/bool이 아니면 실패한다.
 
+### Output file 정책
+
+- `overwrite=True`, `resume=True`는 동시에 사용할 수 없다.
+- output file이 이미 있고 `overwrite=False`, `resume=False`이면 실패한다.
+- `overwrite=True`이면 기존 output file을 새로 쓴다.
+- `resume=True`이면 기존 output file을 읽어 completed id를 수집한 뒤 append한다.
+- `resume=True`인데 output file이 없으면 새 파일을 만든다.
+- parent directory가 없으면 생성한다.
+
+### Metadata / source 병합 정책
+
+Raw input `metadata`는 output `metadata.input_metadata` 아래에 nested로 보존한다.
+Generation metadata는 output `metadata.generation` 아래에 nested로 기록한다.
+
+예시:
+
+```json
+{
+  "metadata": {
+    "input_metadata": {"dataset": "sample"},
+    "generation": {
+      "generation_task": "relevance_oriented",
+      "parsed_judgment": "relevant",
+      "truth_judgment": "relevant"
+    }
+  }
+}
+```
+
+규칙:
+- raw input metadata에 `input_metadata`나 `generation` key가 있어도 그대로 `input_metadata` 아래에 들어가므로 충돌하지 않는다.
+- `include_raw_model_output=False`이면 `metadata.generation.raw_model_output` key를 쓰지 않는다.
+- config `source`는 row `source`가 없을 때만 사용한다.
+- row `source`와 config `source`가 모두 있고 값이 달라도 row `source`를 우선한다.
+- `group_id`는 row 값만 사용한다. config-level `group_id`는 제공하지 않는다.
+
 ### Config
 
 #### `AnswerGenerationConfig`
@@ -244,6 +299,7 @@ truth_positive_operator = "gt"  # "gt" | "gte"
 - `include_raw_model_output: bool = True`
 - `on_usage: Callable[[RerankUsage], None] | None = None`
 - `source: str | None = None`
+- `no_answer_value: str = "__NO_ANSWER__"`
 
 #### `RelevanceGenerationConfig`
 
@@ -274,6 +330,16 @@ truth_positive_operator = "gt"  # "gt" | "gte"
 
 `ConfidenceGenerationResult`는 usage를 합산하지 않는다.
 provider가 `ModelResponse.usage`를 반환하면 `on_usage` callback으로 각 call의 usage를 그대로 전달한다.
+
+Count 기준:
+- `input_count`: input JSONL에서 validation을 통과한 전체 sample 수.
+- `generated_count`: 이번 실행에서 새로 생성해 output에 append/write한 row 수.
+- `skipped_count`: `resume=True` 때문에 기존 output id와 중복되어 건너뛴 row 수.
+- `positive_count`: 이번 실행에서 새로 생성한 row 중 `label=1` 개수.
+- `negative_count`: 이번 실행에서 새로 생성한 row 중 `label=0` 개수.
+
+`max_items`는 **이번 실행에서 생성할 신규 row 수**를 제한한다.
+예를 들어 기존 output에 10개가 있고 `max_items=5`, `resume=True`이면 신규 row를 최대 5개 생성한다.
 
 ## 3. 상세 설계 (Architecture & Design)
 
@@ -330,7 +396,7 @@ Context:
 Return JSON exactly like this shape:
 {"answer":"..."}
 
-Use only the context. If the context does not contain the answer, return {"answer":"unknown"}.
+Use only the context. If the context does not contain the answer, return {"answer":"__NO_ANSWER__"}.
 ```
 
 #### Relevance prompt
@@ -438,7 +504,7 @@ def generate_judgment_confidence_dataset(config):
 
 수정:
 - `docs/wiki/02_architecture.md`: confidence generation layer 추가.
-- `README.md` / `README.ko.md`: 기능이 구현된 뒤 짧은 submodule 소개만 추가.
+- `README.md` / `README.ko.md`: 구현된 뒤 짧은 submodule 소개만 추가한다. 자세한 사용 예시는 README에 길게 넣지 않는다.
 
 수정하지 않음:
 - `src/ranksmith/model.py`: `ModelClient.judge()`를 이번 범위에 추가하지 않는다.
@@ -495,16 +561,21 @@ class ConfidenceGenerationParseError(ConfidenceGenerationError): ...
 Provider 호출 실패:
 - 기존 `RerankProviderError`는 그대로 전파한다.
 - 예상 밖 예외는 `RerankProviderError`로 감싼다.
+- provider 계층 실패는 `ConfidenceGenerationError`로 감싸지 않는다.
+- input/parse/output 정책 실패만 `ConfidenceGeneration*Error`를 사용한다.
 
 입력 실패:
 - 파일 읽기 실패.
 - JSONL line이 JSON object가 아님.
 - 필수 필드 누락.
+- unexpected field.
 - string field가 비어 있음.
 - duplicate id.
 - `relevance_label`이 numeric/bool이 아님.
 - `truth_positive_operator`가 `"gt"` 또는 `"gte"`가 아님.
 - `max_items < 1`.
+- `no_answer_value`가 non-empty string이 아님.
+- `overwrite=True`, `resume=True`가 동시에 지정됨.
 - output file이 있는데 `overwrite=False`, `resume=False`.
 
 출력 parsing 실패:
@@ -533,25 +604,34 @@ Resume 실패:
 - answer raw JSONL을 읽고 `answer_confidence` canonical JSONL을 생성한다.
 - answer normalized exact match가 `label=1`을 만든다.
 - answer mismatch가 `label=0`을 만든다.
+- answer가 `no_answer_value`와 같으면 gold answer와 무관하게 `label=0`을 만든다.
 - gold answer list 중 하나와 match하면 `label=1`이다.
 - relevance raw JSONL을 읽고 `judgment_confidence` canonical JSONL을 생성한다.
 - `relevance_label > 0` 기본 truth가 relevant를 만든다.
 - `truth_positive_operator="gte"`가 threshold 포함 비교를 수행한다.
 - bool relevance label이 `True/False` truth로 변환된다.
 - `resume=True`가 기존 output id를 건너뛰고 나머지만 생성한다.
-- `max_items`가 처리 수를 제한한다.
+- `max_items`가 resume 후 신규 생성 row 수를 제한한다.
 - provider usage가 `on_usage` callback으로 전달된다.
+- raw metadata가 `metadata.input_metadata` 아래에 보존된다.
+- generation metadata가 `metadata.generation` 아래에 기록된다.
+- `include_raw_model_output=False`이면 raw model output을 metadata에 쓰지 않는다.
+- row `source`가 있으면 config `source`보다 우선한다.
+- row `source`가 없으면 config `source`를 사용한다.
 
 ### 실패 케이스
 
 - input file missing.
 - invalid JSONL.
 - missing required field.
+- unexpected field.
 - empty query/context/document.
 - duplicate input id.
 - output exists with no overwrite/resume.
+- `overwrite=True`와 `resume=True` 동시 지정.
 - invalid `truth_positive_operator`.
 - invalid `max_items`.
+- invalid `no_answer_value`.
 - provider empty response.
 - invalid provider JSON.
 - answer field missing.
