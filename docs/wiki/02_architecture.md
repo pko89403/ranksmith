@@ -26,6 +26,7 @@ src/ranksmith/
     _setwise.py
     _tourrank.py
     _acurank.py
+    _confidence_gain.py
   providers/
     __init__.py            # public provider exports
     _azure.py              # Azure OpenAI implementation
@@ -63,6 +64,7 @@ v1 공개 strategy:
 - `AsyncTourRankStrategy`
 - `AcuRankStrategy`
 - `AsyncAcuRankStrategy`
+- `ConfidenceGainStrategy`
 
 공식 확장 지점:
 - 새 reranking 방법은 새 Strategy 클래스로 추가한다.
@@ -81,9 +83,10 @@ v1 지원 algorithm:
 - `setwise_heapsort`
 - `tourrank_r`
 - `acurank`
+- `confidence_gain`
 
 향후 algorithm 후보:
-- `confidence`
+- `Pointwise`
 
 ## Confidence
 `ranksmith.confidence`는 reranking Strategy나 Algorithm이 아니라, closed model output confidence를 계산하는 utility layer다.
@@ -93,6 +96,10 @@ v1 지원 algorithm:
 - `structural-v1` 70차원 feature extraction
 - 학습된 scorer artifact 기반 single-item sync confidence inference
 - bounded batch sync confidence inference
+- `answer_confidence`
+- `judgment_confidence`
+- `query_answerability_confidence`
+- `query_context_answerability_confidence`
 - root import가 아닌 `ranksmith.confidence` submodule export
 
 `score_batch(..., max_workers>1)`은 같은 encoder/scorer instance를 worker thread들이 공유하므로, concurrent call에 안전한 backend에서만 사용한다. 기본값은 안정성을 위해 `max_workers=1`이다.
@@ -101,6 +108,10 @@ v1 지원 algorithm:
 - semantic feature fusion
 - async inference
 - reranking Strategy
+
+`ConfidenceGainStrategy`는 confidence utility layer 자체가 아니라, `ranksmith.confidence`의 query-only 및 query+context answerability scorer를 소비하는 별도 sync Strategy다.
+`Conf(Q+C)-Conf(Q)`를 계산해 confidence gain 내림차순으로 문서를 정렬한다.
+CBDR retrieval skip과 async confidence gain reranking은 아직 구현하지 않는다.
 
 `ranksmith.confidence_training`은 Phase 1 compatible scorer artifact를 만들기 위한 별도 training utility layer다.
 
@@ -123,6 +134,8 @@ v1 지원 algorithm:
 현재 범위:
 - answer-oriented raw JSONL -> `answer_confidence` canonical JSONL
 - relevance-oriented raw JSONL -> `judgment_confidence` canonical JSONL
+- query-only answerability raw JSONL -> `query_answerability_confidence` canonical JSONL
+- query+context answerability raw JSONL -> `query_context_answerability_confidence` canonical JSONL
 - sync closed model call
 - resume 가능한 JSONL output
 

@@ -14,7 +14,7 @@ Azure OpenAI 기반 zero-shot candidate reranking에 집중합니다.
 주요 특징:
 
 - listwise RankGPT, pairwise PRP, tournament 방식 TourRank-r,
-  uncertainty-aware AcuRank built-in Strategy
+  uncertainty-aware AcuRank, confidence-gain built-in Strategy
 - 커스텀 reranking 메소드를 위한 public Strategy contract
 - vendor 독립 LLM 호출을 위한 `ModelClient` / `ModelProvider` 경계
 - 엄격한 JSON parsing과 fast-fail 오류 정책
@@ -68,6 +68,7 @@ for result in results:
 | `tourrank_r`, `rounds=2` | `TourRankStrategy` | 중간 수준 호출 예산에서 listwise보다 강한 품질을 원할 때 | RankGPT보다 호출 수가 많지만 TourRank-10보다 훨씬 가벼움 |
 | `tourrank_r`, `rounds=10` | `TourRankStrategy` | 품질 중심 offline reranking, 논문식 평가, 최종 reranking처럼 latency를 감수할 수 있을 때 | 일반 사용 기준 built-in 중 호출 비용이 가장 큼 |
 | `acurank` | `AcuRankStrategy` | top-k 경계 근처의 불확실한 후보에 listwise 호출을 집중하고 싶을 때 | TrueSkill 상태를 사용하며, cap을 두지 않으면 기본 listwise보다 호출 수가 늘 수 있음 |
+| `confidence_gain` | `ConfidenceGainStrategy` | query-only 및 query+context confidence scorer를 학습했고 `Conf(Q+C)-Conf(Q)`로 문서를 정렬하고 싶을 때 | scorer artifact와 answer generator hook이 필요함. 문서 수가 `N`이면 runtime에서 answer generation `N+1`회, confidence scoring `N+1`회를 수행함 |
 | Custom strategy | `RerankStrategy` / `AsyncRerankStrategy` | deterministic business logic, proprietary ranking, 새 research method가 필요할 때 | ranking contract와 validation을 직접 책임져야 함 |
 
 ### 전략 적용 방법
@@ -313,8 +314,32 @@ worker thread들이 공유하므로 thread-safe backend에서만 `max_workers>1`
 합니다. 첫 worker error에서 pending work를 취소하지만, 이미 시작된 Python thread는
 background에서 완료될 수 있습니다.
 
-`ranksmith.confidence_generation`은 raw answer/relevance 예시에 대해 closed
-model을 호출해 confidence training용 supervised canonical JSONL을 생성할 수
+`ConfidenceGainStrategy`는 별도 sync reranking Strategy입니다. 두 개의 compatible
+confidence estimator와 answer generator hook을 받아 사용합니다.
+
+```python
+from ranksmith.confidence import StructuralConfidenceEstimator
+from ranksmith.strategies import ConfidenceGainStrategy
+
+base_estimator = StructuralConfidenceEstimator.from_artifact(
+    "query-answerability.joblib"
+)
+context_estimator = StructuralConfidenceEstimator.from_artifact(
+    "query-context-answerability.joblib"
+)
+
+strategy = ConfidenceGainStrategy(
+    base_estimator=base_estimator,
+    context_estimator=context_estimator,
+    answer_generator=my_answer_generator,
+)
+```
+
+이 Strategy는 `Conf(Q+C)-Conf(Q)` 기준으로 정렬합니다. CBDR retrieval skip, async
+reranking, scorer 학습은 구현하지 않습니다.
+
+`ranksmith.confidence_generation`은 raw answer/relevance/answerability 예시에 대해
+closed model을 호출해 confidence training용 supervised canonical JSONL을 생성할 수
 있습니다. 이 모듈은 reranking Strategy가 아니라 데이터 생성 utility입니다.
 
 ### compatible confidence scorer 학습
