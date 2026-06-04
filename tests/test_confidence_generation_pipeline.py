@@ -6,7 +6,11 @@ from typing import Any
 
 import pytest
 
-from ranksmith.confidence_generation import AnswerGenerationConfig
+from ranksmith.confidence_generation import (
+    AnswerGenerationConfig,
+    ConfidenceGenerationParseError,
+    RelevanceGenerationConfig,
+)
 from ranksmith.confidence_generation._pipeline import _call_provider
 from ranksmith.confidence_generation._prompts import (
     build_answer_prompt,
@@ -300,3 +304,179 @@ def test_generate_answer_confidence_dataset_can_omit_raw_output(
 
     row = _read_jsonl(output_path)[0]
     assert "raw_model_output" not in row["metadata"]["generation"]
+
+
+def test_generate_judgment_confidence_dataset_writes_canonical_rows(
+    tmp_path: Path,
+) -> None:
+    from ranksmith.confidence_generation import generate_judgment_confidence_dataset
+
+    input_path = tmp_path / "rel_input.jsonl"
+    output_path = tmp_path / "rel_output.jsonl"
+    _write_jsonl(
+        input_path,
+        [
+            {
+                "id": "j1",
+                "query": "q",
+                "document": "doc",
+                "relevance_label": 1,
+                "metadata": {"dataset": "unit"},
+            },
+            {
+                "id": "j2",
+                "query": "q",
+                "document": "doc",
+                "relevance_label": 0,
+            },
+        ],
+    )
+    provider = RecordingProvider(
+        [
+            ModelResponse(content='{"judgment":"relevant"}'),
+            ModelResponse(content='{"judgment":"relevant"}'),
+        ]
+    )
+
+    result = generate_judgment_confidence_dataset(
+        RelevanceGenerationConfig(
+            input_path=input_path,
+            output_path=output_path,
+            provider=provider,
+            source="config-source",
+        )
+    )
+
+    rows = _read_jsonl(output_path)
+    assert result.input_count == 2
+    assert result.generated_count == 2
+    assert result.skipped_count == 0
+    assert result.positive_count == 1
+    assert result.negative_count == 1
+    assert rows[0]["label"] == 1
+    assert rows[0]["source"] == "config-source"
+    assert rows[0]["metadata"]["input_metadata"] == {"dataset": "unit"}
+    assert rows[0]["metadata"]["generation"]["generation_task"] == (
+        "relevance_oriented"
+    )
+    assert rows[0]["metadata"]["generation"]["parsed_judgment"] == "relevant"
+    assert rows[0]["metadata"]["generation"]["truth_judgment"] == "relevant"
+    assert rows[0]["metadata"]["generation"]["raw_model_output"] == (
+        '{"judgment":"relevant"}'
+    )
+    assert rows[1]["label"] == 0
+    assert rows[1]["metadata"]["generation"]["truth_judgment"] == "not_relevant"
+
+
+def test_generate_judgment_confidence_dataset_respects_threshold_and_resume(
+    tmp_path: Path,
+) -> None:
+    from ranksmith.confidence_generation import generate_judgment_confidence_dataset
+
+    input_path = tmp_path / "rel_input.jsonl"
+    output_path = tmp_path / "rel_output.jsonl"
+    _write_jsonl(
+        input_path,
+        [
+            {"id": "j1", "query": "q", "document": "d", "relevance_label": 2},
+            {"id": "j2", "query": "q", "document": "d", "relevance_label": 2},
+            {"id": "j3", "query": "q", "document": "d", "relevance_label": 1},
+        ],
+    )
+    _write_jsonl(
+        output_path,
+        [
+            {
+                "id": "j1",
+                "query": "q",
+                "document": "d",
+                "judgment": "relevant",
+                "relevance_label": 2,
+                "label": 1,
+            }
+        ],
+    )
+    provider = RecordingProvider([ModelResponse(content='{"judgment":"relevant"}')])
+
+    result = generate_judgment_confidence_dataset(
+        RelevanceGenerationConfig(
+            input_path=input_path,
+            output_path=output_path,
+            provider=provider,
+            resume=True,
+            max_items=1,
+            truth_positive_threshold=2.0,
+            truth_positive_operator="gte",
+        )
+    )
+
+    rows = _read_jsonl(output_path)
+    assert result.input_count == 3
+    assert result.skipped_count == 1
+    assert result.generated_count == 1
+    assert result.positive_count == 1
+    assert result.negative_count == 0
+    assert [row["id"] for row in rows] == ["j1", "j2"]
+    assert rows[1]["metadata"]["generation"]["truth_positive_threshold"] == 2.0
+    assert rows[1]["metadata"]["generation"]["truth_positive_operator"] == "gte"
+
+
+def test_generate_judgment_confidence_dataset_can_omit_raw_output(
+    tmp_path: Path,
+) -> None:
+    from ranksmith.confidence_generation import generate_judgment_confidence_dataset
+
+    input_path = tmp_path / "rel_input.jsonl"
+    output_path = tmp_path / "rel_output.jsonl"
+    _write_jsonl(
+        input_path,
+        [{"id": "j1", "query": "q", "document": "d", "relevance_label": True}],
+    )
+
+    generate_judgment_confidence_dataset(
+        RelevanceGenerationConfig(
+            input_path=input_path,
+            output_path=output_path,
+            provider=RecordingProvider(
+                [ModelResponse(content='{"judgment":"relevant"}')]
+            ),
+            include_raw_model_output=False,
+        )
+    )
+
+    row = _read_jsonl(output_path)[0]
+    assert "raw_model_output" not in row["metadata"]["generation"]
+
+
+def test_generate_judgment_confidence_dataset_keeps_only_completed_rows_on_failure(
+    tmp_path: Path,
+) -> None:
+    from ranksmith.confidence_generation import generate_judgment_confidence_dataset
+
+    input_path = tmp_path / "rel_input.jsonl"
+    output_path = tmp_path / "rel_output.jsonl"
+    _write_jsonl(
+        input_path,
+        [
+            {"id": "j1", "query": "q", "document": "d", "relevance_label": True},
+            {"id": "j2", "query": "q", "document": "d", "relevance_label": True},
+        ],
+    )
+
+    with pytest.raises(ConfidenceGenerationParseError):
+        generate_judgment_confidence_dataset(
+            RelevanceGenerationConfig(
+                input_path=input_path,
+                output_path=output_path,
+                provider=RecordingProvider(
+                    [
+                        ModelResponse(content='{"judgment":"relevant"}'),
+                        ModelResponse(content='{"judgment":"maybe"}'),
+                    ]
+                ),
+            )
+        )
+
+    rows = _read_jsonl(output_path)
+    assert [row["id"] for row in rows] == ["j1"]
+    assert rows[0]["label"] == 1

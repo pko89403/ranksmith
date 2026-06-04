@@ -27,7 +27,14 @@ _ANSWER_OUTPUT_ALLOWED = {
     "group_id",
     "metadata",
 }
-_JUDGMENT_OUTPUT_REQUIRED = ("id", "query", "document", "judgment", "label")
+_JUDGMENT_OUTPUT_REQUIRED = (
+    "id",
+    "query",
+    "document",
+    "judgment",
+    "relevance_label",
+    "label",
+)
 _JUDGMENT_OUTPUT_ALLOWED = {
     *_JUDGMENT_OUTPUT_REQUIRED,
     "relevance_label",
@@ -296,10 +303,9 @@ def _validate_output_task(row: Mapping[str, Any], task_type: TaskType) -> str:
         row_id = _required_text(row, "id")
         _required_text(row, "query")
         _required_text(row, "document")
-        _required_text(row, "judgment")
+        _judgment(row["judgment"])
         _label(row["label"])
-        if "relevance_label" in row:
-            _relevance_label(row["relevance_label"])
+        _relevance_label(row["relevance_label"])
 
     if "source" in row:
         _required_text(row, "source")
@@ -314,6 +320,14 @@ def _label(value: object) -> int:
     if type(value) is not int or value not in {0, 1}:
         raise ConfidenceGenerationInputError("label must be integer 0 or 1")
     return value
+
+
+def _judgment(value: object) -> str:
+    if value not in {"relevant", "not_relevant"}:
+        raise ConfidenceGenerationInputError(
+            'judgment must be "relevant" or "not_relevant"'
+        )
+    return str(value)
 
 
 def _metadata_present(value: object) -> dict[str, Any]:

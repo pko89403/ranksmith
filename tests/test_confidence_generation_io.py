@@ -348,7 +348,7 @@ def test_load_completed_ids_accepts_valid_judgment_canonical_row(
                 "id": "j1",
                 "query": "q",
                 "document": "doc",
-                "judgment": "direct evidence",
+                "judgment": "relevant",
                 "label": 1,
                 "relevance_label": 0.5,
             }
@@ -356,3 +356,41 @@ def test_load_completed_ids_accepts_valid_judgment_canonical_row(
     )
 
     assert load_completed_ids(path, task_type="judgment_confidence") == {"j1"}
+
+
+@pytest.mark.parametrize(
+    "row, match",
+    [
+        (
+            {
+                "id": "j1",
+                "query": "q",
+                "document": "doc",
+                "judgment": "direct evidence",
+                "label": 1,
+                "relevance_label": 0.5,
+            },
+            "judgment",
+        ),
+        (
+            {
+                "id": "j1",
+                "query": "q",
+                "document": "doc",
+                "judgment": "relevant",
+                "label": 1,
+            },
+            "missing required field: relevance_label",
+        ),
+    ],
+)
+def test_load_completed_ids_rejects_invalid_judgment_canonical_row(
+    tmp_path: Path,
+    row: dict[str, object],
+    match: str,
+) -> None:
+    path = tmp_path / "out.jsonl"
+    _write_jsonl(path, [row])
+
+    with pytest.raises(ConfidenceGenerationInputError, match=match):
+        load_completed_ids(path, task_type="judgment_confidence")
