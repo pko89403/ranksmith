@@ -4,8 +4,10 @@ import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 from numbers import Real
+from pathlib import Path
 from typing import Literal
 
+from ranksmith.confidence import StructuralConfidenceEstimator
 from ranksmith.errors import RerankInputError
 from ranksmith.types import Document, RerankResult
 
@@ -34,6 +36,52 @@ class CBDRStrategy:
     max_document_chars: int = 4000
     algorithm: CBDRAlgorithm = "cbdr"
 
+    @classmethod
+    def from_artifacts(
+        cls,
+        *,
+        base_artifact_path: str | Path,
+        context_artifact_path: str | Path,
+        base_metadata_path: str | Path | None = None,
+        context_metadata_path: str | Path | None = None,
+        answer_generator: AnswerGenerator,
+        skip_threshold: float = 0.8,
+        max_document_chars: int = 4000,
+        hf_token: str | None = None,
+        cache_dir: str | None = None,
+        device: str = "cpu",
+        local_files_only: bool = False,
+        max_length: int | None = None,
+        allow_truncation: bool = False,
+    ) -> CBDRStrategy:
+        return cls(
+            base_estimator=StructuralConfidenceEstimator.from_artifact(
+                base_artifact_path,
+                metadata_path=base_metadata_path,
+                task_type="query_answerability_confidence",
+                hf_token=hf_token,
+                cache_dir=cache_dir,
+                device=device,
+                local_files_only=local_files_only,
+                max_length=max_length,
+                allow_truncation=allow_truncation,
+            ),
+            context_estimator=StructuralConfidenceEstimator.from_artifact(
+                context_artifact_path,
+                metadata_path=context_metadata_path,
+                task_type="query_context_answerability_confidence",
+                hf_token=hf_token,
+                cache_dir=cache_dir,
+                device=device,
+                local_files_only=local_files_only,
+                max_length=max_length,
+                allow_truncation=allow_truncation,
+            ),
+            answer_generator=answer_generator,
+            skip_threshold=skip_threshold,
+            max_document_chars=max_document_chars,
+        )
+
     def __post_init__(self) -> None:
         if self.algorithm != "cbdr":
             raise ValueError('algorithm must be "cbdr"')
@@ -50,7 +98,7 @@ class CBDRStrategy:
         *,
         query: str,
         documents: Sequence[Document],
-        model_client: object,
+        model_client: object | None = None,
         top_k: int | None = None,
     ) -> list[RerankResult]:
         del model_client

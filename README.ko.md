@@ -344,27 +344,42 @@ retrieval 호출 자체를 멈추지는 않습니다. 이미 `rerank(...)`에 do
 뒤 context reranking을 건너뛸지 결정합니다.
 
 ```python
-from ranksmith import AzureOpenAIReranker
+from ranksmith.integrations import AzureAnswerGenerator
 from ranksmith.strategies import CBDRStrategy
 
-strategy = CBDRStrategy(
-    base_estimator=query_estimator,
-    context_estimator=query_context_estimator,
+answer_generator = AzureAnswerGenerator.from_env()
+
+strategy = CBDRStrategy.from_artifacts(
+    base_artifact_path="query-answerability.joblib",
+    context_artifact_path="query-context-answerability.joblib",
     answer_generator=answer_generator,
     skip_threshold=0.8,
 )
 
-reranker = AzureOpenAIReranker(
-    model_client=model_client,
-    strategy=strategy,
-)
-
-results = reranker.rerank(query, documents)
+results = strategy.rerank(query=query, documents=documents)
 ```
 
 `Conf(Q) >= skip_threshold`이면 original document order를 보존하고
 `metadata["cbdr_skipped"] == True`를 남깁니다. `Conf(Q) < skip_threshold`이면
 모든 문서를 scoring한 뒤 `top_k`를 적용합니다.
+`AzureAnswerGenerator`는 `ranksmith.confidence_generation`과 같은 no-answer
+sentinel 계약을 사용하며, 답할 수 없으면 `{"answer":"__NO_ANSWER__"}`를
+반환하게 합니다.
+
+compatible scorer artifact가 있으면 benchmark runner에서도 CBDR을 명시적으로 실행할
+수 있습니다.
+
+```bash
+uv run python scripts/compare_reranking.py \
+  --dataset benchmark-cache \
+  --cache-dir .benchmark-cache/askubuntu-bm25 \
+  --candidates benchmark-results/pyserini/askubuntu-bm25-top20.trec \
+  --algorithm cbdr \
+  --cbdr-base-artifact query-answerability.joblib \
+  --cbdr-context-artifact query-context-answerability.joblib \
+  --cbdr-max-document-chars 4000 \
+  --allow-live
+```
 
 `ranksmith.confidence_generation`은 raw answer/relevance/answerability 예시에 대해
 closed model을 호출해 confidence training용 supervised canonical JSONL을 생성할 수

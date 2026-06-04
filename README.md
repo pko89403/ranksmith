@@ -349,27 +349,42 @@ retriever or stop upstream retrieval calls; it only skips context reranking once
 documents have already been passed to `rerank(...)`.
 
 ```python
-from ranksmith import AzureOpenAIReranker
+from ranksmith.integrations import AzureAnswerGenerator
 from ranksmith.strategies import CBDRStrategy
 
-strategy = CBDRStrategy(
-    base_estimator=query_estimator,
-    context_estimator=query_context_estimator,
+answer_generator = AzureAnswerGenerator.from_env()
+
+strategy = CBDRStrategy.from_artifacts(
+    base_artifact_path="query-answerability.joblib",
+    context_artifact_path="query-context-answerability.joblib",
     answer_generator=answer_generator,
     skip_threshold=0.8,
 )
 
-reranker = AzureOpenAIReranker(
-    model_client=model_client,
-    strategy=strategy,
-)
-
-results = reranker.rerank(query, documents)
+results = strategy.rerank(query=query, documents=documents)
 ```
 
 When `Conf(Q) >= skip_threshold`, results preserve original document order and
 include `metadata["cbdr_skipped"] == True`. When `Conf(Q) < skip_threshold`, all
 documents are scored before `top_k` slicing.
+`AzureAnswerGenerator` uses the same no-answer sentinel contract as
+`ranksmith.confidence_generation` and returns `{"answer":"__NO_ANSWER__"}` when
+the model cannot answer.
+
+The benchmark runner can execute CBDR explicitly when compatible scorer
+artifacts are available:
+
+```bash
+uv run python scripts/compare_reranking.py \
+  --dataset benchmark-cache \
+  --cache-dir .benchmark-cache/askubuntu-bm25 \
+  --candidates benchmark-results/pyserini/askubuntu-bm25-top20.trec \
+  --algorithm cbdr \
+  --cbdr-base-artifact query-answerability.joblib \
+  --cbdr-context-artifact query-context-answerability.joblib \
+  --cbdr-max-document-chars 4000 \
+  --allow-live
+```
 
 `ranksmith.confidence_generation` can create supervised canonical JSONL for
 confidence training by calling a closed model over raw answer, relevance, or
