@@ -32,6 +32,7 @@ from ranksmith.strategies import (
     AsyncPairwiseStrategy,
     AsyncSetwiseStrategy,
     AsyncTourRankStrategy,
+    ConfidenceGainStrategy,
     ListwiseStrategy,
     PairwiseStrategy,
     SetwiseStrategy,
@@ -165,6 +166,7 @@ class AsyncAzureOpenAIReranker:
 def _is_builtin_sync_strategy(strategy: object) -> bool:
     return type(strategy) in {
         AcuRankStrategy,
+        ConfidenceGainStrategy,
         ListwiseStrategy,
         PairwiseStrategy,
         SetwiseStrategy,
