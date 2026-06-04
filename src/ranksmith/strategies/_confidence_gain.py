@@ -60,15 +60,10 @@ class ConfidenceGainStrategy:
             raise ValueError('algorithm must be "confidence_gain"')
         if self.max_document_chars < 1:
             raise ValueError("max_document_chars must be greater than 0")
-        if self.base_estimator.task_type != QUERY_ANSWERABILITY_TASK:
-            raise RerankInputError(
-                f"base_estimator task_type must be {QUERY_ANSWERABILITY_TASK!r}"
-            )
-        if self.context_estimator.task_type != QUERY_CONTEXT_ANSWERABILITY_TASK:
-            raise RerankInputError(
-                "context_estimator task_type must be "
-                f"{QUERY_CONTEXT_ANSWERABILITY_TASK!r}"
-            )
+        _validate_estimator_tasks(
+            base_estimator=self.base_estimator,
+            context_estimator=self.context_estimator,
+        )
 
     def rerank(
         self,
@@ -90,8 +85,10 @@ class ConfidenceGainStrategy:
             return []
 
         base_answer = _call_answer_query(self.answer_generator, query)
-        base_result = self.base_estimator.score(
-            QueryAnswerabilityConfidenceInput(query=query, answer=base_answer)
+        base_result = _score_base_answerability(
+            estimator=self.base_estimator,
+            query=query,
+            answer=base_answer,
         )
         base_score = _validate_confidence_score(base_result.score, "base")
 
@@ -102,20 +99,20 @@ class ConfidenceGainStrategy:
                 query,
                 document.text,
             )
-            context_result = self.context_estimator.score(
-                QueryContextAnswerabilityConfidenceInput(
-                    query=query,
-                    context=document.text,
-                    answer=context_answer,
-                )
+            context_result = _score_context_answerability(
+                estimator=self.context_estimator,
+                query=query,
+                context=document.text,
+                answer=context_answer,
             )
             context_score = _validate_confidence_score(
                 context_result.score,
                 "context",
             )
-            gain = context_score - base_score
-            if not math.isfinite(gain) or gain < -1.0 or gain > 1.0:
-                raise RerankStrategyError("confidence gain must be finite in [-1, 1]")
+            gain = _confidence_gain(
+                base_score=base_score,
+                context_score=context_score,
+            )
             scored.append(
                 (
                     original_index,
@@ -150,6 +147,21 @@ class ConfidenceGainStrategy:
         ]
 
 
+def _validate_estimator_tasks(
+    *,
+    base_estimator: ConfidenceEstimator,
+    context_estimator: ConfidenceEstimator,
+) -> None:
+    if base_estimator.task_type != QUERY_ANSWERABILITY_TASK:
+        raise RerankInputError(
+            f"base_estimator task_type must be {QUERY_ANSWERABILITY_TASK!r}"
+        )
+    if context_estimator.task_type != QUERY_CONTEXT_ANSWERABILITY_TASK:
+        raise RerankInputError(
+            f"context_estimator task_type must be {QUERY_CONTEXT_ANSWERABILITY_TASK!r}"
+        )
+
+
 def _call_answer_query(generator: AnswerGenerator, query: str) -> str:
     try:
         answer = generator.answer_query(query)
@@ -180,6 +192,33 @@ def _validate_answer(answer: object, method_name: str) -> str:
     return answer
 
 
+def _score_base_answerability(
+    *,
+    estimator: ConfidenceEstimator,
+    query: str,
+    answer: str,
+) -> StructuralConfidenceResult:
+    return estimator.score(
+        QueryAnswerabilityConfidenceInput(query=query, answer=answer)
+    )
+
+
+def _score_context_answerability(
+    *,
+    estimator: ConfidenceEstimator,
+    query: str,
+    context: str,
+    answer: str,
+) -> StructuralConfidenceResult:
+    return estimator.score(
+        QueryContextAnswerabilityConfidenceInput(
+            query=query,
+            context=context,
+            answer=answer,
+        )
+    )
+
+
 def _validate_confidence_score(score: object, label: str) -> float:
     if isinstance(score, bool) or not isinstance(score, Real):
         raise RerankStrategyError(f"{label} confidence score must be numeric")
@@ -187,3 +226,14 @@ def _validate_confidence_score(score: object, label: str) -> float:
     if not math.isfinite(value) or value < 0.0 or value > 1.0:
         raise RerankStrategyError(f"{label} confidence score must be finite in [0, 1]")
     return value
+
+
+def _confidence_gain(
+    *,
+    base_score: float,
+    context_score: float,
+) -> float:
+    gain = context_score - base_score
+    if not math.isfinite(gain) or gain < -1.0 or gain > 1.0:
+        raise RerankStrategyError("confidence gain must be finite in [-1, 1]")
+    return gain
