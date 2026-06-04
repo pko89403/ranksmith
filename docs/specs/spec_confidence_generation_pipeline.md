@@ -87,6 +87,7 @@ Root import에는 추가하지 않는다.
 
 그 외 field는 허용하지 않는다.
 unexpected field는 `ConfidenceGenerationInputError`로 실패한다.
+`context` 길이가 `max_context_chars`를 넘으면 실패한다.
 
 예시:
 
@@ -111,6 +112,7 @@ unexpected field는 `ConfidenceGenerationInputError`로 실패한다.
 
 그 외 field는 허용하지 않는다.
 unexpected field는 `ConfidenceGenerationInputError`로 실패한다.
+`document` 길이가 `max_document_chars`를 넘으면 실패한다.
 
 예시:
 
@@ -131,6 +133,7 @@ unexpected field는 `ConfidenceGenerationInputError`로 실패한다.
 규칙:
 - `answer`는 non-empty string이어야 한다.
 - 빈 응답, 잘못된 JSON, 누락 필드, 추가 타입은 실패한다.
+- `answer` 외 unexpected output field는 실패한다.
 - answer text를 조용히 보정하지 않는다.
 
 #### Relevance-oriented
@@ -147,6 +150,7 @@ unexpected field는 `ConfidenceGenerationInputError`로 실패한다.
 
 규칙:
 - 위 두 값 외에는 실패한다.
+- `judgment` 외 unexpected output field는 실패한다.
 - rationale, score, confidence 같은 추가 의미 필드는 이번 범위에서 사용하지 않는다.
 
 ### 출력: `answer_confidence` canonical JSONL
@@ -279,6 +283,9 @@ Generation metadata는 output `metadata.generation` 아래에 nested로 기록�
 ```
 
 규칙:
+- raw input metadata는 JSON object여야 한다.
+- raw input metadata key는 string이어야 한다.
+- raw input metadata value는 JSON-serializable이어야 한다.
 - raw input metadata에 `input_metadata`나 `generation` key가 있어도 그대로 `input_metadata` 아래에 들어가므로 충돌하지 않는다.
 - `include_raw_model_output=False`이면 `metadata.generation.raw_model_output` key를 쓰지 않는다.
 - config `source`는 row `source`가 없을 때만 사용한다.
@@ -296,6 +303,7 @@ Generation metadata는 output `metadata.generation` 아래에 nested로 기록�
 - `overwrite: bool = False`
 - `resume: bool = False`
 - `max_items: int | None = None`
+- `max_context_chars: int = 4000`
 - `include_raw_model_output: bool = True`
 - `on_usage: Callable[[RerankUsage], None] | None = None`
 - `source: str | None = None`
@@ -312,6 +320,7 @@ Generation metadata는 output `metadata.generation` 아래에 nested로 기록�
 - `overwrite: bool = False`
 - `resume: bool = False`
 - `max_items: int | None = None`
+- `max_document_chars: int = 4000`
 - `include_raw_model_output: bool = True`
 - `on_usage: Callable[[RerankUsage], None] | None = None`
 - `source: str | None = None`
@@ -463,11 +472,14 @@ def generate_judgment_confidence_dataset(config):
     samples = load_relevance_generation_samples(config.input_path)
     completed_ids = load_completed_ids(config.output_path) if config.resume else set()
     writer = open_jsonl_writer(config.output_path, overwrite=config.overwrite, append=config.resume)
+    generated_count = 0
 
-    for sample in limit(samples, config.max_items):
+    for sample in samples:
         if sample.id in completed_ids:
             skipped += 1
             continue
+        if config.max_items is not None and generated_count >= config.max_items:
+            break
 
         response = config.provider.complete(
             ModelRequest(
@@ -487,6 +499,7 @@ def generate_judgment_confidence_dataset(config):
         )
         label = int(judgment == truth)
         writer.write(canonical_judgment_row(sample, judgment, truth, label, response.content))
+        generated_count += 1
 ```
 
 ### 통합 지점
@@ -574,7 +587,12 @@ Provider 호출 실패:
 - `relevance_label`이 numeric/bool이 아님.
 - `truth_positive_operator`가 `"gt"` 또는 `"gte"`가 아님.
 - `max_items < 1`.
+- `max_context_chars < 1`.
+- `max_document_chars < 1`.
 - `no_answer_value`가 non-empty string이 아님.
+- metadata가 JSON object가 아님.
+- metadata key가 string이 아님.
+- metadata value가 JSON-serializable이 아님.
 - `overwrite=True`, `resume=True`가 동시에 지정됨.
 - output file이 있는데 `overwrite=False`, `resume=False`.
 
@@ -585,6 +603,7 @@ Provider 호출 실패:
 - 필수 output field 누락.
 - answer가 non-empty string이 아님.
 - judgment가 `"relevant"` / `"not_relevant"`가 아님.
+- model output에 unexpected field가 있음.
 
 Resume 실패:
 - 기존 output JSONL이 canonical row가 아님.
@@ -631,13 +650,17 @@ Resume 실패:
 - `overwrite=True`와 `resume=True` 동시 지정.
 - invalid `truth_positive_operator`.
 - invalid `max_items`.
+- invalid `max_context_chars`.
+- invalid `max_document_chars`.
 - invalid `no_answer_value`.
+- invalid metadata.
 - provider empty response.
 - invalid provider JSON.
 - answer field missing.
 - answer field empty.
 - judgment field missing.
 - unsupported judgment value.
+- model output unexpected field.
 - resume output duplicate id.
 - resume output task mismatch.
 
@@ -671,7 +694,7 @@ UV_NATIVE_TLS=true ./scripts/verify.sh
 - [x] raw JSONL core + external adapter 후속 분리 확정
 - [x] binary relevance judgment output 확정
 - [x] relevance truth threshold configurable 정책 확정
-- [ ] 사용자 spec review 및 최종 승인
+- [x] 사용자 spec review 및 최종 승인
 
 ### Phase 2: 로직 구현 (Implementation)
 - [ ] `src/ranksmith/confidence_generation/_errors.py`: generation error hierarchy 구현
