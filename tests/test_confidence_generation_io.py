@@ -268,6 +268,18 @@ def test_output_policy_supports_parent_creation_overwrite_and_resume(
     assert path.read_text(encoding="utf-8").endswith('{"id": "next"}\n')
 
 
+def test_resume_append_preserves_jsonl_when_existing_file_has_no_trailing_newline(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "out.jsonl"
+    path.write_text('{"id": "first"}', encoding="utf-8")
+
+    with open_output_path(path, overwrite=False, resume=True) as handle:
+        write_jsonl_row(handle, {"id": "next"})
+
+    assert path.read_text(encoding="utf-8") == ('{"id": "first"}\n{"id": "next"}\n')
+
+
 def test_output_policy_rejects_overwrite_and_resume_together(tmp_path: Path) -> None:
     with pytest.raises(ConfidenceGenerationInputError):
         open_output_path(tmp_path / "out.jsonl", overwrite=True, resume=True)
@@ -300,3 +312,47 @@ def test_load_completed_ids_accepts_missing_output_path(tmp_path: Path) -> None:
         load_completed_ids(tmp_path / "missing.jsonl", task_type="answer_confidence")
         == set()
     )
+
+
+@pytest.mark.parametrize("label", ["oops", True])
+def test_load_completed_ids_rejects_invalid_label(
+    tmp_path: Path,
+    label: object,
+) -> None:
+    path = tmp_path / "out.jsonl"
+    _write_jsonl(path, [{"id": "a1", "context": "c", "answer": "a", "label": label}])
+
+    with pytest.raises(ConfidenceGenerationInputError, match="label"):
+        load_completed_ids(path, task_type="answer_confidence")
+
+
+def test_load_completed_ids_rejects_unexpected_field(tmp_path: Path) -> None:
+    path = tmp_path / "out.jsonl"
+    _write_jsonl(
+        path,
+        [{"id": "a1", "context": "c", "answer": "a", "label": 1, "extra": "nope"}],
+    )
+
+    with pytest.raises(ConfidenceGenerationInputError, match="unexpected field"):
+        load_completed_ids(path, task_type="answer_confidence")
+
+
+def test_load_completed_ids_accepts_valid_judgment_canonical_row(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "out.jsonl"
+    _write_jsonl(
+        path,
+        [
+            {
+                "id": "j1",
+                "query": "q",
+                "document": "doc",
+                "judgment": "direct evidence",
+                "label": 1,
+                "relevance_label": 0.5,
+            }
+        ],
+    )
+
+    assert load_completed_ids(path, task_type="judgment_confidence") == {"j1"}

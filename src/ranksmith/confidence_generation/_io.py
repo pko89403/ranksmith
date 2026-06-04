@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 from collections.abc import Mapping
 from pathlib import Path
 from typing import IO, Any, Literal
@@ -18,6 +19,22 @@ _ANSWER_REQUIRED = ("id", "query", "context", "gold_answer")
 _ANSWER_ALLOWED = {*_ANSWER_REQUIRED, "source", "group_id", "metadata"}
 _RELEVANCE_REQUIRED = ("id", "query", "document", "relevance_label")
 _RELEVANCE_ALLOWED = {*_RELEVANCE_REQUIRED, "source", "group_id", "metadata"}
+_ANSWER_OUTPUT_REQUIRED = ("id", "context", "answer", "label")
+_ANSWER_OUTPUT_ALLOWED = {
+    *_ANSWER_OUTPUT_REQUIRED,
+    "gold_answer",
+    "source",
+    "group_id",
+    "metadata",
+}
+_JUDGMENT_OUTPUT_REQUIRED = ("id", "query", "document", "judgment", "label")
+_JUDGMENT_OUTPUT_ALLOWED = {
+    *_JUDGMENT_OUTPUT_REQUIRED,
+    "relevance_label",
+    "source",
+    "group_id",
+    "metadata",
+}
 
 
 def load_answer_generation_samples(
@@ -92,6 +109,8 @@ def open_output_path(
             "output_path already exists; use overwrite or resume"
         )
 
+    if resume:
+        _ensure_trailing_newline_for_append(output_path)
     mode = "a" if resume else "w"
     return output_path.open(mode, encoding="utf-8")
 
@@ -109,12 +128,27 @@ def load_completed_ids(path: str | Path, *, task_type: TaskType) -> set[str]:
     ids: set[str] = set()
     for line_number, row in _read_jsonl_objects(output_path):
         try:
-            row_id = _required_text(row, "id")
-            _validate_output_task(row, task_type)
+            row_id = _validate_output_task(row, task_type)
         except ConfidenceGenerationInputError as exc:
             raise ConfidenceGenerationInputError(f"line {line_number}: {exc}") from exc
         _check_duplicate(row_id, ids, location="output")
     return ids
+
+
+def _ensure_trailing_newline_for_append(path: Path) -> None:
+    try:
+        if not path.exists() or path.stat().st_size == 0:
+            return
+        with path.open("rb") as handle:
+            handle.seek(-1, os.SEEK_END)
+            if handle.read(1) == b"\n":
+                return
+        with path.open("ab") as handle:
+            handle.write(b"\n")
+    except OSError as exc:
+        raise ConfidenceGenerationInputError(
+            f"output file could not be prepared for resume append: {path}"
+        ) from exc
 
 
 def _read_jsonl_objects(path: Path) -> list[tuple[int, Mapping[str, Any]]]:
@@ -240,15 +274,52 @@ def _metadata(value: object) -> dict[str, Any]:
     return metadata
 
 
-def _validate_output_task(row: Mapping[str, Any], task_type: TaskType) -> None:
+def _validate_output_task(row: Mapping[str, Any], task_type: TaskType) -> str:
     if task_type == "answer_confidence":
-        required: tuple[str, ...] = ("context", "answer", "label")
+        _validate_keys(
+            row,
+            required=_ANSWER_OUTPUT_REQUIRED,
+            allowed=_ANSWER_OUTPUT_ALLOWED,
+        )
+        row_id = _required_text(row, "id")
+        _required_text(row, "context")
+        _required_text(row, "answer")
+        _label(row["label"])
+        if "gold_answer" in row:
+            _gold_answer(row["gold_answer"])
     else:
-        required = ("query", "document", "judgment", "label")
+        _validate_keys(
+            row,
+            required=_JUDGMENT_OUTPUT_REQUIRED,
+            allowed=_JUDGMENT_OUTPUT_ALLOWED,
+        )
+        row_id = _required_text(row, "id")
+        _required_text(row, "query")
+        _required_text(row, "document")
+        _required_text(row, "judgment")
+        _label(row["label"])
+        if "relevance_label" in row:
+            _relevance_label(row["relevance_label"])
 
-    for field in required:
-        if field not in row:
-            raise ConfidenceGenerationInputError("output task mismatch")
+    if "source" in row:
+        _required_text(row, "source")
+    if "group_id" in row:
+        _required_text(row, "group_id")
+    if "metadata" in row:
+        _metadata_present(row["metadata"])
+    return row_id
+
+
+def _label(value: object) -> int:
+    if type(value) is not int or value not in {0, 1}:
+        raise ConfidenceGenerationInputError("label must be integer 0 or 1")
+    return value
+
+
+def _metadata_present(value: object) -> dict[str, Any]:
+    if value is None:
+        raise ConfidenceGenerationInputError("metadata must be a JSON object")
+    return _metadata(value)
 
 
 def _check_duplicate(
