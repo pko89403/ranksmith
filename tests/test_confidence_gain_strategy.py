@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import importlib
 import math
+import sys
 from dataclasses import dataclass
+from pathlib import Path
+from types import ModuleType
 from typing import Any, cast
 
 import pytest
@@ -11,9 +14,11 @@ from ranksmith import AzureOpenAIReranker
 from ranksmith.confidence import (
     QueryAnswerabilityConfidenceInput,
     QueryContextAnswerabilityConfidenceInput,
+    StructuralConfidenceEstimator,
     StructuralConfidenceResult,
     TaskType,
 )
+from ranksmith.confidence._scorer import ARTIFACT_SCHEMA_VERSION
 from ranksmith.errors import (
     DocumentTooLongError,
     RerankInputError,
@@ -67,6 +72,65 @@ class FakeGenerator:
         if isinstance(answer, BaseException):
             raise answer
         return answer
+
+
+class ArtifactScorer:
+    def __init__(self, scores: list[float]) -> None:
+        self.scores = scores
+
+    def predict_confidence(self, features: object) -> float:
+        del features
+        return self.scores.pop(0)
+
+
+class ArtifactEncoder:
+    encoder_name = "bert-base-uncased"
+    encoder_revision = None
+    tokenizer_name = "bert-base-uncased"
+    tokenizer_revision = None
+
+    def __init__(self, *, max_length: int) -> None:
+        self.max_length = max_length
+
+    def encode(self, text: str) -> tuple[list[list[float]], list[int]]:
+        seed = float(len(text) % 7 + 1)
+        hidden = [[seed + row * 0.01, row * 0.02, seed * 0.03] for row in range(40)]
+        return hidden, [1] * len(hidden)
+
+
+def _artifact_metadata(task_type: TaskType) -> dict[str, object]:
+    return {
+        "artifact_schema_version": ARTIFACT_SCHEMA_VERSION,
+        "scorer_type": "joblib-wrapper",
+        "task_type": task_type,
+        "encoder_name": "bert-base-uncased",
+        "encoder_revision": None,
+        "tokenizer_name": "bert-base-uncased",
+        "tokenizer_revision": None,
+        "input_template_version": "structural-template-v1",
+        "feature_schema_version": "structural-v1",
+        "feature_dim": 70,
+        "feature_dtype": "float64",
+        "max_length": 64,
+        "granularity": "two_scale",
+        "local_window_size": 5,
+        "local_stride": 2,
+        "score_output": "probability",
+        "positive_class_index": 1,
+    }
+
+
+def _install_artifact_joblib(
+    monkeypatch: pytest.MonkeyPatch,
+    artifacts: dict[Path, object],
+) -> None:
+    module = ModuleType("joblib")
+
+    def load(path: str | Path) -> object:
+        return artifacts[Path(path)]
+
+    module.load = load  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "joblib", module)
 
 
 def _strategy(
@@ -525,3 +589,70 @@ def test_confidence_gain_passes_expected_confidence_inputs() -> None:
             answer="context",
         )
     ]
+
+
+def test_confidence_gain_e2e_smoke_from_artifacts_through_azure_facade(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    base_artifact_path = tmp_path / "query_answerability.joblib"
+    context_artifact_path = tmp_path / "query_context_answerability.joblib"
+    _install_artifact_joblib(
+        monkeypatch,
+        {
+            base_artifact_path: {
+                "metadata": _artifact_metadata("query_answerability_confidence"),
+                "scorer": ArtifactScorer([0.3]),
+            },
+            context_artifact_path: {
+                "metadata": _artifact_metadata(
+                    "query_context_answerability_confidence"
+                ),
+                "scorer": ArtifactScorer([0.45, 0.9]),
+            },
+        },
+    )
+
+    def fake_from_pretrained(**kwargs: object) -> ArtifactEncoder:
+        return ArtifactEncoder(max_length=cast(int, kwargs["max_length"]))
+
+    monkeypatch.setattr(
+        "ranksmith.confidence._structural.FrozenAutoEncoder.from_pretrained",
+        fake_from_pretrained,
+    )
+
+    strategy = ConfidenceGainStrategy(
+        base_estimator=StructuralConfidenceEstimator.from_artifact(base_artifact_path),
+        context_estimator=StructuralConfidenceEstimator.from_artifact(
+            context_artifact_path
+        ),
+        answer_generator=FakeGenerator(
+            base_answer="base answer",
+            context_answers=["low answer", "high answer"],
+        ),
+    )
+    reranker = AzureOpenAIReranker(
+        model_client=_unused_model_client(),
+        strategy=strategy,
+    )
+
+    results = reranker.rerank(
+        "who played karen in married to the mob?",
+        [
+            Document(
+                id="similar-but-weak",
+                text="Michelle Pfeiffer appears in the film.",
+            ),
+            Document(id="direct-evidence", text="Nancy Travis played Karen."),
+        ],
+    )
+
+    assert [result.document.id for result in results] == [
+        "direct-evidence",
+        "similar-but-weak",
+    ]
+    assert [result.metadata["base_confidence"] for result in results] == [0.3, 0.3]
+    assert [result.metadata["context_confidence"] for result in results] == [0.9, 0.45]
+    assert [result.metadata["confidence_gain"] for result in results] == pytest.approx(
+        [0.6, 0.15]
+    )
