@@ -2,10 +2,22 @@ from __future__ import annotations
 
 import importlib
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
 from ranksmith.model import ModelResponse
+
+CONFIDENCE_GENERATION_PUBLIC_NAMES = (
+    "AnswerGenerationConfig",
+    "RelevanceGenerationConfig",
+    "ConfidenceGenerationResult",
+    "ConfidenceGenerationError",
+    "ConfidenceGenerationInputError",
+    "ConfidenceGenerationParseError",
+    "generate_answer_confidence_dataset",
+    "generate_judgment_confidence_dataset",
+)
 
 
 class FakeProvider:
@@ -16,22 +28,15 @@ class FakeProvider:
 def test_confidence_generation_public_submodule_exports_are_available() -> None:
     generation = importlib.import_module("ranksmith.confidence_generation")
 
-    assert hasattr(generation, "AnswerGenerationConfig")
-    assert hasattr(generation, "RelevanceGenerationConfig")
-    assert hasattr(generation, "ConfidenceGenerationResult")
-    assert hasattr(generation, "ConfidenceGenerationError")
-    assert hasattr(generation, "ConfidenceGenerationInputError")
-    assert hasattr(generation, "ConfidenceGenerationParseError")
-    assert hasattr(generation, "generate_answer_confidence_dataset")
-    assert hasattr(generation, "generate_judgment_confidence_dataset")
+    for name in CONFIDENCE_GENERATION_PUBLIC_NAMES:
+        assert hasattr(generation, name)
 
 
 def test_confidence_generation_names_are_not_root_exports() -> None:
     ranksmith = importlib.import_module("ranksmith")
 
-    assert not hasattr(ranksmith, "AnswerGenerationConfig")
-    assert not hasattr(ranksmith, "RelevanceGenerationConfig")
-    assert not hasattr(ranksmith, "ConfidenceGenerationError")
+    for name in CONFIDENCE_GENERATION_PUBLIC_NAMES:
+        assert not hasattr(ranksmith, name)
 
 
 def test_answer_generation_config_rejects_invalid_options(tmp_path: Path) -> None:
@@ -89,3 +94,12 @@ def test_relevance_generation_config_rejects_invalid_options(tmp_path: Path) -> 
             provider=FakeProvider(),
             max_document_chars=0,
         )
+
+    for invalid_threshold in (True, "0"):
+        with pytest.raises(generation.ConfidenceGenerationInputError):
+            generation.RelevanceGenerationConfig(
+                input_path=tmp_path / "in.jsonl",
+                output_path=tmp_path / "out.jsonl",
+                provider=FakeProvider(),
+                truth_positive_threshold=cast(Any, invalid_threshold),
+            )
