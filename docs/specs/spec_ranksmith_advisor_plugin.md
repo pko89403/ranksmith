@@ -39,11 +39,11 @@ skills/ranksmith-advisor/              # 스킬 본문(유일 사본)
 .claude-plugin/
   plugin.json                          # 플러그인 매니페스트 (plugin root = repo root)
   marketplace.json                     # 자체 marketplace (plugin source "./")
-.claude/settings.json                  # (예정) 기여자 자동 등록 — 라이브 세션 확인 후
+.claude/settings.json                  # 기여자 자동 등록 (extraKnownMarketplaces + enabledPlugins)
 tests/test_advisor_references.py       # 자동 참조 무결성 테스트
 pyproject.toml                         # exclude += /.claude /.claude-plugin /skills (sdist 격리)
 ```
-> **단일 소스 확정**: 스킬 본문은 `skills/ranksmith-advisor/` 한 곳에만 둔다. 레포 전체가 곧 플러그인(plugin root = repo root)이며, 자체 `marketplace.json`이 `source: "./"`로 이 플러그인을 가리킨다. 외부 사용자: `/plugin marketplace add pko89403/ranksmith` → `/plugin install ranksmith-advisor@ranksmith`. 기여자 자동 등록(`.claude/settings.json`의 `extraKnownMarketplaces`)은 라이브 Claude Code 세션에서 스키마 확인 후 추가하며, 그 전까지는 수동 `/plugin marketplace add .`로 대체한다.
+> **단일 소스 확정**: 스킬 본문은 `skills/ranksmith-advisor/` 한 곳에만 둔다. 레포 전체가 곧 플러그인(plugin root = repo root)이며, 자체 `marketplace.json`이 `source: "./"`로 이 플러그인을 가리킨다. 외부 사용자: `/plugin marketplace add pko89403/ranksmith` → `/plugin install ranksmith-advisor@ranksmith`. 기여자는 `.claude/settings.json`의 `extraKnownMarketplaces`(local `source: directory`, `path "."`) + `enabledPlugins`(`ranksmith-advisor@ranksmith`)로 자동 활성화된다.
 
 ### SKILL.md frontmatter (초안)
 ```yaml
@@ -166,12 +166,12 @@ setwise top-k 추출        → SetwiseStrategy(set_size)    top-k 조기종료 
 - [x] `.claude-plugin/plugin.json` (plugin root = repo root)
 - [x] `.claude-plugin/marketplace.json` (source `"./"`)
 - [x] `pyproject.toml` exclude += `/.claude` `/.claude-plugin` `/skills` (sdist 격리)
-- [ ] `.claude/settings.json` 기여자 자동 등록 — 라이브 세션 스키마 확인 후
+- [x] `.claude/settings.json` 기여자 자동 등록(`extraKnownMarketplaces` + `enabledPlugins`)
 
 ### Phase 4: 검증 (Verification)
 - [x] `tests/test_advisor_references.py`: snippets ↔ `examples/*.py` 참조 무결성 + public symbol 검증
 - [x] guardrails.md ↔ 현재 코드(`_stubs.py`/`parsing.py`/`errors.py`/전략 default) 사실 대조
-- [ ] `./scripts/verify.sh` 통과(라이브러리 회귀 없음)
+- [x] `./scripts/verify.sh` 통과(462 passed, ruff/mypy clean, build OK)
 - [ ] 실제 Claude Code 세션에서 추천/스니펫 트리거 + 매니페스트 로드 수기 검증
 
 ### Phase 5: 완료 및 정리
