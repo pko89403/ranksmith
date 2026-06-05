@@ -363,6 +363,27 @@ Runnable examples live in the `examples/` directory.
 - [acurank.py](https://github.com/pko89403/ranksmith/blob/main/examples/acurank.py): AcuRank with first-stage score priors
 - [custom_strategy.py](https://github.com/pko89403/ranksmith/blob/main/examples/custom_strategy.py): custom strategy contracts
 
+## Claude Code Advisor
+
+This repo ships a [Claude Code](https://code.claude.com/docs) plugin,
+`ranksmith-advisor`, that helps you choose a reranking strategy for your use
+case and returns working, CI-verified snippets. It encodes ranksmith-specific
+guardrails, so the suggested code follows the library's real contracts (no
+calls into unimplemented providers, no `algorithm` string hacks, no treating
+`confidence` as a reranker).
+
+Use it from Claude Code:
+
+```bash
+/plugin marketplace add pko89403/ranksmith
+/plugin install ranksmith-advisor@ranksmith
+```
+
+Repo contributors get it automatically: the project-shared
+`.claude/settings.json` registers the local marketplace and enables the plugin,
+so no manual install is needed. The plugin content lives under
+`skills/ranksmith-advisor/` and is excluded from the PyPI distribution.
+
 ## Benchmarking
 
 The benchmark below measures reranking only. Pyserini BM25 provides the fixed

@@ -358,6 +358,26 @@ print(result.export_path)
 - [acurank.py](https://github.com/pko89403/ranksmith/blob/main/examples/acurank.py): first-stage score prior 기반 AcuRank
 - [custom_strategy.py](https://github.com/pko89403/ranksmith/blob/main/examples/custom_strategy.py): custom Strategy 계약
 
+## Claude Code Advisor
+
+이 레포에는 [Claude Code](https://code.claude.com/docs) 플러그인
+`ranksmith-advisor`가 포함되어 있습니다. 사용 사례에 맞는 reranking strategy
+선택을 돕고 CI로 검증된 동작 스니펫을 제시하며, 제안 코드가 라이브러리의 실제
+계약을 따르도록 ranksmith 전용 guardrail을 적용합니다(미구현 provider 호출,
+`algorithm` 문자열 확장, `confidence`를 reranker로 취급하는 패턴을 차단).
+
+Claude Code에서 사용:
+
+```bash
+/plugin marketplace add pko89403/ranksmith
+/plugin install ranksmith-advisor@ranksmith
+```
+
+레포 기여자는 자동으로 활성화됩니다. 프로젝트 공유 `.claude/settings.json`이
+로컬 marketplace를 등록하고 플러그인을 enable 하므로 수동 설치가 필요 없습니다.
+플러그인 본문은 `skills/ranksmith-advisor/`에 있으며 PyPI 배포물에서는
+제외됩니다.
+
 ## 벤치마크
 
 아래 benchmark는 reranking만 측정합니다. Pyserini BM25는 고정된 first-stage
