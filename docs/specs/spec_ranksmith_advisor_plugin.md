@@ -10,7 +10,7 @@
   - Claude Code Plugins: https://code.claude.com/docs/en/plugins.md
   - Plugins Reference(매니페스트/검증): https://code.claude.com/docs/en/plugins-reference.md
   - 근거 문서(레포 내부): `README.md`(Recommended Use Cases·Benchmark), `docs/wiki/00_context.md`, `docs/wiki/02_architecture.md`, `docs/wiki/08_custom_strategy_extension.md`, `AGENTS.md`
-- **상태**: `[x] Draft` | `[ ] In Progress` | `[ ] Completed`
+- **상태**: `[ ] Draft` | `[x] In Progress` | `[ ] Completed`
 
 ## 2. 요구 사항 및 제약 (Requirements & Constraints)
 - **입력 (Inputs)**: 사용자의 자연어 제약조건 — 후보 수, 비용/지연 예산, 품질 목표, 동기/비동기, top_k, first-stage score 보유 여부, 커스텀 로직 필요 여부.
@@ -30,18 +30,20 @@
 
 ### 파일 구조
 ```text
-.claude/skills/ranksmith-advisor/      # 1단계(로컬)에서 동작하는 경로
-  SKILL.md                             # 라우팅 + 결정 절차 요약 + 가드레일 요약 (상시 로드)
-  method-guide.md                      # 전략 표 · 콜 비용 모델 · 벤치마크 근거 · 파라미터 기본값/제약
-  snippets.md                          # 시나리오 → examples/ 매핑 + 적응 지침 (코드 복제 X)
-  guardrails.md                        # 8개 하드룰(안티패턴)
-
-.claude-plugin/                        # 2단계(배포)에서 추가
-  plugin.json                          # 매니페스트
-  marketplace.json                     # marketplace 등록(pko89403/ranksmith)
-skills/ranksmith-advisor/ -> (위 스킬과 동일 내용)   # 플러그인 루트 스킬
+# 단일 소스: 플러그인 루트 = 레포 루트
+skills/ranksmith-advisor/              # 스킬 본문(유일 사본)
+  SKILL.md                             # 라우팅 + 가드레일 요약 (상시 로드)
+  method-guide.md                      # 전략 표 · 콜 비용 모델 · 벤치마크 근거 · 파라미터
+  snippets.md                          # 시나리오 → examples/ 매핑 + 최소 스니펫
+  guardrails.md                        # 하드룰(안티패턴)
+.claude-plugin/
+  plugin.json                          # 플러그인 매니페스트 (plugin root = repo root)
+  marketplace.json                     # 자체 marketplace (plugin source "./")
+.claude/settings.json                  # (예정) 기여자 자동 등록 — 라이브 세션 확인 후
+tests/test_advisor_references.py       # 자동 참조 무결성 테스트
+pyproject.toml                         # exclude += /.claude /.claude-plugin /skills (sdist 격리)
 ```
-> 구현 시 1·2단계가 스킬 본문을 중복 보관하지 않도록 한다. 1차 구현은 `.claude/skills/`에 두고, 2단계에서 플러그인 루트 `skills/`로 이동(또는 단일 위치를 양쪽이 참조)하는 방식을 PR에서 확정한다.
+> **단일 소스 확정**: 스킬 본문은 `skills/ranksmith-advisor/` 한 곳에만 둔다. 레포 전체가 곧 플러그인(plugin root = repo root)이며, 자체 `marketplace.json`이 `source: "./"`로 이 플러그인을 가리킨다. 외부 사용자: `/plugin marketplace add pko89403/ranksmith` → `/plugin install ranksmith-advisor@ranksmith`. 기여자 자동 등록(`.claude/settings.json`의 `extraKnownMarketplaces`)은 라이브 Claude Code 세션에서 스키마 확인 후 추가하며, 그 전까지는 수동 `/plugin marketplace add .`로 대체한다.
 
 ### SKILL.md frontmatter (초안)
 ```yaml
@@ -98,7 +100,7 @@ setwise top-k 추출        → SetwiseStrategy(set_size)    top-k 조기종료 
 | 커스텀 Strategy 계약 | `examples/custom_strategy.py` |
 "이 예제에서 X만 바꿔라" 식 적응 지침 + provider/자격증명 주입(`AzureOpenAIReranker` vs `ModelClient` 주입) 설명.
 
-### guardrails.md — 8개 하드룰
+### guardrails.md — 하드룰
 1. **Azure만 실제 동작**. `OpenAIProvider`/`AnthropicProvider`/`GeminiProvider`는 stub → 호출 시 `RerankProviderError`. 이 stub들로 동작 코드를 생성하지 않는다.
 2. **새 알고리즘 = 새 Strategy 클래스**. `ListwiseStrategy(algorithm="...")`에 새 문자열을 넣지 않는다.
 3. `rank`=1-based, `original_index`=입력 기준 0-based.
@@ -107,6 +109,7 @@ setwise top-k 추출        → SetwiseStrategy(set_size)    top-k 조기종료 
 6. **confidence는 리랭킹 Strategy가 아님**. 별도 `ranksmith.confidence` 유틸, optional deps(`pip install ranksmith[confidence]`).
 7. **벤치 수치 날조 금지**. 커밋된 artifact만 인용, 콜 수는 estimate로 명시.
 8. `top_k` 조기종료는 Setwise뿐. 나머지는 사후 슬라이스.
+9. **Public API만 사용**. private 모듈(`ranksmith._providers`, `ranksmith.strategies._*`) 직접 접근 금지.
 
 ### plugin.json (2단계 초안)
 ```json
@@ -134,13 +137,13 @@ setwise top-k 추출        → SetwiseStrategy(set_size)    top-k 조기종료 
 > 본 작업은 reranking 알고리즘이 아니므로 TEMPLATE의 "공통 Reranking Smoke/Benchmark"는 비적용. 문서/매니페스트 무결성 중심으로 검증한다.
 
 - **성공 케이스**:
-  - `.claude/skills/ranksmith-advisor/SKILL.md`가 유효한 frontmatter로 로드된다.
+  - `skills/ranksmith-advisor/SKILL.md`가 유효한 frontmatter로 로드된다.
   - (2단계) `plugin.json`/`marketplace.json`이 스키마상 유효하다(가능 시 `claude plugin validate` 수준 확인).
   - snippets.md가 가리키는 모든 `examples/*.py` 경로가 실제 존재한다(참조 무결성).
   - method-guide.md의 수치가 README 표와 일치한다.
 - **엣지/실패 케이스**:
   - 존재하지 않는 전략/파라미터를 추천하지 않는지(가드레일과 충돌 없음) 수기 검토.
-  - guardrails.md 8개 항목이 현재 코드(`_stubs.py`, `parsing.py`, `errors.py`, 전략 default)와 사실 일치하는지 대조.
+  - guardrails.md 항목이 현재 코드(`_stubs.py`, `parsing.py`, `errors.py`, 전략 default)와 사실 일치하는지 대조.
 - **검증 명령**: `./scripts/verify.sh`(기존 라이브러리 회귀 없음 확인) + 참조 무결성/일치 체크(스크립트화 여부는 구현 시 결정).
 
 ---
@@ -151,25 +154,25 @@ setwise top-k 추출        → SetwiseStrategy(set_size)    top-k 조기종료 
 ### Phase 1: 컨텍스트 및 설계 확인
 - [x] 기존 코드베이스·Wiki·README·examples·AGENTS.md 확인
 - [x] Claude Code Skills/Plugins 작성 규격 확인
-- [ ] 본 스펙(배포 단계·스코프·구조) 사용자 검토 및 최종 승인
+- [x] 본 스펙(배포 단계·스코프·구조) 사용자 검토 및 최종 승인
 
-### Phase 2: 구현 (Implementation) — 1단계(로컬)
-- [ ] `.claude/skills/ranksmith-advisor/SKILL.md` 작성(라우팅 + 가드레일 요약)
-- [ ] `.claude/skills/ranksmith-advisor/method-guide.md` 작성(결정 절차·콜 비용·파라미터)
-- [ ] `.claude/skills/ranksmith-advisor/snippets.md` 작성(examples 매핑·적응 지침)
-- [ ] `.claude/skills/ranksmith-advisor/guardrails.md` 작성(8개 하드룰)
+### Phase 2: 구현 — 스킬 본문 (단일 소스)
+- [x] `skills/ranksmith-advisor/SKILL.md` (라우팅 + 가드레일 요약)
+- [x] `skills/ranksmith-advisor/method-guide.md` (결정 절차·콜 비용·파라미터)
+- [x] `skills/ranksmith-advisor/snippets.md` (examples 매핑 + 최소 스니펫)
+- [x] `skills/ranksmith-advisor/guardrails.md` (하드룰)
 
-### Phase 3: 구현 (Implementation) — 2단계(배포형)
-- [ ] `.claude-plugin/plugin.json` 작성
-- [ ] `.claude-plugin/marketplace.json` 작성
-- [ ] 플러그인 루트 `skills/` 노출(스킬 본문 중복 없이)
+### Phase 3: 구현 — 배포 패키징
+- [x] `.claude-plugin/plugin.json` (plugin root = repo root)
+- [x] `.claude-plugin/marketplace.json` (source `"./"`)
+- [x] `pyproject.toml` exclude += `/.claude` `/.claude-plugin` `/skills` (sdist 격리)
+- [ ] `.claude/settings.json` 기여자 자동 등록 — 라이브 세션 스키마 확인 후
 
 ### Phase 4: 검증 (Verification)
-- [ ] frontmatter/매니페스트 유효성 및 스킬 로드 확인
-- [ ] snippets.md ↔ `examples/*.py` 참조 무결성 확인
-- [ ] guardrails.md ↔ 현재 코드 사실 일치 대조
+- [x] `tests/test_advisor_references.py`: snippets ↔ `examples/*.py` 참조 무결성 + public symbol 검증
+- [x] guardrails.md ↔ 현재 코드(`_stubs.py`/`parsing.py`/`errors.py`/전략 default) 사실 대조
 - [ ] `./scripts/verify.sh` 통과(라이브러리 회귀 없음)
-- [ ] 실제 Claude Code 세션에서 추천/스니펫 트리거 수기 검증
+- [ ] 실제 Claude Code 세션에서 추천/스니펫 트리거 + 매니페스트 로드 수기 검증
 
 ### Phase 5: 완료 및 정리
 - [ ] 필요 시 `README`/`docs/wiki/`에 advisor 안내 추가
