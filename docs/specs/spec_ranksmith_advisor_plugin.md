@@ -10,7 +10,8 @@
   - Claude Code Plugins: https://code.claude.com/docs/en/plugins.md
   - Plugins Reference(매니페스트/검증): https://code.claude.com/docs/en/plugins-reference.md
   - 근거 문서(레포 내부): `README.md`(Recommended Use Cases·Benchmark), `docs/wiki/00_context.md`, `docs/wiki/02_architecture.md`, `docs/wiki/08_custom_strategy_extension.md`, `AGENTS.md`
-- **상태**: `[ ] Draft` | `[x] In Progress` | `[ ] Completed`
+- **상태**: `[ ] Draft` | `[ ] In Progress` | `[x] Completed`
+  - 구현·패키징·자동 검증(로컬 verify.sh 462 passed, CI test 3.10–3.12 green) 완료. 대화형 Claude Code 세션에서의 수동 스모크 테스트(Phase 4 마지막 항목)는 사용자 인수 단계로 남긴다.
 
 ## 2. 요구 사항 및 제약 (Requirements & Constraints)
 - **입력 (Inputs)**: 사용자의 자연어 제약조건 — 후보 수, 비용/지연 예산, 품질 목표, 동기/비동기, top_k, first-stage score 보유 여부, 커스텀 로직 필요 여부.
@@ -172,8 +173,8 @@ setwise top-k 추출        → SetwiseStrategy(set_size)    top-k 조기종료 
 - [x] `tests/test_advisor_references.py`: snippets ↔ `examples/*.py` 참조 무결성 + public symbol 검증
 - [x] guardrails.md ↔ 현재 코드(`_stubs.py`/`parsing.py`/`errors.py`/전략 default) 사실 대조
 - [x] `./scripts/verify.sh` 통과(462 passed, ruff/mypy clean, build OK)
-- [ ] 실제 Claude Code 세션에서 추천/스니펫 트리거 + 매니페스트 로드 수기 검증
+- [~] 실제 Claude Code 세션에서 추천/스니펫 트리거 + 매니페스트 로드 수기 검증 — 대화형 세션 필요(헤드리스 환경 미수행). 자동 프록시 통과: CI test(3.10–3.12) green + 매니페스트 3종(plugin/marketplace/settings) JSON 유효
 
 ### Phase 5: 완료 및 정리
-- [ ] 필요 시 `README`/`docs/wiki/`에 advisor 안내 추가
-- [ ] 본 문서 최상단 **상태**를 `Completed`로 변경
+- [x] `README.md`/`README.ko.md`에 "Claude Code Advisor" 섹션 추가(ko/en 동기화)
+- [x] 본 문서 최상단 **상태**를 `Completed`로 변경
