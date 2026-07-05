@@ -4,12 +4,12 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from ranksmith.confidence._dependencies import import_optional_dependency
-from ranksmith.confidence._errors import (
+from ranksmith.confidence.dependencies import import_optional_dependency
+from ranksmith.confidence.errors import (
     ConfidenceDependencyError,
     ConfidenceInputError,
 )
-from ranksmith.confidence._features import MIN_MAX_LENGTH
+from ranksmith.confidence.features import MIN_MAX_LENGTH
 
 HF_LIVE_TEST_ENV = "RANKSMITH_RUN_HF_TESTS"
 

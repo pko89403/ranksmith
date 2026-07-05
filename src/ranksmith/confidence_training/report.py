@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from ranksmith.confidence._dependencies import import_optional_dependency
-from ranksmith.confidence_training._calibration import (
+from ranksmith.confidence.dependencies import import_optional_dependency
+from ranksmith.confidence_training.calibration import (
     CalibratedConfidenceScorer,
     PredictiveModel,
     predict_model_probability,
 )
-from ranksmith.confidence_training._errors import ConfidenceTrainingError
-from ranksmith.confidence_training._train import feature_matrix_and_labels
-from ranksmith.confidence_training._types import (
+from ranksmith.confidence_training.errors import ConfidenceTrainingError
+from ranksmith.confidence_training.train import feature_matrix_and_labels
+from ranksmith.confidence_training.types import (
     ConfidenceFeatureRow,
     ConfidenceMetricReport,
     ConfidenceTrainingReport,

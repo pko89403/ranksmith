@@ -7,9 +7,9 @@ from dataclasses import fields
 from pathlib import Path
 from typing import Any
 
-from ranksmith.confidence._dependencies import import_optional_dependency
-from ranksmith.confidence._errors import ConfidenceArtifactError
-from ranksmith.confidence._features import (
+from ranksmith.confidence.dependencies import import_optional_dependency
+from ranksmith.confidence.errors import ConfidenceArtifactError
+from ranksmith.confidence.features import (
     FEATURE_DIM,
     FEATURE_DTYPE,
     FEATURE_SCHEMA_VERSION,
@@ -18,8 +18,8 @@ from ranksmith.confidence._features import (
     LOCAL_WINDOW_SIZE,
     MIN_MAX_LENGTH,
 )
-from ranksmith.confidence._templates import INPUT_TEMPLATE_VERSION
-from ranksmith.confidence._types import (
+from ranksmith.confidence.templates import INPUT_TEMPLATE_VERSION
+from ranksmith.confidence.types import (
     ScoreOutput,
     ScorerMetadata,
     StructuralConfidenceScorer,

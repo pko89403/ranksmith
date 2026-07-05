@@ -7,11 +7,11 @@ from pathlib import Path
 from typing import Any
 
 from ranksmith.confidence import TaskType
-from ranksmith.confidence_training._errors import (
+from ranksmith.confidence_training.errors import (
     ConfidenceDatasetError,
     ConfidenceLabelError,
 )
-from ranksmith.confidence_training._types import CanonicalConfidenceSample
+from ranksmith.confidence_training.types import CanonicalConfidenceSample
 
 _ANSWER_REQUIRED = ("id", "context", "answer", "label")
 _JUDGMENT_REQUIRED = ("id", "query", "document", "judgment", "label")

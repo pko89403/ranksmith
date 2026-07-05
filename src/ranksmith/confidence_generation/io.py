@@ -7,8 +7,8 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import IO, Any, Literal
 
-from ranksmith.confidence_generation._errors import ConfidenceGenerationInputError
-from ranksmith.confidence_generation._types import (
+from ranksmith.confidence_generation.errors import ConfidenceGenerationInputError
+from ranksmith.confidence_generation.types import (
     AnswerGenerationSample,
     RelevanceGenerationSample,
 )

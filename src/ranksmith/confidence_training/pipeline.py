@@ -4,31 +4,31 @@ import json
 from pathlib import Path
 from typing import Any
 
-from ranksmith.confidence._dependencies import import_optional_dependency
-from ranksmith.confidence._encoder import FrozenAutoEncoder
-from ranksmith.confidence_training._artifact import (
+from ranksmith.confidence.dependencies import import_optional_dependency
+from ranksmith.confidence.encoder import FrozenAutoEncoder
+from ranksmith.confidence_training.artifact import (
     export_scorer_artifact,
     write_metadata_json,
 )
-from ranksmith.confidence_training._calibration import (
+from ranksmith.confidence_training.calibration import (
     CalibratedConfidenceScorer,
     PredictiveModel,
 )
-from ranksmith.confidence_training._dataset import load_canonical_dataset
-from ranksmith.confidence_training._features import EncoderLike, extract_feature_rows
-from ranksmith.confidence_training._manifest import (
+from ranksmith.confidence_training.dataset import load_canonical_dataset
+from ranksmith.confidence_training.features import EncoderLike, extract_feature_rows
+from ranksmith.confidence_training.manifest import (
     build_dataset_manifest,
     build_split_manifest,
     json_hash,
     training_config_hash,
 )
-from ranksmith.confidence_training._report import generate_training_report
-from ranksmith.confidence_training._split import split_dataset
-from ranksmith.confidence_training._train import (
+from ranksmith.confidence_training.report import generate_training_report
+from ranksmith.confidence_training.split import split_dataset
+from ranksmith.confidence_training.train import (
     calibrate_classifier,
     train_lightgbm_classifier,
 )
-from ranksmith.confidence_training._types import (
+from ranksmith.confidence_training.types import (
     CanonicalConfidenceSample,
     ConfidenceDatasetSplit,
     ConfidenceFeatureRow,

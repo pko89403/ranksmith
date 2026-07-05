@@ -1,13 +1,13 @@
-from ranksmith.confidence_generation._errors import (
+from ranksmith.confidence_generation.errors import (
     ConfidenceGenerationError,
     ConfidenceGenerationInputError,
     ConfidenceGenerationParseError,
 )
-from ranksmith.confidence_generation._pipeline import (
+from ranksmith.confidence_generation.pipeline import (
     generate_answer_confidence_dataset,
     generate_judgment_confidence_dataset,
 )
-from ranksmith.confidence_generation._types import (
+from ranksmith.confidence_generation.types import (
     AnswerGenerationConfig,
     ConfidenceGenerationResult,
     RelevanceGenerationConfig,

@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from ranksmith.confidence import ConfidenceArtifactError, ConfidenceInputError
-from ranksmith.confidence._features import extract_structural_features
+from ranksmith.confidence.features import extract_structural_features
 
 
 def test_rejects_nan_hidden_states() -> None:

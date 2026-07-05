@@ -4,8 +4,8 @@ import warnings
 from dataclasses import dataclass
 from typing import Any, Protocol, TypeGuard, cast
 
-from ranksmith.confidence._dependencies import import_optional_dependency
-from ranksmith.confidence_training._errors import ConfidenceTrainingError
+from ranksmith.confidence.dependencies import import_optional_dependency
+from ranksmith.confidence_training.errors import ConfidenceTrainingError
 
 
 class PredictProbaModel(Protocol):

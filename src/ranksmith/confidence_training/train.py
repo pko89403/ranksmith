@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from ranksmith.confidence._dependencies import import_optional_dependency
-from ranksmith.confidence._features import FEATURE_DIM, FEATURE_SCHEMA_VERSION
-from ranksmith.confidence_training._calibration import (
+from ranksmith.confidence.dependencies import import_optional_dependency
+from ranksmith.confidence.features import FEATURE_DIM, FEATURE_SCHEMA_VERSION
+from ranksmith.confidence_training.calibration import (
     CalibratedConfidenceScorer,
     PredictiveModel,
     PredictProbaModel,
 )
-from ranksmith.confidence_training._errors import ConfidenceTrainingError
-from ranksmith.confidence_training._types import ConfidenceFeatureRow
+from ranksmith.confidence_training.errors import ConfidenceTrainingError
+from ranksmith.confidence_training.types import ConfidenceFeatureRow
 
 
 def train_lightgbm_classifier(
@@ -46,7 +46,7 @@ def calibrate_classifier(
         "sklearn.linear_model",
         extra="confidence-train",
     )
-    from ranksmith.confidence_training._calibration import predict_model_probability
+    from ranksmith.confidence_training.calibration import predict_model_probability
 
     base_scores = predict_model_probability(model, matrix)
     calibrator = sklearn_linear.LogisticRegression(solver="liblinear")

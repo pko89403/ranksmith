@@ -3,15 +3,15 @@ from __future__ import annotations
 from typing import Protocol
 
 from ranksmith.confidence import AnswerConfidenceInput, JudgmentConfidenceInput
-from ranksmith.confidence._errors import ConfidenceError
-from ranksmith.confidence._features import (
+from ranksmith.confidence.errors import ConfidenceError
+from ranksmith.confidence.features import (
     FEATURE_DIM,
     FEATURE_SCHEMA_VERSION,
     extract_structural_features,
 )
-from ranksmith.confidence._types import StructuralConfidenceInput
-from ranksmith.confidence_training._errors import ConfidenceTrainingError
-from ranksmith.confidence_training._types import (
+from ranksmith.confidence.types import StructuralConfidenceInput
+from ranksmith.confidence_training.errors import ConfidenceTrainingError
+from ranksmith.confidence_training.types import (
     CanonicalConfidenceSample,
     ConfidenceFeatureRow,
 )
@@ -64,7 +64,7 @@ def _extract_feature_row(
 
 
 def _sample_text(sample: CanonicalConfidenceSample) -> str:
-    from ranksmith.confidence._templates import format_confidence_input
+    from ranksmith.confidence.templates import format_confidence_input
 
     return format_confidence_input(sample.task_type, _sample_input(sample))
 

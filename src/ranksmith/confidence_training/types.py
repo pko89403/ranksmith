@@ -7,8 +7,8 @@ from types import MappingProxyType
 from typing import Any, Literal
 
 from ranksmith.confidence import TaskType
-from ranksmith.confidence._features import MIN_MAX_LENGTH
-from ranksmith.confidence_training._errors import ConfidenceTrainingConfigError
+from ranksmith.confidence.features import MIN_MAX_LENGTH
+from ranksmith.confidence_training.errors import ConfidenceTrainingConfigError
 
 CalibrationMethod = Literal["sigmoid"]
 

@@ -9,7 +9,7 @@ from ranksmith.model import AsyncModelClient, ModelClient
 from ranksmith.parsing import parse_selection_response
 from ranksmith.types import Document, RerankResult
 
-from ._common import (
+from .common import (
     ensure_async_selection_model_client,
     ensure_selection_model_client,
     validate_documents_max_chars,

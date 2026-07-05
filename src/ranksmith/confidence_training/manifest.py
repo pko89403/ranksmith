@@ -5,7 +5,7 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
-from ranksmith.confidence_training._types import (
+from ranksmith.confidence_training.types import (
     ConfidenceDatasetSplit,
     ConfidenceTrainingConfig,
 )

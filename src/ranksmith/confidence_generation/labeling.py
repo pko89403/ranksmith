@@ -4,7 +4,7 @@ import math
 import re
 from typing import Literal
 
-from ranksmith.confidence_generation._errors import ConfidenceGenerationInputError
+from ranksmith.confidence_generation.errors import ConfidenceGenerationInputError
 
 JudgmentValue = Literal["relevant", "not_relevant"]
 
