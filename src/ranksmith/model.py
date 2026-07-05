@@ -77,8 +77,8 @@ class ModelClient:
         system, user = _select_messages(query, documents, top_m)
         return self._complete(system=system, user=user)
 
-    def judge(self, query: str, document: Document) -> str:
-        system, user = _judge_messages(query, document)
+    def answer(self, query: str, context: str) -> str:
+        system, user = _answer_messages(query, context)
         return self._complete(system=system, user=user)
 
     def _complete(self, *, system: str, user: str) -> str:
@@ -129,8 +129,8 @@ class AsyncModelClient:
         system, user = _select_messages(query, documents, top_m)
         return await self._complete(system=system, user=user)
 
-    async def judge(self, query: str, document: Document) -> str:
-        system, user = _judge_messages(query, document)
+    async def answer(self, query: str, context: str) -> str:
+        system, user = _answer_messages(query, context)
         return await self._complete(system=system, user=user)
 
     async def _complete(self, *, system: str, user: str) -> str:
@@ -209,20 +209,21 @@ def _select_messages(
     return system, _build_selection_prompt(query, documents, top_m)
 
 
-def _judge_messages(query: str, document: Document) -> tuple[str, str]:
+NO_ANSWER_VALUE = "__NO_ANSWER__"
+
+
+def _answer_messages(query: str, context: str) -> tuple[str, str]:
     system = (
-        "You judge document relevance. Return only JSON with "
-        'a "judgment" value of "relevant" or "not_relevant".'
+        "You answer questions using only the provided context. "
+        'Return only JSON with an "answer" string.'
     )
     user = (
-        f"Query:\n{query}\n\n"
-        f"Document:\n{document.text}\n\n"
-        "Return JSON exactly as one of these two shapes:\n"
-        '{"judgment": "relevant"}\n'
-        '{"judgment": "not_relevant"}\n\n'
-        'Use "relevant" if the document contains information useful for '
-        "answering the query.\n"
-        'Use "not_relevant" otherwise.'
+        f"Question:\n{query}\n\n"
+        f"Context:\n{context}\n\n"
+        "Return JSON exactly like this shape:\n"
+        '{"answer":"..."}\n\n'
+        "Use only the context. If the context does not contain the answer, "
+        f'return {{"answer":"{NO_ANSWER_VALUE}"}}.'
     )
     return system, user
 
