@@ -182,9 +182,7 @@ def test_rankgpt_sliding_window_bubbles_top_document_up() -> None:
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
         model_client=provider,
-        strategy=ListwiseStrategy(
-            window_size=3, stride=2
-        ),
+        strategy=ListwiseStrategy(window_size=3, stride=2),
     )
 
     results = reranker.rerank("query", ["a", "b", "c", "d", "e"])
