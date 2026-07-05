@@ -22,6 +22,34 @@ def _load_answer_confidence_estimator(artifact_path: str) -> Any:
     )
 
 
+def _openai_compatible_provider(base_url: str) -> Any:
+    # ModelProvider backed by any OpenAI-compatible chat endpoint (LM Studio,
+    # vLLM, ...). RANKSMITH_OPENAI_MODEL / _API_KEY override the defaults.
+    from openai import OpenAI
+
+    from ranksmith.model import ModelRequest, ModelResponse
+
+    client = OpenAI(
+        base_url=base_url,
+        api_key=os.getenv("RANKSMITH_OPENAI_API_KEY", "local"),
+        timeout=180,
+    )
+    model = os.getenv("RANKSMITH_OPENAI_MODEL", "local-model")
+
+    class _Provider:
+        def complete(self, request: ModelRequest) -> ModelResponse:
+            resp = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": m.role, "content": m.content} for m in request.messages
+                ],
+                temperature=0,
+            )
+            return ModelResponse(content=resp.choices[0].message.content or "")
+
+    return _Provider()
+
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
@@ -488,21 +516,32 @@ def _rank_case(
             stride=listwise_stride,
         )
 
-    reranker = AzureOpenAIReranker(
-        api_key=_required_env("AZURE_OPENAI_API_KEY"),
-        azure_endpoint=_required_env("AZURE_OPENAI_ENDPOINT"),
-        azure_deployment=_required_env(
-            "AZURE_OPENAI_LLM_DEPLOYMENT",
-            fallback="AZURE_OPENAI_DEPLOYMENT",
-        ),
-        api_version=_env_value(
-            "AZURE_OPENAI_LLM_API_VERSION",
-            fallback="AZURE_OPENAI_API_VERSION",
-            default="2024-08-01-preview",
-        ),
-        timeout=timeout or _env_float("AZURE_OPENAI_LLM_TIMEOUT"),
-        strategy=strategy,
-    )
+    # Local/test escape hatch: point at any OpenAI-compatible endpoint (e.g.
+    # LM Studio) instead of Azure by setting RANKSMITH_OPENAI_BASE_URL.
+    base_url = os.getenv("RANKSMITH_OPENAI_BASE_URL")
+    if base_url:
+        from ranksmith import ModelClient
+
+        reranker = AzureOpenAIReranker(
+            model_client=ModelClient(provider=_openai_compatible_provider(base_url)),
+            strategy=strategy,
+        )
+    else:
+        reranker = AzureOpenAIReranker(
+            api_key=_required_env("AZURE_OPENAI_API_KEY"),
+            azure_endpoint=_required_env("AZURE_OPENAI_ENDPOINT"),
+            azure_deployment=_required_env(
+                "AZURE_OPENAI_LLM_DEPLOYMENT",
+                fallback="AZURE_OPENAI_DEPLOYMENT",
+            ),
+            api_version=_env_value(
+                "AZURE_OPENAI_LLM_API_VERSION",
+                fallback="AZURE_OPENAI_API_VERSION",
+                default="2024-08-01-preview",
+            ),
+            timeout=timeout or _env_float("AZURE_OPENAI_LLM_TIMEOUT"),
+            strategy=strategy,
+        )
     documents = [
         Document(
             id=document.id,

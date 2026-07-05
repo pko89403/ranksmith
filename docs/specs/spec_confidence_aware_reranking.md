@@ -63,8 +63,31 @@ CBDR 논문의 핵심은 confidence 변화다: `Inc(Q, D) = Conf(질문+문서) 
 - **다른 도메인(예: SQuAD)에서 학습한 artifact를 넘기면 도메인 shift를 측정하는
   것이지 공정한 비교가 아니다.** 결과에 그 사실을 라벨링해야 한다. (CLI help에도
   명시.)
-- 스크립트는 Azure SDK 전용이라 LM Studio 등 OpenAI 호환 엔드포인트로는 그대로
-  실행되지 않는다. `mypy src`만 CI 게이트이고 scripts는 타입체크 대상이 아니다.
+- 스크립트에 `RANKSMITH_OPENAI_BASE_URL`(+`_MODEL`/`_API_KEY`) 경로를 추가해
+  LM Studio 등 OpenAI 호환 엔드포인트로도 돌릴 수 있다(로컬/테스트용). Azure는
+  그 env가 없을 때의 기본 경로. `mypy src`만 CI 게이트이고 scripts는 타입체크
+  대상이 아니다.
+- **README의 표준 벤치마크(AskUbuntu 361쿼리, BM25 top-20, gpt-5.4-nano)에
+  answer_confidence를 공정하게 올리는 건 이 개발 환경에선 불가**: (1) AskUbuntu
+  corpus 캐시(`.benchmark-cache/askubuntu-bm25`)가 gitignore라 리포에 없고,
+  (2) Azure가 VNet 차단이며, (3) AskUbuntu는 gold answer가 없어 answer_confidence
+  artifact 자체를 학습할 수 없다. → **AskUbuntu corpus + Azure 접근이 있는 다른
+  환경에서 PR을 받아 실행**해야 한다. 그 환경에서도 artifact는 QA 데이터로 별도
+  학습해야 하며, SQuAD 등 도메인 밖 artifact를 쓰면 참고 수치(도메인 shift)일 뿐
+  README 표에 넣을 공정 비교가 아니다.
+
+#### 예비 진단 (LM Studio, SciFact, 도메인 밖 artifact — README에 넣지 말 것)
+official 스크립트를 LM Studio(qwen3.5-9b)로 SciFact 15케이스(oracle+random,
+후보 10)에 돌린 참고 수치. artifact는 SQuAD 학습(도메인 밖), distractor는 무관
+랜덤(쉬운 세팅):
+
+| 전략 | NDCG@5 | MRR@5 | Recall@5 | 호출/쿼리 |
+| --- | --- | --- | --- | --- |
+| answer_confidence (SQuAD art.) | 0.311 | 0.212 | 0.656 | 10 |
+| rankgpt_sliding_window | 1.000 | 1.000 | 1.000 | 1 |
+
+listwise가 완벽하고 answer_confidence는 훨씬 나쁘며 10배 비싸다. 단 위의 불리한
+조건(도메인 밖 + 쉬운 distractor + 작은 로컬 모델) 때문이며, 공정 비교가 아니다.
 
 ### 남은 작업
 - IR에 맞는 변형: qrels로 학습 가능한 judgment_confidence 리랭커(초기 구현 후
