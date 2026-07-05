@@ -2,13 +2,25 @@
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import math
 import os
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Literal, cast
+from typing import Any, Literal, cast
+
+
+@functools.lru_cache(maxsize=2)
+def _load_answer_confidence_estimator(artifact_path: str) -> Any:
+    # Loaded once per artifact: from_artifact pulls torch + lightgbm and is slow.
+    from ranksmith.confidence import StructuralConfidenceEstimator
+
+    return StructuralConfidenceEstimator.from_artifact(
+        artifact_path, allow_truncation=True
+    )
+
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -49,6 +61,7 @@ Algorithm = Literal[
     "tourrank_r",
     "setwise_heapsort",
     "acurank",
+    "answer_confidence",
 ]
 Dataset = Literal["fixture", "benchmark-cache", "beir-scifact"]
 DEFAULT_FIXTURE = ROOT / "tests/fixtures/reranking_smoke_fixture.jsonl"
@@ -66,6 +79,8 @@ OPTIONAL_ALGORITHMS: tuple[Algorithm, ...] = (
     "acurank_b4",
     "tourrank_r10",
     "prp_sliding_p3",
+    # Opt-in only: needs --answer-confidence-artifact, excluded from --algorithm all.
+    "answer_confidence",
 )
 LEGACY_ALGORITHMS: tuple[Algorithm, ...] = (
     "rankgpt_sliding_window",
@@ -195,6 +210,20 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--tourrank-rounds", type=int, default=2)
     parser.add_argument("--set-size", type=int, default=3)
     parser.add_argument("--top-k", type=int, default=5)
+    parser.add_argument(
+        "--answer-confidence-artifact",
+        type=str,
+        default=None,
+        help=(
+            "Path to a trained answer_confidence scorer (.joblib) for the "
+            "'answer_confidence' algorithm. NOTE: this scorer must be trained "
+            "separately on QA data with gold answers (this IR benchmark has "
+            "qrels but no gold answers, so it cannot train one). Passing an "
+            "artifact trained on a different domain (e.g. SQuAD) measures that "
+            "domain shift, not a like-for-like comparison — label results "
+            "accordingly. Requires 'pip install ranksmith[confidence]'."
+        ),
+    )
     parser.add_argument(
         "--query-id",
         action="append",
@@ -344,6 +373,9 @@ def _evaluate_cases(
                     set_size=args.set_size,
                     top_k=args.top_k,
                     timeout=getattr(args, "timeout", None),
+                    answer_confidence_artifact=getattr(
+                        args, "answer_confidence_artifact", None
+                    ),
                 )
                 evaluation = evaluate_ranked_ids(
                     case=case,
@@ -392,9 +424,11 @@ def _rank_case(
     set_size: int = 3,
     top_k: int | None = None,
     timeout: float | None = None,
+    answer_confidence_artifact: str | None = None,
 ) -> tuple[str, ...]:
     from ranksmith import (
         AcuRankStrategy,
+        AnswerConfidenceRerankStrategy,
         AzureOpenAIReranker,
         Document,
         ListwiseStrategy,
@@ -433,6 +467,15 @@ def _rank_case(
             target_rank=target_rank,
             window_size=window_size,
             max_adaptive_reranker_calls=_acurank_budget_for_algorithm(algorithm),
+        )
+    elif algorithm == "answer_confidence":
+        if not answer_confidence_artifact:
+            raise ValueError(
+                "answer_confidence requires --answer-confidence-artifact "
+                "(a trained answer_confidence scorer)."
+            )
+        strategy = AnswerConfidenceRerankStrategy(
+            estimator=_load_answer_confidence_estimator(answer_confidence_artifact),
         )
     else:
         listwise_window_size, listwise_stride = _listwise_window_stride_for_algorithm(
@@ -730,6 +773,8 @@ def _estimate_provider_calls(
         if adaptive_budget is None:
             adaptive_budget = 1
         return max(1, math.ceil(document_count / window_size) + adaptive_budget)
+    if algorithm == "answer_confidence":
+        return document_count  # one answer() call per document
     window_size, stride = _listwise_window_stride_for_algorithm(
         algorithm,
         window_size,
