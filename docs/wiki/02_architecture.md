@@ -84,7 +84,7 @@ v1 지원 algorithm:
 - `confidence`
 
 ## Confidence
-`ranksmith.confidence`는 reranking Strategy나 Algorithm이 아니라, closed model output confidence를 계산하는 utility layer다.
+`ranksmith.confidence`(estimator)는 reranking Strategy가 아니라 closed model output confidence를 계산하는 utility layer다. 이 estimator를 소비하는 실험적 reranker가 `AnswerConfidenceRerankStrategy`(`ranksmith.strategies`)이며, 커밋된 eval에서 Listwise에 진다(`docs/specs/spec_confidence_aware_reranking.md`).
 
 현재 범위:
 - frozen HuggingFace encoder 기반 token-level trajectory 생성

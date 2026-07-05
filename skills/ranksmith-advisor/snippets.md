@@ -19,6 +19,7 @@ Two sources, by audience:
 | Setwise heapsort | `examples/setwise_heapsort.py` |
 | TourRank-r | `examples/tourrank.py` |
 | AcuRank + first-stage scores | `examples/acurank.py` |
+| Answer-confidence rerank (experimental) | `examples/answer_confidence.py` |
 | Custom strategy contracts | `examples/custom_strategy.py` |
 
 GitHub: https://github.com/pko89403/ranksmith/tree/main/examples
