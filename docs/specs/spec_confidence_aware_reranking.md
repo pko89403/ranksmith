@@ -50,9 +50,27 @@ CBDR 논문의 핵심은 confidence 변화다: `Inc(Q, D) = Conf(질문+문서) 
 
 - **측정 조건(정직한 한계)**: distractor가 무관 랜덤 SQuAD 문맥이라 모델이 NO_ANSWER를 내는 쉬운 세팅(그래서 Listwise가 자명하게 만점). BM25 hard negative(주제 유사) 같은 현실 세팅은 더 어렵다. 평가셋 15개로 신뢰구간이 넓다. README 성능 claim은 하지 않는다.
 
+### 표준 벤치마크 편입 (구현됨) + 특이사항
+`scripts/compare_reranking.py`에 `answer_confidence` 알고리즘을 추가했다(opt-in).
+`--algorithm answer_confidence --answer-confidence-artifact <path> --allow-live`로
+다른 전략과 같은 qrels 기반 지표(NDCG/Recall/MRR)로 비교할 수 있다.
+
+**특이사항 (반드시 인지):**
+- **이 벤치마크는 IR(qrels)이라 answer_confidence scorer를 학습할 수 없다.** 학습
+  라벨은 "모델 답변이 gold answer와 일치했나"인데, IR 벤치마크(AskUbuntu/SciFact
+  qrels)에는 free-text gold answer가 없다. 따라서 artifact는 **별도 QA 데이터로
+  학습해서 경로로 넘겨야** 한다.
+- **다른 도메인(예: SQuAD)에서 학습한 artifact를 넘기면 도메인 shift를 측정하는
+  것이지 공정한 비교가 아니다.** 결과에 그 사실을 라벨링해야 한다. (CLI help에도
+  명시.)
+- 스크립트는 Azure SDK 전용이라 LM Studio 등 OpenAI 호환 엔드포인트로는 그대로
+  실행되지 않는다. `mypy src`만 CI 게이트이고 scripts는 타입체크 대상이 아니다.
+
 ### 남은 작업
-- 현실적 벤치마크: BM25 hard negative 기반, `scripts/compare_reranking.py` 편입 + live opt-in.
-- 학습된 artifact는 커밋하지 않는다(`.gitignore`). 배포 시 사용자가 자기 도메인 데이터로 학습.
+- IR에 맞는 변형: qrels로 학습 가능한 judgment_confidence 리랭커(초기 구현 후
+  교체됨)를 되살리면 이 IR 벤치마크로 공정 비교 가능.
+- 학습된 artifact는 커밋하지 않는다(`.gitignore`). 배포 시 사용자가 자기 도메인
+  데이터로 학습.
 
 ### 범위에 대한 사실 정리
 - CBDR 논문의 CBDR 메커니즘 자체는 "retrieval을 할지 결정하는 트리거"다. ranksmith에는 retriever가 없으므로 **retrieval 트리거는 이 스펙의 범위 밖**이며 caller 애플리케이션 책임이다.
