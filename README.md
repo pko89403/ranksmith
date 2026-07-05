@@ -306,8 +306,11 @@ batch_results = estimator.score_batch(
 )
 ```
 
-This module does not train a scorer, does not add a reranking Strategy, and
-does not perform async inference. Parallel batch scoring shares the same
+This module does not train a scorer and does not perform async inference. The
+estimator is a scoring utility; `AnswerConfidenceRerankStrategy`
+(`ranksmith.strategies`) is the experimental reranker that consumes it — see
+[Answer Confidence Reranking](#answer-confidence-reranking-experimental).
+Parallel batch scoring shares the same
 encoder and scorer instances across worker threads, so use `max_workers>1` only
 with thread-safe backends. It cancels pending work on the first worker error,
 but Python threads that have already started may finish in the background.
@@ -345,6 +348,39 @@ result = train_confidence_scorer(
 print(result.export_path)
 ```
 
+### Answer Confidence Reranking (experimental)
+
+`AnswerConfidenceRerankStrategy` turns a trained `answer_confidence` estimator
+into a reranker in the CBDR spirit: for each candidate the model answers the
+query from that document (one LLM call per document), and the document is scored
+by the local structural confidence that the answer is correct. Documents are
+ordered by that confidence, descending — which within a single query equals
+ranking by confidence change.
+
+```python
+from ranksmith import AnswerConfidenceRerankStrategy, AzureOpenAIReranker
+from ranksmith.confidence import StructuralConfidenceEstimator
+
+estimator = StructuralConfidenceEstimator.from_artifact(
+    "artifacts/answer_confidence.joblib"
+)
+reranker = AzureOpenAIReranker(
+    api_key="...",
+    azure_endpoint="https://example.openai.azure.com",
+    azure_deployment="gpt-4o-mini",
+    strategy=AnswerConfidenceRerankStrategy(estimator=estimator),
+)
+```
+
+> **Experimental — not a default choice.** It needs a trained
+> `answer_confidence` artifact (QA data with gold answers) and costs one LLM
+> answer call per document. On the committed evaluation (15 held-out SQuAD
+> queries, 1 gold context + 3 random distractors) it scores acc@1 0.80 / MRR
+> 0.878, while a plain `ListwiseStrategy` scores 1.00 / 1.00 at a quarter of the
+> LLM cost. No setting has yet shown it beating an existing strategy; its
+> plausible niche (candidate sets larger than the listwise window) is
+> unmeasured. See `docs/specs/spec_confidence_aware_reranking.md`.
+
 ## Examples
 
 Runnable examples live in the `examples/` directory.
@@ -363,7 +399,8 @@ This repo ships a [Claude Code](https://code.claude.com/docs) plugin,
 `ranksmith-advisor`, that helps you choose a reranking strategy for your use
 case and returns working, CI-verified snippets. It encodes ranksmith-specific
 guardrails, so the suggested code follows the library's real contracts (Azure
-is the only bundled provider, and `confidence` is not a reranker).
+is the only bundled provider; the `confidence` estimator is a scoring utility,
+and `AnswerConfidenceRerankStrategy` is an experimental reranker built on it).
 
 Use it from Claude Code:
 

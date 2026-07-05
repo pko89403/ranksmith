@@ -302,8 +302,11 @@ batch_results = estimator.score_batch(
 )
 ```
 
-이 모듈은 scorer를 학습하지 않고, reranking Strategy를 추가하지 않으며, async
-inference를 수행하지 않습니다. 병렬 batch scoring은 같은 encoder/scorer instance를
+이 모듈은 scorer를 학습하지 않고 async inference를 수행하지 않습니다. estimator는
+스코어링 utility이며, 이를 소비하는 실험적 reranker가
+`AnswerConfidenceRerankStrategy`(`ranksmith.strategies`)입니다 — 아래
+"Answer Confidence Reranking (experimental)" 참고. 병렬 batch scoring은 같은
+encoder/scorer instance를
 worker thread들이 공유하므로 thread-safe backend에서만 `max_workers>1`을 사용해야
 합니다. 첫 worker error에서 pending work를 취소하지만, 이미 시작된 Python thread는
 background에서 완료될 수 있습니다.
@@ -341,6 +344,35 @@ result = train_confidence_scorer(
 print(result.export_path)
 ```
 
+### Answer Confidence Reranking (experimental)
+
+`AnswerConfidenceRerankStrategy`는 학습된 `answer_confidence` estimator를
+CBDR 방식의 reranker로 만듭니다: 문서마다 모델이 그 문맥으로 질문에 답하고(문서당
+LLM 1회), 그 답변이 맞을 로컬 structural confidence로 문서를 정렬합니다. 한 질문
+안에서 이 정렬은 confidence 변화 기준 정렬과 동일합니다.
+
+```python
+from ranksmith import AnswerConfidenceRerankStrategy, AzureOpenAIReranker
+from ranksmith.confidence import StructuralConfidenceEstimator
+
+estimator = StructuralConfidenceEstimator.from_artifact(
+    "artifacts/answer_confidence.joblib"
+)
+reranker = AzureOpenAIReranker(
+    api_key="...",
+    azure_endpoint="https://example.openai.azure.com",
+    azure_deployment="gpt-4o-mini",
+    strategy=AnswerConfidenceRerankStrategy(estimator=estimator),
+)
+```
+
+> **실험적 — 기본 선택 아님.** 학습된 `answer_confidence` artifact(정답이 있는 QA
+> 데이터)가 필요하고 문서당 LLM answer 1회 비용이 듭니다. 커밋된 평가(held-out
+> SQuAD 15개, 정답 문맥 1 + 무관 distractor 3)에서 acc@1 0.80 / MRR 0.878인데,
+> 순수 `ListwiseStrategy`는 1.00 / 1.00을 1/4 비용으로 냅니다. 아직 기존 전략을
+> 이기는 세팅을 입증하지 못했고, 가능성 있는 영역(listwise window 초과 후보)은
+> 미측정입니다. `docs/specs/spec_confidence_aware_reranking.md` 참고.
+
 ## 실전 가이드 (Examples)
 
 실행 가능한 예제는 `examples/` 폴더에 있습니다.
@@ -358,8 +390,9 @@ print(result.export_path)
 이 레포에는 [Claude Code](https://code.claude.com/docs) 플러그인
 `ranksmith-advisor`가 포함되어 있습니다. 사용 사례에 맞는 reranking strategy
 선택을 돕고 CI로 검증된 동작 스니펫을 제시하며, 제안 코드가 라이브러리의 실제
-계약을 따르도록 ranksmith 전용 guardrail을 적용합니다(미구현 provider 호출,
-`algorithm` 문자열 확장, `confidence`를 reranker로 취급하는 패턴을 차단).
+계약을 따르도록 ranksmith 전용 guardrail을 적용합니다(Azure만 번들 provider이고,
+`confidence` estimator는 스코어링 utility, `AnswerConfidenceRerankStrategy`는
+그 위에 얹은 실험적 reranker).
 
 Claude Code에서 사용:
 

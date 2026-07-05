@@ -33,8 +33,10 @@ ranksmith's contracts intact matters — those are the most common failures.
 - `rank` is 1-based; `original_index` is 0-based against the input list.
 - ranksmith **fails fast**: never silently truncate documents or repair an
   invalid ranking.
-- `ranksmith.confidence` is **not** a reranking strategy — it is a separate
-  optional utility.
+- `ranksmith.confidence` (the estimator) is a scoring utility, not a reranker.
+  `AnswerConfidenceRerankStrategy` consumes it and **is** a reranking Strategy,
+  but it is experimental and loses to Listwise on the committed benchmark — not
+  a default recommendation.
 
 ## Evidence rule
 
