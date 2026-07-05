@@ -133,9 +133,7 @@ def test_rankgpt_sliding_window_with_real_fixture_reaches_relevant_docs() -> Non
             azure_endpoint="https://example.openai.azure.com",
             azure_deployment="gpt-4o-mini",
             model_client=provider,
-            strategy=ListwiseStrategy(
-                window_size=3, stride=2
-            ),
+            strategy=ListwiseStrategy(window_size=3, stride=2),
         )
         documents = [
             Document(
