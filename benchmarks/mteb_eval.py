@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+import statistics
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal, TypeVar
@@ -154,9 +155,7 @@ def compute_query_metrics(
 
 
 def mean(values: Sequence[float]) -> float:
-    if not values:
-        return 0.0
-    return sum(values) / len(values)
+    return statistics.fmean(values) if values else 0.0
 
 
 def percentile(values: Sequence[float], percentile_value: float) -> float:

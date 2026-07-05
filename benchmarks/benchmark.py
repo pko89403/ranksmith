@@ -81,7 +81,6 @@ def load_beir_cases(
     seed: int = 13,
     dataset_name: str = "BEIR/SciFact",
     fixture_prefix: str = "beir-scifact",
-    license_text: str = "See upstream dataset license metadata.",
 ) -> list[BenchmarkCase]:
     _validate_positive("candidate_count", candidate_count)
     if max_cases is not None:
@@ -132,7 +131,7 @@ def load_beir_cases(
                 fixture_id=f"{fixture_prefix}-{split}-{query_id}",
                 dataset=f"{dataset_name} {split}",
                 source=f"cache:{cache_dir}",
-                license=license_text,
+                license="See upstream dataset license metadata.",
                 query_id=query_id,
                 query=queries[query_id],
                 documents=documents,

@@ -63,12 +63,11 @@ def test_load_beir_cases_accepts_generic_dataset_metadata(tmp_path: Path) -> Non
         candidates_path=candidates_path,
         dataset_name="AskUbuntu BM25",
         fixture_prefix="askubuntu-bm25",
-        license_text="See upstream AskUbuntu license metadata.",
     )
 
     assert cases[0].fixture_id == "askubuntu-bm25-test-q1"
     assert cases[0].dataset == "AskUbuntu BM25 test"
-    assert cases[0].license == "See upstream AskUbuntu license metadata."
+    assert cases[0].license == "See upstream dataset license metadata."
 
 
 def test_load_beir_cases_requires_candidate_file(tmp_path: Path) -> None:

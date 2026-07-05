@@ -61,17 +61,8 @@ class ModelClient:
         self._on_usage = on_usage
 
     def rank(self, query: str, documents: list[Document]) -> str:
-        candidate_count = len(documents)
-        return self._complete(
-            system=(
-                "You are a reranking engine. Return only JSON with "
-                'a "ranking" array. The ranking must be a permutation '
-                "of the candidate numbers. "
-                f"The ranking array must contain exactly {candidate_count} integers: "
-                f"each integer from 1 to {candidate_count} exactly once."
-            ),
-            user=_build_prompt(query, documents),
-        )
+        system, user = _rank_messages(query, documents)
+        return self._complete(system=system, user=user)
 
     def compare(
         self,
@@ -79,25 +70,12 @@ class ModelClient:
         document_a: Document,
         document_b: Document,
     ) -> str:
-        return self._complete(
-            system=(
-                "You are a pairwise reranking engine. Return only JSON "
-                'with a "winner" value of "A" or "B".'
-            ),
-            user=_build_pairwise_prompt(query, document_a, document_b),
-        )
+        system, user = _compare_messages(query, document_a, document_b)
+        return self._complete(system=system, user=user)
 
     def select(self, query: str, documents: list[Document], top_m: int) -> str:
-        candidate_count = len(documents)
-        return self._complete(
-            system=(
-                "You are a tournament reranking engine. Return only JSON "
-                'with a "selected" array of candidate numbers. '
-                f"The selected array must contain exactly {top_m} integers from "
-                f"1 to {candidate_count}, without duplicates."
-            ),
-            user=_build_selection_prompt(query, documents, top_m),
-        )
+        system, user = _select_messages(query, documents, top_m)
+        return self._complete(system=system, user=user)
 
     def _complete(self, *, system: str, user: str) -> str:
         try:
@@ -131,17 +109,8 @@ class AsyncModelClient:
         self._on_usage = on_usage
 
     async def rank(self, query: str, documents: list[Document]) -> str:
-        candidate_count = len(documents)
-        return await self._complete(
-            system=(
-                "You are a reranking engine. Return only JSON with "
-                'a "ranking" array. The ranking must be a permutation '
-                "of the candidate numbers. "
-                f"The ranking array must contain exactly {candidate_count} integers: "
-                f"each integer from 1 to {candidate_count} exactly once."
-            ),
-            user=_build_prompt(query, documents),
-        )
+        system, user = _rank_messages(query, documents)
+        return await self._complete(system=system, user=user)
 
     async def compare(
         self,
@@ -149,25 +118,12 @@ class AsyncModelClient:
         document_a: Document,
         document_b: Document,
     ) -> str:
-        return await self._complete(
-            system=(
-                "You are a pairwise reranking engine. Return only JSON "
-                'with a "winner" value of "A" or "B".'
-            ),
-            user=_build_pairwise_prompt(query, document_a, document_b),
-        )
+        system, user = _compare_messages(query, document_a, document_b)
+        return await self._complete(system=system, user=user)
 
     async def select(self, query: str, documents: list[Document], top_m: int) -> str:
-        candidate_count = len(documents)
-        return await self._complete(
-            system=(
-                "You are a tournament reranking engine. Return only JSON "
-                'with a "selected" array of candidate numbers. '
-                f"The selected array must contain exactly {top_m} integers from "
-                f"1 to {candidate_count}, without duplicates."
-            ),
-            user=_build_selection_prompt(query, documents, top_m),
-        )
+        system, user = _select_messages(query, documents, top_m)
+        return await self._complete(system=system, user=user)
 
     async def _complete(self, *, system: str, user: str) -> str:
         try:
@@ -204,6 +160,45 @@ async def _emit_usage_async(
     result = callback(usage)
     if isinstance(result, Awaitable):
         await result
+
+
+def _rank_messages(query: str, documents: list[Document]) -> tuple[str, str]:
+    candidate_count = len(documents)
+    system = (
+        "You are a reranking engine. Return only JSON with "
+        'a "ranking" array. The ranking must be a permutation '
+        "of the candidate numbers. "
+        f"The ranking array must contain exactly {candidate_count} integers: "
+        f"each integer from 1 to {candidate_count} exactly once."
+    )
+    return system, _build_prompt(query, documents)
+
+
+def _compare_messages(
+    query: str,
+    document_a: Document,
+    document_b: Document,
+) -> tuple[str, str]:
+    system = (
+        "You are a pairwise reranking engine. Return only JSON "
+        'with a "winner" value of "A" or "B".'
+    )
+    return system, _build_pairwise_prompt(query, document_a, document_b)
+
+
+def _select_messages(
+    query: str,
+    documents: list[Document],
+    top_m: int,
+) -> tuple[str, str]:
+    candidate_count = len(documents)
+    system = (
+        "You are a tournament reranking engine. Return only JSON "
+        'with a "selected" array of candidate numbers. '
+        f"The selected array must contain exactly {top_m} integers from "
+        f"1 to {candidate_count}, without duplicates."
+    )
+    return system, _build_selection_prompt(query, documents, top_m)
 
 
 def _build_prompt(query: str, documents: list[Document]) -> str:

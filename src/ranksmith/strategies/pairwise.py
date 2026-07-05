@@ -11,8 +11,7 @@ from ranksmith.model import AsyncModelClient, ModelClient
 from ranksmith.types import Document, RerankResult
 
 from .common import (
-    ensure_async_pairwise_model_client,
-    ensure_pairwise_model_client,
+    ensure_capability,
     validate_documents_max_chars,
     validate_top_k,
 )
@@ -51,7 +50,7 @@ class PairwiseStrategy(_PairwiseConfigMixin):
         if not documents:
             return []
 
-        model_client = ensure_pairwise_model_client(model_client)
+        model_client = ensure_capability(model_client, "pairwise", "compare")
         ordered_indexes = self._rank_prp_sliding_k(query, documents, model_client)
 
         results = [
@@ -123,7 +122,7 @@ class AsyncPairwiseStrategy(_PairwiseConfigMixin):
         if not documents:
             return []
 
-        model_client = ensure_async_pairwise_model_client(model_client)
+        model_client = ensure_capability(model_client, "pairwise", "compare")
         ordered_indexes = await self._rank_prp_sliding_k(query, documents, model_client)
 
         results = [
