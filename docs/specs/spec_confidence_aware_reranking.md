@@ -29,12 +29,21 @@ CBDR 논문의 핵심은 confidence 변화다: `Inc(Q, D) = Conf(질문+문서) 
 
 ### 검증 (2026-07-05)
 - 단위 테스트 8개(synthetic answer client + fake estimator): confidence 내림차순 정렬, 동점 보존, top_k, answer 부재/비-answer estimator/invalid JSON fast fail, sync/async.
-- 엔드투엔드(LM Studio qwen3.5-9b answer + SQuAD 60샘플로 학습한 answer_confidence artifact, macOS env 2개): SQuAD 질문에 정답 문맥 + 무관 문맥 3개를 후보로 주니 **정답 문맥이 rank 1**. 단 점수가 0.408 근처로 뭉쳐(gold 0.408 vs other 0.408) **판별력은 약함** — 60샘플 스모크 artifact의 한계.
+- 엔드투엔드 + 벤치마크(LM Studio qwen3.5-9b answer + SQuAD로 학습한 answer_confidence artifact, macOS env 2개). held-out 15개 질문(각: 정답 문맥 1 + 무관 distractor 3), 정답 문맥 복원율:
+
+  | 학습 데이터 | test roc_auc | rerank accuracy@1 | MRR |
+  | --- | --- | --- | --- |
+  | 100 샘플 | 0.333 | 0.000 | 0.294 |
+  | 500 샘플 | 0.875 | **0.800** | **0.878** |
+  | 랜덤 기준 | 0.5 | 0.250 | 0.521 |
+
+  **데이터 규모가 관건이다.** 100샘플에선 과적합으로 랜덤 이하(정답 문맥이 오히려 바닥). 500샘플에선 강한 판별력(정답 문맥 12/15가 1위). 접근 자체는 유효하다.
+
+- **측정 조건(정직한 한계)**: distractor가 무관 랜덤 SQuAD 문맥이라 모델이 NO_ANSWER를 내는 쉬운 세팅. BM25 hard negative(주제 유사) 같은 현실 세팅은 더 어렵다. 평가셋 15개로 신뢰구간이 넓다. README 성능 claim은 하지 않는다.
 
 ### 남은 작업
-- 쓸 만한 answer_confidence artifact 확보(현재는 60샘플 스모크용, 판별력 약함).
-- 벤치마크: `scripts/compare_reranking.py` 편입 여부, live opt-in.
-- 실제 순위 개선 측정(현재는 미측정 — README에 성능 claim 금지).
+- 현실적 벤치마크: BM25 hard negative 기반, `scripts/compare_reranking.py` 편입 + live opt-in.
+- 학습된 artifact는 커밋하지 않는다(`.gitignore`). 배포 시 사용자가 자기 도메인 데이터로 학습.
 
 ### 범위에 대한 사실 정리
 - CBDR 논문의 CBDR 메커니즘 자체는 "retrieval을 할지 결정하는 트리거"다. ranksmith에는 retriever가 없으므로 **retrieval 트리거는 이 스펙의 범위 밖**이며 caller 애플리케이션 책임이다.
