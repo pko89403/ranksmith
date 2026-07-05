@@ -156,20 +156,39 @@ def load_lightgbm_scorer(
     *,
     metadata_path: str | Path | None = None,
 ) -> StructuralConfidenceScorer:
+    # Route by artifact content, not by whether metadata_path was passed: the
+    # training pipeline exports a self-contained joblib dict, so a caller who
+    # also has a metadata sidecar (write_metadata_json) and passes metadata_path
+    # must still load correctly. Only a raw LightGBM Booster file — which
+    # joblib cannot unpickle — needs the sidecar/explicit metadata.
     artifact_path = Path(path)
+    artifact = _try_load_joblib(artifact_path)
+    if artifact is not _JOBLIB_LOAD_FAILED:
+        return _joblib_scorer_from_artifact(artifact)
+
     resolved_metadata_path = _resolve_metadata_path(artifact_path, metadata_path)
-    if resolved_metadata_path is not None:
-        return _load_lightgbm_booster_scorer(
-            artifact_path,
-            metadata_path=resolved_metadata_path,
+    if resolved_metadata_path is None:
+        raise ConfidenceArtifactError(
+            "raw LightGBM model file requires a metadata sidecar or metadata_path"
         )
-    return _load_joblib_scorer(artifact_path)
+    return _load_lightgbm_booster_scorer(
+        artifact_path,
+        metadata_path=resolved_metadata_path,
+    )
 
 
-def _load_joblib_scorer(path: Path) -> StructuralConfidenceScorer:
+_JOBLIB_LOAD_FAILED = object()
+
+
+def _try_load_joblib(path: Path) -> object:
     joblib = import_optional_dependency("joblib")
-    artifact = joblib.load(path)
+    try:
+        return joblib.load(path)
+    except Exception:
+        return _JOBLIB_LOAD_FAILED
 
+
+def _joblib_scorer_from_artifact(artifact: object) -> StructuralConfidenceScorer:
     if _has_predict_confidence(artifact) and hasattr(artifact, "metadata"):
         return JoblibScorerWrapper(
             scorer=artifact,
