@@ -6,6 +6,7 @@ from typing import TypedDict, cast
 
 import pytest
 
+from benchmarks.metrics import mrr_at_k, ndcg_at_k, recall_at_k
 from ranksmith import (
     AcuRankStrategy,
     AzureOpenAIReranker,
@@ -16,7 +17,6 @@ from ranksmith import (
     TourRankStageConfig,
     TourRankStrategy,
 )
-from ranksmith._metrics import mrr_at_k, ndcg_at_k, recall_at_k
 
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "reranking_smoke_fixture.jsonl"
 
@@ -134,7 +134,7 @@ def test_rankgpt_sliding_window_with_real_fixture_reaches_relevant_docs() -> Non
             azure_deployment="gpt-4o-mini",
             model_client=provider,
             strategy=ListwiseStrategy(
-                algorithm="rankgpt_sliding_window", window_size=3, stride=2
+                window_size=3, stride=2
             ),
         )
         documents = [

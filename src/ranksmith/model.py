@@ -32,8 +32,6 @@ class ModelMessage:
 @dataclass(frozen=True)
 class ModelRequest:
     messages: Sequence[ModelMessage]
-    response_format: Literal["json_object"] = "json_object"
-    temperature: float = 0
 
 
 @dataclass(frozen=True)

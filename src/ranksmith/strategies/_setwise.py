@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
-from typing import Literal
 
 from ranksmith.model import AsyncModelClient, ModelClient
 from ranksmith.parsing import parse_selection_response
@@ -15,18 +14,13 @@ from ._common import (
     validate_top_k,
 )
 
-SetwiseAlgorithm = Literal["setwise_heapsort"]
-
 
 @dataclass(frozen=True)
 class _SetwiseConfigMixin:
-    algorithm: SetwiseAlgorithm = "setwise_heapsort"
     set_size: int = 3
     max_document_chars: int = 4000
 
     def __post_init__(self) -> None:
-        if self.algorithm != "setwise_heapsort":
-            raise ValueError('algorithm must be "setwise_heapsort"')
         if self.set_size < 3:
             raise ValueError("set_size must be greater than or equal to 3")
         if self.max_document_chars < 1:
@@ -54,7 +48,7 @@ class _SetwiseConfigMixin:
                 original_index=original_index,
                 metadata={
                     "strategy": "setwise",
-                    "algorithm": self.algorithm,
+                    "algorithm": "setwise_heapsort",
                     "set_size": self.set_size,
                 },
             )

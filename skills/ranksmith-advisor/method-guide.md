@@ -38,34 +38,34 @@ exact provider-call telemetry.
 ## Parameters & defaults
 
 ### ListwiseStrategy / AsyncListwiseStrategy — RankGPT
-- `algorithm="rankgpt_sliding_window"` (only value), `window_size=20`,
+- `window_size=20`,
   `stride=10`, `max_document_chars=4000`.
 - Cost shape: roughly the number of windows; `window_size >= N` → 1 call.
 - Model op: `rank()` (a full listwise permutation).
 
 ### PairwiseStrategy / AsyncPairwiseStrategy — PRP
-- `algorithm="prp_sliding_k"`, `passes=10` (expensive), `max_document_chars=4000`.
-- Async adds `pair_order_parallelism` (default 2) to compare both orders concurrently.
+- `passes=10` (expensive), `max_document_chars=4000`.
+- Async compares both pair orders concurrently.
 - Cost shape: about `passes * (N-1) * 2` compare calls; lower `passes` to cut cost.
 - Model op: `compare()` (A/B winner); each adjacent pair is compared in both directions.
 
 ### SetwiseStrategy / AsyncSetwiseStrategy — Setwise heapsort
-- `algorithm="setwise_heapsort"`, `set_size=3` (minimum 3), `max_document_chars=4000`.
+- `set_size=3` (minimum 3), `max_document_chars=4000`.
 - The only strategy that truly early-stops on `top_k` (extracts just the needed top).
 - Larger `set_size` → fewer calls but a harder selection prompt.
 - Model op: `select()` (best of a set).
 
 ### TourRankStrategy / AsyncTourRankStrategy — TourRank-r
-- `algorithm="tourrank_r"`, `rounds=2`, `shuffle_seed=13`, configurable
+- `rounds=2`, `shuffle_seed=13`, configurable
   `stage_configs` (`TourRankStageConfig`), `max_document_chars=4000`.
-- Deterministic seeded shuffling. Sync `group_parallelism=1`; async allows a
+- Deterministic seeded shuffling. Sync runs groups serially; async allows a
   semaphore-limited or unbounded value.
 - Model op: `select()` per group; scores accumulate across rounds.
 
 ### AcuRankStrategy / AsyncAcuRankStrategy — AcuRank
-- `algorithm="acurank"`, `target_rank=10`, `window_size=20`, `tolerance=0.01`
+- `target_rank=10`, `window_size=20`, `tolerance=0.01`
   (must satisfy `0 < tolerance < 0.5`), `uncertain_threshold=10`,
-  `initial_pass=True`, `score_metadata_key="score"`, `batch_parallelism=1`,
+  `initial_pass=True`, score prior via `metadata["score"]`, async `batch_parallelism=1`,
   `max_adaptive_reranker_calls=None`.
 - Uses TrueSkill ratings; reranks only uncertain candidates near the top-k
   boundary until convergence or budget. Align `target_rank` with your eval cutoff.

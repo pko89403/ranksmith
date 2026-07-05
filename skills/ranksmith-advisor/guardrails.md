@@ -5,14 +5,13 @@ encode ranksmith's contracts. The canonical statements live in the repository;
 this file points to them instead of re-deriving them, so fix the sources, not a
 second copy.
 
-1. **Azure is the only working provider.** `OpenAIProvider`,
-   `AnthropicProvider`, `GeminiProvider` (and their `Async*` forms) are reserved
-   stubs that raise `RerankProviderError`. Generate Azure-backed code
-   (`AzureOpenAIReranker`, `AzureAOAIProvider`) or a user-supplied `ModelClient`.
-   Source: `src/ranksmith/providers/_stubs.py`, README "Model Provider Architecture".
+1. **Azure is the only bundled provider.** Generate Azure-backed code
+   (`AzureOpenAIReranker`, `AzureAOAIProvider`) or a user-supplied
+   `ModelClient` / custom `ModelProvider` for other vendors.
+   Source: `src/ranksmith/providers/`, README "Model Provider Architecture".
 
-2. **A new ranking method is a new Strategy class**, never a new
-   `ListwiseStrategy(algorithm="...")` string.
+2. **A new ranking method is a new Strategy class**, never a patch on the
+   built-in strategy classes.
    Source: `docs/wiki/08_custom_strategy_extension.md`, `docs/wiki/01_decisions.md` (D006).
 
 3. **Indexing contract.** `rank` is 1-based (display); `original_index` is
@@ -47,5 +46,5 @@ second copy.
    Source: `src/ranksmith/strategies/_setwise.py`.
 
 9. **Public API only.** Use root `ranksmith` exports in user code; do not reach
-   into private modules (`ranksmith._providers`, `ranksmith.strategies._*`, …).
+   into private modules (`ranksmith.providers._*`, `ranksmith.strategies._*`, …).
    Source: `docs/wiki/02_architecture.md`.

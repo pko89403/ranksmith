@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, cast
 
-from ranksmith._metrics import mrr_at_k, ndcg_at_k, recall_at_k
+from benchmarks.metrics import mrr_at_k, ndcg_at_k, recall_at_k
 
 SCHEMA_VERSION = 1
 CandidateStrategy = Literal["candidate_file", "oracle_plus_random"]

@@ -1,5 +1,4 @@
 import asyncio
-from typing import Any, cast
 
 import pytest
 
@@ -164,17 +163,9 @@ async def test_async_negative_top_k_fast_fails_before_provider_call() -> None:
 def test_async_listwise_strategy_defaults_to_rankgpt_sliding_window() -> None:
     strategy = AsyncListwiseStrategy()
 
-    assert strategy.algorithm == "rankgpt_sliding_window"
-
-
-def test_async_listwise_strategy_rejects_removed_sliding_window_algorithm() -> None:
-    with pytest.raises(ValueError, match='algorithm must be "rankgpt_sliding_window"'):
-        AsyncListwiseStrategy(algorithm=cast(Any, "sliding_window"))
-
-
-def test_async_listwise_strategy_rejects_removed_direct_algorithm() -> None:
-    with pytest.raises(ValueError, match='algorithm must be "rankgpt_sliding_window"'):
-        AsyncListwiseStrategy(algorithm=cast(Any, "direct"))
+    assert strategy.window_size == 20
+    assert strategy.stride == 10
+    assert strategy.max_document_chars == 4000
 
 
 @pytest.mark.asyncio
@@ -191,7 +182,7 @@ async def test_async_rankgpt_sliding_window_bubbles_top_document_up() -> None:
         azure_deployment="gpt-4o-mini",
         model_client=provider,
         strategy=AsyncListwiseStrategy(
-            algorithm="rankgpt_sliding_window", window_size=3, stride=2
+            window_size=3, stride=2
         ),
     )
 
@@ -242,29 +233,6 @@ async def test_async_pairwise_compares_pair_orders_concurrently() -> None:
     assert [result.document.text for result in results] == ["b", "a"]
     assert set(provider.calls) == {("a", "b"), ("b", "a")}
     assert provider.max_in_flight == 2
-
-
-@pytest.mark.asyncio
-async def test_async_pairwise_can_disable_pair_order_parallelism() -> None:
-    provider = AsyncBlockingPairwiseProvider()
-    reranker = AsyncAzureOpenAIReranker(
-        api_key="key",
-        azure_endpoint="https://example.openai.azure.com",
-        azure_deployment="gpt-4o-mini",
-        model_client=provider,
-        strategy=AsyncPairwiseStrategy(passes=1, pair_order_parallelism=1),
-    )
-
-    results = await reranker.rerank("query", ["a", "b"])
-
-    assert [result.document.text for result in results] == ["b", "a"]
-    assert provider.calls == [("a", "b"), ("b", "a")]
-    assert provider.max_in_flight == 1
-
-
-def test_async_pairwise_rejects_invalid_pair_order_parallelism() -> None:
-    with pytest.raises(ValueError, match="pair_order_parallelism"):
-        AsyncPairwiseStrategy(pair_order_parallelism=3)
 
 
 @pytest.mark.asyncio

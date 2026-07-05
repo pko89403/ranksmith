@@ -107,8 +107,6 @@ def _call_provider(
                     ModelMessage(role="system", content=system),
                     ModelMessage(role="user", content=user),
                 ],
-                response_format="json_object",
-                temperature=0,
             )
         )
     except RerankProviderError:

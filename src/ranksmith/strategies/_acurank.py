@@ -3,14 +3,13 @@ from __future__ import annotations
 import asyncio
 import math
 from collections.abc import Sequence
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from numbers import Real
-from typing import Literal, TypeVar
+from typing import TypeVar
 
 import trueskill  # type: ignore[import-untyped]
 
-from ranksmith.errors import DocumentTooLongError, RerankInputError
+from ranksmith.errors import RerankInputError
 from ranksmith.model import AsyncModelClient, ModelClient
 from ranksmith.parsing import parse_ranking_response
 from ranksmith.types import Document, RerankResult
@@ -18,29 +17,25 @@ from ranksmith.types import Document, RerankResult
 from ._common import (
     ensure_async_listwise_model_client,
     ensure_listwise_model_client,
+    validate_documents_max_chars,
     validate_top_k,
 )
 
-AcuRankAlgorithm = Literal["acurank"]
+_SCORE_METADATA_KEY = "score"
 _T = TypeVar("_T")
 
 
 @dataclass(frozen=True)
 class _AcuRankConfigMixin:
-    algorithm: AcuRankAlgorithm = "acurank"
     target_rank: int = 10
     window_size: int = 20
     tolerance: float = 0.01
     uncertain_threshold: int = 10
     max_adaptive_reranker_calls: int | None = None
-    batch_parallelism: int = 1
     initial_pass: bool = True
-    score_metadata_key: str = "score"
     max_document_chars: int = 4000
 
     def __post_init__(self) -> None:
-        if self.algorithm != "acurank":
-            raise ValueError('algorithm must be "acurank"')
         if self.target_rank < 1:
             raise ValueError("target_rank must be greater than 0")
         if self.window_size < 1:
@@ -56,35 +51,25 @@ class _AcuRankConfigMixin:
             raise ValueError(
                 "max_adaptive_reranker_calls must be greater than or equal to 0"
             )
-        if self.batch_parallelism < 1:
-            raise ValueError("batch_parallelism must be greater than 0")
-        if self.score_metadata_key == "":
-            raise ValueError("score_metadata_key must not be empty")
         if self.max_document_chars < 1:
             raise ValueError("max_document_chars must be greater than 0")
 
     def _validate_documents(self, documents: Sequence[Document]) -> None:
-        for index, document in enumerate(documents):
-            length = len(document.text)
-            if length > self.max_document_chars:
-                message = (
-                    f"Document at index {index} has {length} characters, exceeding "
-                    f"max_document_chars={self.max_document_chars}. Shorten the "
-                    "document, chunk it before reranking, or increase "
-                    "max_document_chars."
-                )
-                raise DocumentTooLongError(message)
+        validate_documents_max_chars(
+            documents,
+            max_document_chars=self.max_document_chars,
+        )
 
     def _initialize_ratings(
         self,
         documents: Sequence[Document],
     ) -> list[trueskill.Rating]:
         has_scores = [
-            self.score_metadata_key in document.metadata for document in documents
+            _SCORE_METADATA_KEY in document.metadata for document in documents
         ]
         if any(has_scores) and not all(has_scores):
             raise RerankInputError(
-                f"score metadata key {self.score_metadata_key!r} must be present "
+                f"score metadata key {_SCORE_METADATA_KEY!r} must be present "
                 "for every document or omitted for every document."
             )
         if not any(has_scores):
@@ -92,7 +77,7 @@ class _AcuRankConfigMixin:
 
         ratings: list[trueskill.Rating] = []
         for index, document in enumerate(documents):
-            score = document.metadata[self.score_metadata_key]
+            score = document.metadata[_SCORE_METADATA_KEY]
             if isinstance(score, bool) or not isinstance(score, Real):
                 raise RerankInputError(
                     f"score metadata at index {index} must be numeric."
@@ -113,8 +98,6 @@ class _AcuRankConfigMixin:
         reranker_calls: int,
         top_k: int | None,
     ) -> list[RerankResult]:
-        if top_k is not None and top_k < 0:
-            raise RerankInputError("top_k must be greater than or equal to 0")
         ordered_indexes = sorted(
             range(len(documents)),
             key=lambda index: (-ratings[index].mu, index),
@@ -128,7 +111,7 @@ class _AcuRankConfigMixin:
                 original_index=original_index,
                 metadata={
                     "strategy": "acurank",
-                    "algorithm": self.algorithm,
+                    "algorithm": "acurank",
                     "mu": ratings[original_index].mu,
                     "sigma": ratings[original_index].sigma,
                     "top_k_probability": probabilities[original_index],
@@ -167,7 +150,6 @@ class AcuRankStrategy(_AcuRankConfigMixin):
                 model_client=model_client,
                 batches=_chunks(range(len(documents)), self.window_size),
                 ratings=ratings,
-                batch_parallelism=self.batch_parallelism,
             )
 
         probabilities = _acurank_topk_probabilities(ratings, target_rank)
@@ -201,7 +183,6 @@ class AcuRankStrategy(_AcuRankConfigMixin):
                 model_client=model_client,
                 batches=batches,
                 ratings=ratings,
-                batch_parallelism=self.batch_parallelism,
             )
             reranker_calls += calls
             adaptive_reranker_calls += calls
@@ -221,6 +202,13 @@ class AcuRankStrategy(_AcuRankConfigMixin):
 
 @dataclass(frozen=True)
 class AsyncAcuRankStrategy(_AcuRankConfigMixin):
+    batch_parallelism: int = 1
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if self.batch_parallelism < 1:
+            raise ValueError("batch_parallelism must be greater than 0")
+
     async def rerank(
         self,
         *,
@@ -329,31 +317,16 @@ def _rank_and_apply_acurank_batches(
     model_client: ModelClient,
     batches: Sequence[Sequence[int]],
     ratings: list[trueskill.Rating],
-    batch_parallelism: int,
 ) -> int:
-    if batch_parallelism == 1 or len(batches) <= 1:
-        ranked_batches = [
-            _rank_acurank_batch(
-                query=query,
-                documents=documents,
-                model_client=model_client,
-                batch=batch,
-            )
-            for batch in batches
-        ]
-    else:
-        with ThreadPoolExecutor(max_workers=batch_parallelism) as executor:
-            ranked_batches = list(
-                executor.map(
-                    lambda batch: _rank_acurank_batch(
-                        query=query,
-                        documents=documents,
-                        model_client=model_client,
-                        batch=batch,
-                    ),
-                    batches,
-                )
-            )
+    ranked_batches = [
+        _rank_acurank_batch(
+            query=query,
+            documents=documents,
+            model_client=model_client,
+            batch=batch,
+        )
+        for batch in batches
+    ]
     calls = 0
     for ranked_batch in ranked_batches:
         if ranked_batch is None:

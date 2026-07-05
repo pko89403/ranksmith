@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import math
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any, Literal, TypeVar
+from typing import Literal, TypeVar
 
-from ranksmith._metrics import map_score, mrr_at_k, ndcg_at_k, recall_at_k
+from benchmarks.metrics import map_score, mrr_at_k, ndcg_at_k, recall_at_k
 from ranksmith.strategies import TourRankStageConfig
 
 T = TypeVar("T")
@@ -28,13 +26,6 @@ class MtebRerankingSample:
     query_id: str
     query: str
     candidates: tuple[MtebRerankingCandidate, ...]
-
-
-@dataclass(frozen=True)
-class ParsedRanking:
-    ranking: tuple[int, ...]
-    valid: bool
-    failure_type: str | None
 
 
 @dataclass(frozen=True)
@@ -141,68 +132,6 @@ def _parse_tourrank_method(method: str) -> MethodConfig:
     )
 
 
-def parse_ranking_with_failure_type(
-    raw_response: str,
-    expected_count: int,
-) -> ParsedRanking:
-    try:
-        data = json.loads(raw_response)
-    except json.JSONDecodeError:
-        return ParsedRanking((), False, "json_parse_failure")
-    if not isinstance(data, dict) or "ranking" not in data:
-        return ParsedRanking((), False, "missing_ranking")
-    ranking = data["ranking"]
-    if not isinstance(ranking, list):
-        return ParsedRanking((), False, "missing_ranking")
-    if not all(type(item) is int for item in ranking):
-        return ParsedRanking((), False, "non_integer_rank")
-    parsed = tuple(ranking)
-    if len(parsed) != expected_count:
-        return ParsedRanking(parsed, False, "length_mismatch")
-    if any(rank < 1 or rank > expected_count for rank in parsed):
-        return ParsedRanking(parsed, False, "out_of_range_rank")
-    if len(set(parsed)) != len(parsed):
-        return ParsedRanking(parsed, False, "duplicate_rank")
-    return ParsedRanking(parsed, True, None)
-
-
-def apply_integer_permutation(
-    items: Sequence[T],
-    ranking: Sequence[int],
-) -> tuple[T, ...]:
-    return tuple(items[index - 1] for index in ranking)
-
-
-def rankgpt_window_ranges(
-    *,
-    document_count: int,
-    rank_start: int,
-    rank_end: int,
-    window_size: int,
-    step: int,
-) -> tuple[tuple[int, int], ...]:
-    if document_count < 1:
-        return ()
-    if rank_start < 0 or rank_end < 1 or window_size < 1 or step < 1:
-        raise ValueError("rank_start, rank_end, window_size, and step are invalid")
-    if step > window_size:
-        raise ValueError("step must be less than or equal to window_size")
-    if rank_end <= rank_start:
-        raise ValueError("rank_end must be greater than rank_start")
-
-    effective_end = min(rank_end, document_count)
-    ranges: list[tuple[int, int]] = []
-    end = effective_end
-    max_iterations = (effective_end - rank_start) // step + 2
-    for _ in range(max_iterations):
-        start = max(rank_start, end - window_size)
-        ranges.append((start, end))
-        if start == rank_start:
-            return tuple(ranges)
-        end -= step
-    raise RuntimeError("rankgpt_window_ranges exceeded iteration cap")
-
-
 def compute_query_metrics(
     *,
     sample: MtebRerankingSample,
@@ -257,32 +186,6 @@ def estimate_cost(
         input_tokens / 1_000_000 * price_config.input_token_price_per_1m
         + output_tokens / 1_000_000 * price_config.output_token_price_per_1m
     )
-
-
-def write_jsonl(path: Path, rows: Sequence[Mapping[str, Any]]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as handle:
-        for row in rows:
-            handle.write(json.dumps(dict(row), sort_keys=True) + "\n")
-
-
-def completed_result_keys(path: Path) -> set[tuple[str, str, str, str]]:
-    if not path.exists():
-        return set()
-    completed: set[tuple[str, str, str, str]] = set()
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if line.strip() == "":
-            continue
-        row = json.loads(line)
-        completed.add(
-            (
-                str(row["task"]),
-                str(row["split"]),
-                str(row["query_id"]),
-                str(row["method"]),
-            )
-        )
-    return completed
 
 
 def tourrank_stage_configs_for_candidate_count(
