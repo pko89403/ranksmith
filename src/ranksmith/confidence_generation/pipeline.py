@@ -21,9 +21,7 @@ from ranksmith.confidence_generation.parsing import (
     parse_relevance_output,
 )
 from ranksmith.confidence_generation.prompts import (
-    ANSWER_SYSTEM_PROMPT,
     RELEVANCE_SYSTEM_PROMPT,
-    build_answer_prompt,
     build_relevance_prompt,
 )
 from ranksmith.confidence_generation.types import (
@@ -35,7 +33,12 @@ from ranksmith.confidence_generation.types import (
     UsageCallback,
 )
 from ranksmith.errors import RerankProviderError
-from ranksmith.model import ModelMessage, ModelProvider, ModelRequest
+from ranksmith.model import (
+    ModelMessage,
+    ModelProvider,
+    ModelRequest,
+    _answer_messages,
+)
 from ranksmith.types import RerankUsage
 
 SampleT = TypeVar("SampleT")
@@ -181,13 +184,15 @@ def _build_answer_generated_row(
     sample: AnswerGenerationSample,
     config: AnswerGenerationConfig,
 ) -> Mapping[str, Any]:
+    system, user = _answer_messages(
+        sample.query,
+        sample.context,
+        no_answer_value=config.no_answer_value,
+    )
     raw_output = _call_provider(
         config.provider,
-        system=ANSWER_SYSTEM_PROMPT,
-        user=build_answer_prompt(
-            sample,
-            no_answer_value=config.no_answer_value,
-        ),
+        system=system,
+        user=user,
         on_usage=config.on_usage,
     )
     answer = parse_answer_output(raw_output)

@@ -212,7 +212,12 @@ def _select_messages(
 NO_ANSWER_VALUE = "__NO_ANSWER__"
 
 
-def _answer_messages(query: str, context: str) -> tuple[str, str]:
+def _answer_messages(
+    query: str,
+    context: str,
+    *,
+    no_answer_value: str = NO_ANSWER_VALUE,
+) -> tuple[str, str]:
     system = (
         "You answer questions using only the provided context. "
         'Return only JSON with an "answer" string.'
@@ -223,7 +228,7 @@ def _answer_messages(query: str, context: str) -> tuple[str, str]:
         "Return JSON exactly like this shape:\n"
         '{"answer":"..."}\n\n'
         "Use only the context. If the context does not contain the answer, "
-        f'return {{"answer":"{NO_ANSWER_VALUE}"}}.'
+        f'return {{"answer":"{no_answer_value}"}}.'
     )
     return system, user
 

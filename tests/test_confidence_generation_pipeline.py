@@ -12,16 +12,12 @@ from ranksmith.confidence_generation import (
     RelevanceGenerationConfig,
 )
 from ranksmith.confidence_generation.pipeline import _call_provider
-from ranksmith.confidence_generation.prompts import (
-    build_answer_prompt,
-    build_relevance_prompt,
-)
+from ranksmith.confidence_generation.prompts import build_relevance_prompt
 from ranksmith.confidence_generation.types import (
-    AnswerGenerationSample,
     RelevanceGenerationSample,
 )
 from ranksmith.errors import RerankProviderError
-from ranksmith.model import ModelMessage, ModelRequest, ModelResponse
+from ranksmith.model import ModelMessage, ModelRequest, ModelResponse, _answer_messages
 from ranksmith.types import RerankUsage
 
 
@@ -49,13 +45,9 @@ class BrokenProvider:
 
 
 def test_answer_prompt_includes_configured_no_answer_value() -> None:
-    prompt = build_answer_prompt(
-        AnswerGenerationSample(
-            id="a1",
-            query="Who played Karen?",
-            context="Nancy Travis played Karen.",
-            gold_answer="Nancy Travis",
-        ),
+    _system, prompt = _answer_messages(
+        "Who played Karen?",
+        "Nancy Travis played Karen.",
         no_answer_value="NO_CONTEXT_ANSWER",
     )
 
@@ -225,16 +217,11 @@ def test_generate_answer_confidence_dataset_writes_canonical_rows(
         ),
         ModelMessage(
             role="user",
-            content=build_answer_prompt(
-                AnswerGenerationSample(
-                    id="a1",
-                    query="Who?",
-                    context="Nancy Travis played Karen.",
-                    gold_answer=["nancy travis"],
-                    metadata={"dataset": "unit"},
-                ),
+            content=_answer_messages(
+                "Who?",
+                "Nancy Travis played Karen.",
                 no_answer_value="__NO_ANSWER__",
-            ),
+            )[1],
         ),
     ]
 
