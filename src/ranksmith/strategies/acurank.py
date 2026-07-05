@@ -15,8 +15,7 @@ from ranksmith.parsing import parse_ranking_response
 from ranksmith.types import Document, RerankResult
 
 from .common import (
-    ensure_async_listwise_model_client,
-    ensure_listwise_model_client,
+    ensure_capability,
     validate_documents_max_chars,
     validate_top_k,
 )
@@ -138,7 +137,7 @@ class AcuRankStrategy(_AcuRankConfigMixin):
             return []
         target_rank = min(self.target_rank, len(documents))
 
-        model_client = ensure_listwise_model_client(model_client)
+        model_client = ensure_capability(model_client, "listwise", "rank")
         ratings = self._initialize_ratings(documents)
         reranker_calls = 0
         adaptive_reranker_calls = 0
@@ -223,7 +222,7 @@ class AsyncAcuRankStrategy(_AcuRankConfigMixin):
             return []
         target_rank = min(self.target_rank, len(documents))
 
-        model_client = ensure_async_listwise_model_client(model_client)
+        model_client = ensure_capability(model_client, "listwise", "rank")
         ratings = self._initialize_ratings(documents)
         reranker_calls = 0
         adaptive_reranker_calls = 0

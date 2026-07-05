@@ -8,8 +8,7 @@ from ranksmith.parsing import parse_selection_response
 from ranksmith.types import Document, RerankResult
 
 from .common import (
-    ensure_async_selection_model_client,
-    ensure_selection_model_client,
+    ensure_capability,
     validate_documents_max_chars,
     validate_top_k,
 )
@@ -71,7 +70,7 @@ class SetwiseStrategy(_SetwiseConfigMixin):
         if not documents or top_k == 0:
             return []
 
-        model_client = ensure_selection_model_client(model_client)
+        model_client = ensure_capability(model_client, "selection", "select")
         ordered_indexes = self._rank_setwise_heapsort(
             query=query,
             documents=documents,
@@ -175,7 +174,7 @@ class AsyncSetwiseStrategy(_SetwiseConfigMixin):
         if not documents or top_k == 0:
             return []
 
-        model_client = ensure_async_selection_model_client(model_client)
+        model_client = ensure_capability(model_client, "selection", "select")
         ordered_indexes = await self._rank_setwise_heapsort(
             query=query,
             documents=documents,

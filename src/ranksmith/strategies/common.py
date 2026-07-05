@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import cast
+from typing import Any
 
 from ranksmith.errors import DocumentTooLongError, RerankInputError
-from ranksmith.model import AsyncModelClient, ModelClient
 from ranksmith.types import Document
 
 
@@ -30,43 +29,7 @@ def validate_documents_max_chars(
             raise DocumentTooLongError(message)
 
 
-def ensure_listwise_model_client(model_client: object) -> ModelClient:
-    rank = getattr(model_client, "rank", None)
-    if not callable(rank):
-        raise RerankInputError("provider must support listwise rank()")
-    return cast(ModelClient, model_client)
-
-
-def ensure_async_listwise_model_client(model_client: object) -> AsyncModelClient:
-    rank = getattr(model_client, "rank", None)
-    if not callable(rank):
-        raise RerankInputError("provider must support listwise rank()")
-    return cast(AsyncModelClient, model_client)
-
-
-def ensure_pairwise_model_client(model_client: object) -> ModelClient:
-    compare = getattr(model_client, "compare", None)
-    if not callable(compare):
-        raise RerankInputError("provider must support pairwise compare()")
-    return cast(ModelClient, model_client)
-
-
-def ensure_async_pairwise_model_client(model_client: object) -> AsyncModelClient:
-    compare = getattr(model_client, "compare", None)
-    if not callable(compare):
-        raise RerankInputError("provider must support pairwise compare()")
-    return cast(AsyncModelClient, model_client)
-
-
-def ensure_selection_model_client(model_client: object) -> ModelClient:
-    select = getattr(model_client, "select", None)
-    if not callable(select):
-        raise RerankInputError("provider must support selection select()")
-    return cast(ModelClient, model_client)
-
-
-def ensure_async_selection_model_client(model_client: object) -> AsyncModelClient:
-    select = getattr(model_client, "select", None)
-    if not callable(select):
-        raise RerankInputError("provider must support selection select()")
-    return cast(AsyncModelClient, model_client)
+def ensure_capability(model_client: object, capability: str, method: str) -> Any:
+    if not callable(getattr(model_client, method, None)):
+        raise RerankInputError(f"provider must support {capability} {method}()")
+    return model_client
