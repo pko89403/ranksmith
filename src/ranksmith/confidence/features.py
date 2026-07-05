@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from ranksmith.confidence._dependencies import import_optional_dependency
-from ranksmith.confidence._errors import ConfidenceArtifactError, ConfidenceInputError
+from ranksmith.confidence.dependencies import import_optional_dependency
+from ranksmith.confidence.errors import ConfidenceArtifactError, ConfidenceInputError
 
 FEATURE_SCHEMA_VERSION = "structural-v1"
 FEATURE_DIM = 70

@@ -3,8 +3,8 @@ from __future__ import annotations
 import random
 from collections import defaultdict
 
-from ranksmith.confidence_training._errors import ConfidenceDatasetError
-from ranksmith.confidence_training._types import (
+from ranksmith.confidence_training.errors import ConfidenceDatasetError
+from ranksmith.confidence_training.types import (
     CanonicalConfidenceSample,
     ConfidenceDatasetSplit,
 )

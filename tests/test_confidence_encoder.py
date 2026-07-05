@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 
 from ranksmith.confidence import ConfidenceDependencyError, ConfidenceInputError
-from ranksmith.confidence._encoder import FrozenAutoEncoder
+from ranksmith.confidence.encoder import FrozenAutoEncoder
 
 
 @dataclass
@@ -218,7 +218,7 @@ def test_from_pretrained_uses_lazy_dependencies(
         raise ConfidenceDependencyError(f"missing {name} {extra}")
 
     monkeypatch.setattr(
-        "ranksmith.confidence._encoder.import_optional_dependency",
+        "ranksmith.confidence.encoder.import_optional_dependency",
         missing_dependency,
     )
 
@@ -246,7 +246,7 @@ def test_from_pretrained_sanitizes_hf_loader_errors(
         return FakeTorch()
 
     monkeypatch.setattr(
-        "ranksmith.confidence._encoder.import_optional_dependency",
+        "ranksmith.confidence.encoder.import_optional_dependency",
         fake_import,
     )
 

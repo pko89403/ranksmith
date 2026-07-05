@@ -10,7 +10,7 @@ from ranksmith.errors import RerankParseError
 from ranksmith.model import AsyncModelClient, ModelClient
 from ranksmith.types import Document, RerankResult
 
-from ._common import (
+from .common import (
     ensure_async_pairwise_model_client,
     ensure_pairwise_model_client,
     validate_documents_max_chars,

@@ -8,7 +8,7 @@ from ranksmith.model import AsyncModelClient, ModelClient
 from ranksmith.parsing import parse_ranking_response
 from ranksmith.types import Document, RerankResult
 
-from ._common import (
+from .common import (
     ensure_async_listwise_model_client,
     ensure_listwise_model_client,
     validate_documents_max_chars,

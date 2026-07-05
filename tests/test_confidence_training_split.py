@@ -3,8 +3,8 @@ from __future__ import annotations
 import pytest
 
 from ranksmith.confidence_training import ConfidenceDatasetError
-from ranksmith.confidence_training._split import split_dataset
-from ranksmith.confidence_training._types import CanonicalConfidenceSample
+from ranksmith.confidence_training.split import split_dataset
+from ranksmith.confidence_training.types import CanonicalConfidenceSample
 
 
 def _samples(count: int = 40) -> list[CanonicalConfidenceSample]:

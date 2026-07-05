@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib
 from types import ModuleType
 
-from ranksmith.confidence._errors import ConfidenceDependencyError
+from ranksmith.confidence.errors import ConfidenceDependencyError
 
 
 def import_optional_dependency(name: str, *, extra: str = "confidence") -> ModuleType:

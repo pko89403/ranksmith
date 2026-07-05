@@ -7,7 +7,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Literal
 
-from ranksmith.confidence_generation._errors import ConfidenceGenerationInputError
+from ranksmith.confidence_generation.errors import ConfidenceGenerationInputError
 from ranksmith.model import ModelProvider
 from ranksmith.types import RerankUsage
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from ranksmith.confidence._errors import ConfidenceInputError
-from ranksmith.confidence._types import (
+from ranksmith.confidence.errors import ConfidenceInputError
+from ranksmith.confidence.types import (
     AnswerConfidenceInput,
     JudgmentConfidenceInput,
     StructuralConfidenceInput,

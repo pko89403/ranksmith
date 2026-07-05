@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from ranksmith.confidence_generation._types import (
+from ranksmith.confidence_generation.types import (
     AnswerGenerationSample,
     RelevanceGenerationSample,
 )

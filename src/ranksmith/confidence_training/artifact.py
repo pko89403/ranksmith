@@ -5,9 +5,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from ranksmith.confidence._dependencies import import_optional_dependency
-from ranksmith.confidence._errors import ConfidenceArtifactError
-from ranksmith.confidence._features import (
+from ranksmith.confidence.dependencies import import_optional_dependency
+from ranksmith.confidence.errors import ConfidenceArtifactError
+from ranksmith.confidence.features import (
     FEATURE_DIM,
     FEATURE_DTYPE,
     FEATURE_SCHEMA_VERSION,
@@ -15,14 +15,14 @@ from ranksmith.confidence._features import (
     LOCAL_STRIDE,
     LOCAL_WINDOW_SIZE,
 )
-from ranksmith.confidence._scorer import (
+from ranksmith.confidence.scorer import (
     ARTIFACT_SCHEMA_VERSION,
     SUPPORTED_SCORE_OUTPUT,
     metadata_from_dict,
 )
-from ranksmith.confidence._templates import INPUT_TEMPLATE_VERSION
-from ranksmith.confidence_training._errors import ConfidenceTrainingError
-from ranksmith.confidence_training._types import ConfidenceTrainingConfig
+from ranksmith.confidence.templates import INPUT_TEMPLATE_VERSION
+from ranksmith.confidence_training.errors import ConfidenceTrainingError
+from ranksmith.confidence_training.types import ConfidenceTrainingConfig
 
 LABEL_SCHEMA_VERSION = "supervised-binary-v1"
 

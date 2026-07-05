@@ -3,15 +3,15 @@ from __future__ import annotations
 import pytest
 
 from ranksmith.confidence_training import ConfidenceTrainingError
-from ranksmith.confidence_training._report import (
+from ranksmith.confidence_training.report import (
     _expected_calibration_error,
     generate_training_report,
 )
-from ranksmith.confidence_training._train import (
+from ranksmith.confidence_training.train import (
     calibrate_classifier,
     train_lightgbm_classifier,
 )
-from ranksmith.confidence_training._types import ConfidenceFeatureRow
+from ranksmith.confidence_training.types import ConfidenceFeatureRow
 
 
 def _feature_rows(count: int = 40) -> list[ConfidenceFeatureRow]:

@@ -7,9 +7,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
-from ranksmith.confidence._encoder import FrozenAutoEncoder
-from ranksmith.confidence._errors import ConfidenceArtifactError, ConfidenceInputError
-from ranksmith.confidence._features import (
+from ranksmith.confidence.encoder import FrozenAutoEncoder
+from ranksmith.confidence.errors import ConfidenceArtifactError, ConfidenceInputError
+from ranksmith.confidence.features import (
     FEATURE_DIM,
     FEATURE_DTYPE,
     FEATURE_SCHEMA_VERSION,
@@ -18,16 +18,16 @@ from ranksmith.confidence._features import (
     LOCAL_WINDOW_SIZE,
     extract_structural_features,
 )
-from ranksmith.confidence._scorer import (
+from ranksmith.confidence.scorer import (
     ARTIFACT_SCHEMA_VERSION,
     load_lightgbm_scorer,
     validate_scorer_metadata,
 )
-from ranksmith.confidence._templates import (
+from ranksmith.confidence.templates import (
     INPUT_TEMPLATE_VERSION,
     format_confidence_input,
 )
-from ranksmith.confidence._types import (
+from ranksmith.confidence.types import (
     StructuralConfidenceInput,
     StructuralConfidenceResult,
     StructuralConfidenceScorer,

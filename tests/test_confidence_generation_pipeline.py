@@ -11,12 +11,12 @@ from ranksmith.confidence_generation import (
     ConfidenceGenerationParseError,
     RelevanceGenerationConfig,
 )
-from ranksmith.confidence_generation._pipeline import _call_provider
-from ranksmith.confidence_generation._prompts import (
+from ranksmith.confidence_generation.pipeline import _call_provider
+from ranksmith.confidence_generation.prompts import (
     build_answer_prompt,
     build_relevance_prompt,
 )
-from ranksmith.confidence_generation._types import (
+from ranksmith.confidence_generation.types import (
     AnswerGenerationSample,
     RelevanceGenerationSample,
 )

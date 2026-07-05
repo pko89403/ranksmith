@@ -9,7 +9,7 @@ from types import ModuleType
 import pytest
 
 from ranksmith.confidence import ConfidenceArtifactError, ScorerMetadata
-from ranksmith.confidence._scorer import (
+from ranksmith.confidence.scorer import (
     ARTIFACT_SCHEMA_VERSION,
     JoblibScorerWrapper,
     LightGBMScorer,

@@ -33,7 +33,7 @@ from ranksmith.strategies import (
     SetwiseStrategy,
     TourRankStrategy,
 )
-from ranksmith.strategies._common import validate_top_k
+from ranksmith.strategies.common import validate_top_k
 from ranksmith.types import Document, RerankResult
 
 

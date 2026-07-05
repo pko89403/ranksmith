@@ -4,8 +4,8 @@ import json
 from collections.abc import Mapping
 from typing import Any, cast
 
-from ranksmith.confidence_generation._errors import ConfidenceGenerationParseError
-from ranksmith.confidence_generation._labeling import JudgmentValue
+from ranksmith.confidence_generation.errors import ConfidenceGenerationParseError
+from ranksmith.confidence_generation.labeling import JudgmentValue
 
 
 def parse_answer_output(content: str) -> str:

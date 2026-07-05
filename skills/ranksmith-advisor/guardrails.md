@@ -43,8 +43,8 @@ second copy.
 
 8. **`top_k` early stopping is Setwise-only.** Other strategies slice to `top_k`
    after computing the full order.
-   Source: `src/ranksmith/strategies/_setwise.py`.
+   Source: `src/ranksmith/strategies/setwise.py`.
 
 9. **Public API only.** Use root `ranksmith` exports in user code; do not reach
-   into private modules (`ranksmith.providers._*`, `ranksmith.strategies._*`, …).
+   into private modules (`ranksmith.providers.azure`, `ranksmith.strategies.acurank`, …).
    Source: `docs/wiki/02_architecture.md`.

@@ -6,8 +6,8 @@ from typing import Any
 
 import pytest
 
-from ranksmith.confidence_generation._errors import ConfidenceGenerationInputError
-from ranksmith.confidence_generation._io import (
+from ranksmith.confidence_generation.errors import ConfidenceGenerationInputError
+from ranksmith.confidence_generation.io import (
     _metadata,
     load_answer_generation_samples,
     load_completed_ids,
