@@ -77,6 +77,10 @@ class ModelClient:
         system, user = _select_messages(query, documents, top_m)
         return self._complete(system=system, user=user)
 
+    def judge(self, query: str, document: Document) -> str:
+        system, user = _judge_messages(query, document)
+        return self._complete(system=system, user=user)
+
     def _complete(self, *, system: str, user: str) -> str:
         try:
             response = self._provider.complete(
@@ -123,6 +127,10 @@ class AsyncModelClient:
 
     async def select(self, query: str, documents: list[Document], top_m: int) -> str:
         system, user = _select_messages(query, documents, top_m)
+        return await self._complete(system=system, user=user)
+
+    async def judge(self, query: str, document: Document) -> str:
+        system, user = _judge_messages(query, document)
         return await self._complete(system=system, user=user)
 
     async def _complete(self, *, system: str, user: str) -> str:
@@ -199,6 +207,24 @@ def _select_messages(
         f"1 to {candidate_count}, without duplicates."
     )
     return system, _build_selection_prompt(query, documents, top_m)
+
+
+def _judge_messages(query: str, document: Document) -> tuple[str, str]:
+    system = (
+        "You judge document relevance. Return only JSON with "
+        'a "judgment" value of "relevant" or "not_relevant".'
+    )
+    user = (
+        f"Query:\n{query}\n\n"
+        f"Document:\n{document.text}\n\n"
+        "Return JSON exactly as one of these two shapes:\n"
+        '{"judgment": "relevant"}\n'
+        '{"judgment": "not_relevant"}\n\n'
+        'Use "relevant" if the document contains information useful for '
+        "answering the query.\n"
+        'Use "not_relevant" otherwise.'
+    )
+    return system, user
 
 
 def _build_prompt(query: str, documents: list[Document]) -> str:

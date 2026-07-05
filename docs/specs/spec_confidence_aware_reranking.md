@@ -7,9 +7,32 @@
   - `docs/wiki/references/cbdr_parametric_confidence_rag.md` (CBDR — 개념 로드맵. white-box 전제라 방식 직접 이식 불가)
   - `docs/wiki/references/llm_confidence_reranker.md` (LCR — training-free 정렬 규칙의 후보)
   - `docs/specs/spec_confidence_runtime_readiness.md` (소비할 signal contract)
-- **상태**: `[x] Draft` | `[ ] In Progress` | `[ ] Completed`
+- **상태**: `[ ] Draft` | `[x] In Progress` | `[ ] Completed`
 
-이 스펙은 초안이다. §7의 열린 결정(Q004)이 해소되기 전에는 구현하지 않는다.
+Q004-1(경로 A), Q004-2(새 Strategy), Q004-3(signed confidence)이 확정되어 `ConfidenceRerankStrategy` / `AsyncConfidenceRerankStrategy`를 구현했다. 남은 것은 쓸 만한 scorer artifact(현재는 스모크용)와 벤치마크.
+
+## 확정 설계 (구현됨)
+- **형태**: 새 Strategy. `AzureOpenAIReranker(strategy=ConfidenceRerankStrategy(estimator=...))`로 사용.
+- **judgment 획득**: 문서당 LLM `judge()` 1회(relevant/not_relevant). confidence 측정에는 LLM을 쓰지 않는다(로컬 encoder+scorer). LCR처럼 문서당 반복 샘플링하지 않는다.
+- **confidence**: `estimator.score(JudgmentConfidenceInput(query, document, judgment)).score` — structural confidence(로컬).
+- **순위 규칙**: signed confidence = judgment=="relevant"이면 +conf, else −conf. 내림차순 정렬, 동점은 입력 순서 보존.
+- **비용**: 문서 N개 → judge N회(리랭킹 신호) + 로컬 confidence N회(LLM 0회).
+- **async**: judge 호출은 `asyncio.gather`로 동시 실행, scoring은 순차(CPU/encoder).
+
+### 통합 지점 (구현 완료)
+- `src/ranksmith/model.py`: `ModelClient.judge` / `AsyncModelClient.judge` 추가.
+- `src/ranksmith/parsing.py`: `parse_judgment_response` 추가.
+- `src/ranksmith/strategies/confidence.py`: `ConfidenceRerankStrategy` / `AsyncConfidenceRerankStrategy`.
+- estimator는 Protocol로 타입해 strategies가 torch를 강제 import하지 않는다.
+
+### 검증 (2026-07-05)
+- 단위 테스트 8개(synthetic judge client + fake estimator): signed 정렬, 동점 보존, top_k, judge 부재/비-judgment estimator/invalid JSON fast fail, sync/async.
+- 엔드투엔드(LM Studio qwen3.5-9b judge + 스모크 artifact, macOS env 2개): 관련 문서 3개가 모두 상위(top-3 3/3). 스모크 artifact는 판별력이 없어 magnitude는 뭉치지만 sign이 지배해 relevant가 위로 온다.
+
+### 남은 작업
+- 쓸 만한 scorer artifact 확보(현재는 45~56샘플 스모크용, 판별력 없음).
+- 벤치마크: `scripts/compare_reranking.py` 편입 여부, live opt-in.
+- signed confidence 정렬이 실제 순위를 개선하는지 측정(현재는 미측정 — README에 성능 claim 금지).
 
 ### 범위에 대한 사실 정리
 - CBDR 논문의 CBDR 메커니즘 자체는 "retrieval을 할지 결정하는 트리거"다. ranksmith에는 retriever가 없으므로 **retrieval 트리거는 이 스펙의 범위 밖**이며 caller 애플리케이션 책임이다.
