@@ -51,6 +51,21 @@ Needed From User:
 
 ## 형식
 ```markdown
+## Q004 Confidence-aware reranking 설계 결정
+Status: open
+
+Context:
+- `docs/specs/spec_confidence_aware_reranking.md` (Draft) 참조.
+- CBDR 논문은 white-box hidden state 전제라 방식 직접 이식이 불가하고, 설계 패턴만 가져온다.
+- LCR 논문은 training-free지만 temperature 1 sampling K회가 필요해 현재 ModelClient 계약(temperature 0, JSON-only)과 충돌한다.
+
+Needed From User:
+1. confidence 소스: 경로 A(structural confidence, scorer artifact 학습 선행) vs 경로 B(LCR/MSCP, sampling 계약 변경 선행) vs 둘 다.
+2. 형태: 새 Strategy vs `list[RerankResult]` post-processor.
+3. query-level gate(`T_query`) 채택 여부.
+4. threshold 기본값 정책 (논문은 최적값 미공개 — LCR 가이드: UT≈0.9, LT≈0.1–0.4).
+5. 경로 B 채택 시 호출 비용 정책 (advisor call-estimate 반영 방법).
+
 ## Q001 <topic>
 Status: blocked | needs-user-decision | resolved
 
