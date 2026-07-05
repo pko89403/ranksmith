@@ -35,9 +35,7 @@ class _ConfidenceRerankConfigMixin:
 
     def __post_init__(self) -> None:
         if self.estimator.task_type != "judgment_confidence":
-            raise RerankInputError(
-                'estimator.task_type must be "judgment_confidence"'
-            )
+            raise RerankInputError('estimator.task_type must be "judgment_confidence"')
         if self.max_document_chars < 1:
             raise ValueError("max_document_chars must be greater than 0")
 
