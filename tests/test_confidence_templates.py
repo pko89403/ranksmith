@@ -7,7 +7,7 @@ from ranksmith.confidence import (
     ConfidenceInputError,
     JudgmentConfidenceInput,
 )
-from ranksmith.confidence._templates import (
+from ranksmith.confidence.templates import (
     format_confidence_input,
 )
 

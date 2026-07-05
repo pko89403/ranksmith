@@ -1,13 +1,3 @@
-from ranksmith._providers import (
-    AnthropicProvider,
-    AsyncAnthropicProvider,
-    AsyncAzureAOAIProvider,
-    AsyncGeminiProvider,
-    AsyncOpenAIProvider,
-    AzureAOAIProvider,
-    GeminiProvider,
-    OpenAIProvider,
-)
 from ranksmith.azure import AsyncAzureOpenAIReranker, AzureOpenAIReranker
 from ranksmith.errors import (
     DocumentTooLongError,
@@ -28,6 +18,7 @@ from ranksmith.model import (
 )
 from ranksmith.parsing import parse_ranking_response, parse_selection_response
 from ranksmith.protocols import AsyncRerankStrategy, RerankStrategy
+from ranksmith.providers import AsyncAzureAOAIProvider, AzureAOAIProvider
 from ranksmith.strategies import (
     AcuRankStrategy,
     AsyncAcuRankStrategy,
@@ -44,17 +35,13 @@ from ranksmith.strategies import (
 from ranksmith.types import Document, RerankResult, RerankUsage
 
 __all__ = [
-    "AnthropicProvider",
     "AcuRankStrategy",
     "AsyncAcuRankStrategy",
-    "AsyncAnthropicProvider",
     "AsyncAzureAOAIProvider",
     "AsyncAzureOpenAIReranker",
-    "AsyncGeminiProvider",
     "AsyncListwiseStrategy",
     "AsyncModelClient",
     "AsyncModelProvider",
-    "AsyncOpenAIProvider",
     "AsyncPairwiseStrategy",
     "AsyncSetwiseStrategy",
     "AsyncRerankStrategy",
@@ -63,14 +50,12 @@ __all__ = [
     "AzureOpenAIReranker",
     "Document",
     "DocumentTooLongError",
-    "GeminiProvider",
     "ListwiseStrategy",
     "ModelClient",
     "ModelMessage",
     "ModelProvider",
     "ModelRequest",
     "ModelResponse",
-    "OpenAIProvider",
     "PairwiseStrategy",
     "SetwiseStrategy",
     "RerankError",

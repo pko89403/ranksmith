@@ -1,11 +1,11 @@
-from ranksmith.confidence_training._errors import (
+from ranksmith.confidence_training.errors import (
     ConfidenceDatasetError,
     ConfidenceLabelError,
     ConfidenceTrainingConfigError,
     ConfidenceTrainingError,
 )
-from ranksmith.confidence_training._pipeline import train_confidence_scorer
-from ranksmith.confidence_training._types import (
+from ranksmith.confidence_training.pipeline import train_confidence_scorer
+from ranksmith.confidence_training.types import (
     ConfidenceTrainingConfig,
     ConfidenceTrainingResult,
 )

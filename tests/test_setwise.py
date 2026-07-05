@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Any, cast
 
 import pytest
 
@@ -80,7 +79,6 @@ def _scores() -> dict[str, int]:
 def test_setwise_strategy_defaults_to_setwise_heapsort() -> None:
     strategy = SetwiseStrategy()
 
-    assert strategy.algorithm == "setwise_heapsort"
     assert strategy.set_size == 3
 
 
@@ -170,8 +168,6 @@ def test_setwise_top_k_stops_after_requested_extractions() -> None:
 def test_setwise_rejects_invalid_config() -> None:
     with pytest.raises(ValueError, match="set_size"):
         SetwiseStrategy(set_size=2)
-    with pytest.raises(ValueError, match="algorithm"):
-        SetwiseStrategy(algorithm=cast(Any, "setwise_bubblesort"))
 
 
 def test_setwise_rejects_provider_without_select() -> None:

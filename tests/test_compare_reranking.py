@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
+from benchmarks.benchmark import BenchmarkCase, BenchmarkDocument
+from benchmarks.mteb_eval import tourrank_stage_configs_for_candidate_count
 from ranksmith import RerankParseError
-from ranksmith._benchmark import BenchmarkCase, BenchmarkDocument
-from ranksmith._mteb_eval import tourrank_stage_configs_for_candidate_count
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location(

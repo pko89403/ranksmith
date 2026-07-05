@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ranksmith.confidence._scorer import metadata_from_dict
+from ranksmith.confidence.scorer import metadata_from_dict
 from ranksmith.confidence_training import ConfidenceTrainingConfig
-from ranksmith.confidence_training._artifact import build_scorer_metadata
+from ranksmith.confidence_training.artifact import build_scorer_metadata
 
 
 def test_build_scorer_metadata_contains_phase_1_required_fields(tmp_path: Path) -> None:

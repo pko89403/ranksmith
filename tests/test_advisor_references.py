@@ -58,37 +58,29 @@ def test_snippets_use_public_ranksmith_symbols() -> None:
 # updated in lock-step instead of silently drifting.
 _DOCUMENTED_DEFAULTS: dict[str, dict[str, object]] = {
     "ListwiseStrategy": {
-        "algorithm": "rankgpt_sliding_window",
         "window_size": 20,
         "stride": 10,
         "max_document_chars": 4000,
     },
     "PairwiseStrategy": {
-        "algorithm": "prp_sliding_k",
         "passes": 10,
         "max_document_chars": 4000,
     },
     "SetwiseStrategy": {
-        "algorithm": "setwise_heapsort",
         "set_size": 3,
         "max_document_chars": 4000,
     },
     "TourRankStrategy": {
-        "algorithm": "tourrank_r",
         "rounds": 2,
         "shuffle_seed": 13,
-        "group_parallelism": 1,
         "max_document_chars": 4000,
     },
     "AcuRankStrategy": {
-        "algorithm": "acurank",
         "target_rank": 10,
         "window_size": 20,
         "tolerance": 0.01,
         "uncertain_threshold": 10,
         "initial_pass": True,
-        "score_metadata_key": "score",
-        "batch_parallelism": 1,
         "max_adaptive_reranker_calls": None,
     },
 }

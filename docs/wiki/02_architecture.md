@@ -20,25 +20,23 @@ src/ranksmith/
   parsing.py               # LLM response contract parser
   strategies/
     __init__.py            # public strategy exports
-    _common.py             # shared validation/capability guards
-    _listwise.py
-    _pairwise.py
-    _setwise.py
-    _tourrank.py
-    _acurank.py
+    common.py              # shared validation/capability guards
+    listwise.py
+    pairwise.py
+    setwise.py
+    tourrank.py
+    acurank.py
   providers/
     __init__.py            # public provider exports
-    _azure.py              # Azure OpenAI implementation
-    _stubs.py              # unimplemented provider stubs
-  _providers.py            # backward-compatible re-export layer
+    azure.py               # Azure OpenAI implementation
 ```
 
 외부 사용자는 root import 또는 `ranksmith.strategies`, `ranksmith.providers`의 public export를 사용한다.
-`strategies/_*.py`, `providers/_*.py`는 내부 구현 모듈로 취급한다.
+strategies/, providers/ 하위 개별 모듈은 내부 구현으로 취급한다.
 
 ## ModelProvider
 실제 SDK 호출은 Azure OpenAI만 구현한다.
-OpenAI, Anthropic, Gemini provider는 향후 구현을 위한 public stub이며 호출 시 fast fail 한다.
+다른 vendor는 사용자 정의 `ModelProvider` 구현으로 연결한다.
 
 Provider는 `ModelRequest`를 받아 `ModelResponse`를 반환한다.
 Provider는 ranking 도메인 prompt의 의미를 알지 않는다.

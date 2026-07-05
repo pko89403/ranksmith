@@ -26,11 +26,10 @@ ranksmith's contracts intact matters — those are the most common failures.
 
 ## Non-negotiable guardrails (full list with sources in `guardrails.md`)
 
-- Only the **Azure** provider actually runs. `OpenAIProvider`,
-  `AnthropicProvider`, and `GeminiProvider` are reserved stubs that raise
-  `RerankProviderError`. Never build working code on them.
-- A new ranking method is a **new Strategy class**, never a new
-  `ListwiseStrategy(algorithm="...")` string.
+- **Azure** is the only bundled provider. Other vendors require a custom
+  `ModelProvider` implementation.
+- A new ranking method is a **new Strategy class**, never a patch on the
+  built-in strategy classes.
 - `rank` is 1-based; `original_index` is 0-based against the input list.
 - ranksmith **fails fast**: never silently truncate documents or repair an
   invalid ranking.

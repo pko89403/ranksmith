@@ -8,22 +8,16 @@ from typing import Any, cast
 import pytest
 
 from ranksmith import (
-    AnthropicProvider,
-    AsyncAnthropicProvider,
     AsyncAzureAOAIProvider,
-    AsyncGeminiProvider,
     AsyncModelClient,
     AsyncModelProvider,
-    AsyncOpenAIProvider,
     AzureAOAIProvider,
     Document,
-    GeminiProvider,
     ModelClient,
     ModelMessage,
     ModelProvider,
     ModelRequest,
     ModelResponse,
-    OpenAIProvider,
     RerankProviderError,
     RerankUsage,
 )
@@ -83,12 +77,6 @@ def test_model_api_is_publicly_importable() -> None:
     assert AsyncModelClient is not None
     assert AzureAOAIProvider is not None
     assert AsyncAzureAOAIProvider is not None
-    assert OpenAIProvider is not None
-    assert AsyncOpenAIProvider is not None
-    assert AnthropicProvider is not None
-    assert AsyncAnthropicProvider is not None
-    assert GeminiProvider is not None
-    assert AsyncGeminiProvider is not None
 
 
 def test_removed_llm_provider_names_are_not_public() -> None:
@@ -191,8 +179,6 @@ def test_model_client_rank_builds_domain_prompt_and_emits_usage() -> None:
     assert result == '{"ranking": [2, 1]}'
     assert captured == [usage]
     request = provider.requests[0]
-    assert request.response_format == "json_object"
-    assert request.temperature == 0
     assert request.messages[0].role == "system"
     assert "ranking" in request.messages[0].content
     assert "exactly 2 integers" in request.messages[0].content
@@ -256,46 +242,6 @@ async def test_async_model_client_rank_builds_domain_prompt_and_emits_usage() ->
     assert result == '{"ranking": [1]}'
     assert captured == [usage]
     assert "[1]\nalpha" in provider.requests[0].messages[1].content
-
-
-@pytest.mark.parametrize(
-    ("provider", "name"),
-    [
-        (OpenAIProvider(), "OpenAI"),
-        (AnthropicProvider(), "Anthropic"),
-        (GeminiProvider(), "Gemini"),
-    ],
-)
-def test_dummy_model_providers_fast_fail(provider: ModelProvider, name: str) -> None:
-    with pytest.raises(
-        RerankProviderError,
-        match=f"{name} provider is not implemented yet",
-    ):
-        provider.complete(ModelRequest(messages=[ModelMessage("user", "hello")]))
-
-
-@pytest.mark.parametrize(
-    ("provider", "name"),
-    [
-        (AsyncOpenAIProvider(), "OpenAI"),
-        (AsyncAnthropicProvider(), "Anthropic"),
-        (AsyncGeminiProvider(), "Gemini"),
-    ],
-)
-def test_async_dummy_model_providers_fast_fail(
-    provider: AsyncModelProvider,
-    name: str,
-) -> None:
-    async def run() -> None:
-        with pytest.raises(
-            RerankProviderError,
-            match=f"{name} provider is not implemented yet",
-        ):
-            await provider.complete(
-                ModelRequest(messages=[ModelMessage("user", "hello")])
-            )
-
-    asyncio.run(run())
 
 
 @dataclass

@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from ranksmith.confidence_training import ConfidenceDatasetError, ConfidenceLabelError
-from ranksmith.confidence_training._dataset import load_canonical_dataset
+from ranksmith.confidence_training.dataset import load_canonical_dataset
 
 
 def _write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:

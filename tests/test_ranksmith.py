@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Any, cast
-
 import pytest
 
 from ranksmith import (
@@ -124,17 +122,9 @@ def test_long_document_fast_fails_without_truncating() -> None:
 def test_listwise_strategy_defaults_to_rankgpt_sliding_window() -> None:
     strategy = ListwiseStrategy()
 
-    assert strategy.algorithm == "rankgpt_sliding_window"
-
-
-def test_listwise_strategy_rejects_removed_sliding_window_algorithm() -> None:
-    with pytest.raises(ValueError, match='algorithm must be "rankgpt_sliding_window"'):
-        ListwiseStrategy(algorithm=cast(Any, "sliding_window"))
-
-
-def test_listwise_strategy_rejects_removed_direct_algorithm() -> None:
-    with pytest.raises(ValueError, match='algorithm must be "rankgpt_sliding_window"'):
-        ListwiseStrategy(algorithm=cast(Any, "direct"))
+    assert strategy.window_size == 20
+    assert strategy.stride == 10
+    assert strategy.max_document_chars == 4000
 
 
 def test_negative_top_k_is_input_error_not_provider_error() -> None:
@@ -192,9 +182,7 @@ def test_rankgpt_sliding_window_bubbles_top_document_up() -> None:
         azure_endpoint="https://example.openai.azure.com",
         azure_deployment="gpt-4o-mini",
         model_client=provider,
-        strategy=ListwiseStrategy(
-            algorithm="rankgpt_sliding_window", window_size=3, stride=2
-        ),
+        strategy=ListwiseStrategy(window_size=3, stride=2),
     )
 
     results = reranker.rerank("query", ["a", "b", "c", "d", "e"])
@@ -205,13 +193,12 @@ def test_rankgpt_sliding_window_bubbles_top_document_up() -> None:
 
 def test_rankgpt_sliding_window_rejects_stride_larger_than_window_size() -> None:
     with pytest.raises(RerankInputError):
-        ListwiseStrategy(algorithm="rankgpt_sliding_window", window_size=3, stride=4)
+        ListwiseStrategy(window_size=3, stride=4)
 
 
 def test_pairwise_strategy_defaults_to_prp_sliding_10() -> None:
     strategy = PairwiseStrategy()
 
-    assert strategy.algorithm == "prp_sliding_k"
     assert strategy.passes == 10
 
 

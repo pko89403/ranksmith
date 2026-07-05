@@ -1,8 +1,8 @@
-from ranksmith.strategies._acurank import AcuRankStrategy, AsyncAcuRankStrategy
-from ranksmith.strategies._listwise import AsyncListwiseStrategy, ListwiseStrategy
-from ranksmith.strategies._pairwise import AsyncPairwiseStrategy, PairwiseStrategy
-from ranksmith.strategies._setwise import AsyncSetwiseStrategy, SetwiseStrategy
-from ranksmith.strategies._tourrank import (
+from ranksmith.strategies.acurank import AcuRankStrategy, AsyncAcuRankStrategy
+from ranksmith.strategies.listwise import AsyncListwiseStrategy, ListwiseStrategy
+from ranksmith.strategies.pairwise import AsyncPairwiseStrategy, PairwiseStrategy
+from ranksmith.strategies.setwise import AsyncSetwiseStrategy, SetwiseStrategy
+from ranksmith.strategies.tourrank import (
     AsyncTourRankStrategy,
     TourRankStageConfig,
     TourRankStrategy,

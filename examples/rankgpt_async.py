@@ -48,7 +48,6 @@ async def async_main() -> None:
         azure_deployment=deployment,
         api_version="2024-10-21",  # 필요한 API 버전에 맞게 수정
         strategy=AsyncListwiseStrategy(
-            algorithm="rankgpt_sliding_window",
             window_size=10,
             stride=5,
         ),
