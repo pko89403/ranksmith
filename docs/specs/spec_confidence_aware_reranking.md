@@ -39,7 +39,16 @@ CBDR 논문의 핵심은 confidence 변화다: `Inc(Q, D) = Conf(질문+문서) 
 
   **데이터 규모가 관건이다.** 100샘플에선 과적합으로 랜덤 이하(정답 문맥이 오히려 바닥). 500샘플에선 강한 판별력(정답 문맥 12/15가 1위). 접근 자체는 유효하다.
 
-- **측정 조건(정직한 한계)**: distractor가 무관 랜덤 SQuAD 문맥이라 모델이 NO_ANSWER를 내는 쉬운 세팅. BM25 hard negative(주제 유사) 같은 현실 세팅은 더 어렵다. 평가셋 15개로 신뢰구간이 넓다. README 성능 claim은 하지 않는다.
+- **Baseline 비교 (같은 15개 세팅) — 정직한 결과: 기존 Listwise한테 진다.**
+
+  | 전략 | accuracy@1 | MRR | LLM 호출/쿼리 |
+  | --- | --- | --- | --- |
+  | ConfidenceRerank (500) | 0.800 | 0.878 | 4.0 |
+  | `ListwiseStrategy` | **1.000** | **1.000** | **1.0** |
+
+  이 세팅에서 Listwise가 완벽하면서 호출은 1/4. confidence 리랭커는 더 나쁘고 4배 비싸다. **현재까지 이 방법이 기존 전략보다 나은 세팅을 하나도 입증하지 못했다.** 이길 가능성이 있는 곳은 listwise window를 초과하는 대규모 후보 등 — 미측정.
+
+- **측정 조건(정직한 한계)**: distractor가 무관 랜덤 SQuAD 문맥이라 모델이 NO_ANSWER를 내는 쉬운 세팅(그래서 Listwise가 자명하게 만점). BM25 hard negative(주제 유사) 같은 현실 세팅은 더 어렵다. 평가셋 15개로 신뢰구간이 넓다. README 성능 claim은 하지 않는다.
 
 ### 남은 작업
 - 현실적 벤치마크: BM25 hard negative 기반, `scripts/compare_reranking.py` 편입 + live opt-in.
