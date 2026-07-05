@@ -19,9 +19,9 @@
 
 ### 포함 범위
 - 기존 reranking 결과(`list[RerankResult]`) 또는 첫 단계 순서를 입력으로 받아, 후보별 confidence로 순위를 보정하는 모듈 1개.
-- confidence 소스는 두 후보 중 하나로 확정한다(§7 Q004-1):
-  - **경로 A (structural)**: `StructuralConfidenceEstimator.score_batch(...)`의 `judgment_confidence` 신호. runtime readiness 계약대로 candidate identity 결합은 이 모듈(adapter)의 책임.
-  - **경로 B (LCR/MSCP)**: temperature 1 sampling K회 + 양방향 entailment 클러스터링으로 MSCP 계산. training-free.
+- confidence 소스는 **경로 A로 확정**(Q004-1 resolved). 호출 비용 때문에 경로 B(LCR/MSCP)는 채택하지 않는다.
+  - **경로 A (structural, 확정)**: `StructuralConfidenceEstimator.score_batch(...)`의 `judgment_confidence` 신호. runtime readiness 계약대로 candidate identity 결합은 이 모듈(adapter)의 책임. 추론 시 문서당 judgment 1회 + 로컬 CPU 특징 추출.
+  - ~~경로 B (LCR/MSCP)~~: 문서당 K회+ 호출 비용으로 미채택.
 - 정렬 규칙은 LCR 방식을 기본 후보로 한다: `T_upper`/`T_lower`로 High(+1)/Medium(0)/Low(−1) binning 후 [bin 내림차순, 기존 순위] StableSort. query-level gate(`T_query`) 채택 여부는 열린 결정.
 - 기존 순위로의 환원성 보장: gate 조건에서 원래 순위를 그대로 반환한다 (LCR의 `T_query=0` 환원성과 동일한 안전장치).
 
@@ -62,15 +62,22 @@
 - 경로 B: MSCP 계산(클러스터 비율), entailment 응답 파싱 fast fail.
 - fixture 기반 smoke test (`tests/fixtures/reranking_smoke_fixture.jsonl` + `benchmarks/metrics.py`).
 
-## 7. 열린 결정 (구현 착수 전 사용자 결정 필요 — `docs/wiki/05_open_questions.md` Q004)
-1. **confidence 소스**: 경로 A(structural, artifact 학습 선행) vs 경로 B(MSCP, sampling 계약 변경 선행) vs 둘 다(소스 추상화).
-2. **형태**: 새 Strategy vs post-processor.
-3. **query-level gate 채택 여부**: LCR의 `T_query` — query confidence 계산 비용이 추가된다.
-4. **threshold 기본값**: 논문은 최적값을 공개하지 않음(LCR 가이드: UT≈0.9, LT≈0.1–0.4). 자체 벤치마크로 정할지, 파라미터 필수 입력으로 둘지.
-5. **경로 B의 호출 비용 정책**: 문서당 K+α회 호출 증가를 advisor call-estimate 문서에 어떻게 반영할지.
+## 7. 열린 결정 (`docs/wiki/05_open_questions.md` Q004)
+1. ~~confidence 소스~~ — **경로 A(structural + LightGBM)로 확정**. 호출 비용으로 경로 B 미채택.
+2. **형태**: 새 Strategy vs post-processor. (미결)
+3. **score → 순위 반영 규칙**: bin 방식 유지 여부와 threshold 기본값. (미결)
+4. **artifact 학습 데이터**: score_batch가 소비할 scorer artifact를 만들 실제 라벨 데이터 ≥30개 확보. (미결)
+
+## 스모크 검증 기록 (2026-07-05)
+경로 A 파이프라인을 LM Studio(qwen3.5-9b) + libomp 설치 환경에서 부분 관통했다.
+- generation: `generate_judgment_confidence_dataset`가 fixture 15개를 엔드투엔드 생성 (LM Studio provider).
+- 추론 절반: `FrozenAutoEncoder`(bert-base-uncased) 로드 + 70차원 `structural-v1` 특징 추출 확인.
+- 학습: `split.py`의 `MIN_TOTAL_SAMPLES = 30` 가드에 막힘 — 리포 fixture는 15개뿐. **artifact 생성에는 ≥30개 실제 라벨 데이터가 필요**하다(위 결정 4).
 
 ## 작업 태스크 추적 (Task Checklist)
 ### Phase 0: 결정
-- [ ] Q004 결정 (위 5개 항목)
+- [x] Q004-1 confidence 소스 = 경로 A
+- [ ] Q004 나머지 (형태, 순위 반영 규칙, 학습 데이터)
 ### Phase 1 이후
+- [ ] ≥30개 실제 라벨 데이터로 scorer artifact 생성
 - [ ] 결정 반영해 본 스펙 확정(§3 의사 코드 구체화) 후 구현 착수
