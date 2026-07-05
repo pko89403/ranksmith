@@ -44,17 +44,16 @@ class BrokenProvider:
         raise RuntimeError("boom")
 
 
-def test_answer_prompt_includes_configured_no_answer_value() -> None:
+def test_answer_prompt_includes_no_answer_contract() -> None:
     _system, prompt = _answer_messages(
         "Who played Karen?",
         "Nancy Travis played Karen.",
-        no_answer_value="NO_CONTEXT_ANSWER",
     )
 
     assert "Question:\nWho played Karen?" in prompt
     assert "Context:\nNancy Travis played Karen." in prompt
     assert '{"answer":"..."}' in prompt
-    assert '{"answer":"NO_CONTEXT_ANSWER"}' in prompt
+    assert '{"answer":"__NO_ANSWER__"}' in prompt
 
 
 def test_relevance_prompt_includes_relevant_not_relevant_json_contract() -> None:
@@ -217,11 +216,7 @@ def test_generate_answer_confidence_dataset_writes_canonical_rows(
         ),
         ModelMessage(
             role="user",
-            content=_answer_messages(
-                "Who?",
-                "Nancy Travis played Karen.",
-                no_answer_value="__NO_ANSWER__",
-            )[1],
+            content=_answer_messages("Who?", "Nancy Travis played Karen.")[1],
         ),
     ]
 

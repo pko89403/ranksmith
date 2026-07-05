@@ -74,14 +74,6 @@ def test_answer_generation_config_rejects_invalid_options(tmp_path: Path) -> Non
             max_context_chars=0,
         )
 
-    with pytest.raises(generation.ConfidenceGenerationInputError):
-        generation.AnswerGenerationConfig(
-            input_path=tmp_path / "in.jsonl",
-            output_path=tmp_path / "out.jsonl",
-            provider=FakeProvider(),
-            no_answer_value=" ",
-        )
-
 
 def test_relevance_generation_config_rejects_invalid_options(tmp_path: Path) -> None:
     generation = importlib.import_module("ranksmith.confidence_generation")

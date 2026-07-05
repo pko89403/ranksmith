@@ -27,7 +27,6 @@ class AnswerGenerationConfig:
     include_raw_model_output: bool = True
     on_usage: UsageCallback | None = None
     source: str | None = None
-    no_answer_value: str = "__NO_ANSWER__"
 
     def __post_init__(self) -> None:
         _validate_common_config(
@@ -38,13 +37,6 @@ class AnswerGenerationConfig:
             source=self.source,
         )
         _validate_positive_int("max_context_chars", self.max_context_chars)
-        if (
-            not isinstance(self.no_answer_value, str)
-            or not self.no_answer_value.strip()
-        ):
-            raise ConfidenceGenerationInputError(
-                "no_answer_value must be a non-empty string"
-            )
 
 
 @dataclass(frozen=True)
