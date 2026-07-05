@@ -9,30 +9,32 @@
   - `docs/specs/spec_confidence_runtime_readiness.md` (소비할 signal contract)
 - **상태**: `[ ] Draft` | `[x] In Progress` | `[ ] Completed`
 
-Q004-1(경로 A), Q004-2(새 Strategy), Q004-3(signed confidence)이 확정되어 `ConfidenceRerankStrategy` / `AsyncConfidenceRerankStrategy`를 구현했다. 남은 것은 쓸 만한 scorer artifact(현재는 스모크용)와 벤치마크.
+Q004-1(경로 A), Q004-2(새 Strategy)가 확정됐고, 순위 규칙은 논문 충실도를 위해 **confidence 변화(answer_confidence) 기반**으로 최종 결정됐다(초기 signed-judgment 방식을 교체). `AnswerConfidenceRerankStrategy` / `AsyncAnswerConfidenceRerankStrategy`를 구현했다. 남은 것은 쓸 만한 scorer artifact(현재는 스모크용)와 벤치마크.
 
-## 확정 설계 (구현됨)
-- **형태**: 새 Strategy. `AzureOpenAIReranker(strategy=ConfidenceRerankStrategy(estimator=...))`로 사용.
-- **judgment 획득**: 문서당 LLM `judge()` 1회(relevant/not_relevant). confidence 측정에는 LLM을 쓰지 않는다(로컬 encoder+scorer). LCR처럼 문서당 반복 샘플링하지 않는다.
-- **confidence**: `estimator.score(JudgmentConfidenceInput(query, document, judgment)).score` — structural confidence(로컬).
-- **순위 규칙**: signed confidence = judgment=="relevant"이면 +conf, else −conf. 내림차순 정렬, 동점은 입력 순서 보존.
-- **비용**: 문서 N개 → judge N회(리랭킹 신호) + 로컬 confidence N회(LLM 0회).
-- **async**: judge 호출은 `asyncio.gather`로 동시 실행, scoring은 순차(CPU/encoder).
+## 확정 설계 (구현됨) — confidence 변화 기반
+CBDR 논문의 핵심은 confidence 변화다: `Inc(Q, D) = Conf(질문+문서) − Conf(질문)`. 문서가 답변 확신을 얼마나 높이는가로 순위를 매긴다. 우리는 이를 black-box(구조적 confidence)로 구현한다.
+
+- **형태**: 새 Strategy. `AzureOpenAIReranker(strategy=AnswerConfidenceRerankStrategy(estimator=...))`.
+- **answer 획득**: 문서당 LLM `answer(query, document)` 1회 — 그 문서로 질문에 답하게 함. confidence 측정에는 LLM을 쓰지 않는다(로컬 encoder+scorer). LCR처럼 문서당 반복 샘플링하지 않는다.
+- **confidence**: `estimator.score(AnswerConfidenceInput(context=document, answer=answer)).score` — "이 답변이 맞을 확률"(structural confidence, 로컬).
+- **순위 규칙**: `C_i = Conf(문서_i + 답변_i)` 내림차순. **기준선 생략의 근거**: CBDR은 `Inc = C_i − C_0`로 정렬하는데, 한 질문 안에서 `C_0`(질문만)는 모든 문서에 동일한 상수라 **순위에 영향이 없다**. 게다가 `answer_confidence`는 빈 context를 스코어링할 수 없어(`_require_non_empty`) `C_0` 자체를 못 구한다. 따라서 `C_i`로 정렬 = 질문 내 confidence 변화 정렬.
+- **비용**: 문서 N개 → answer N회(리랭킹 신호) + 로컬 confidence N회(LLM 0회). 기준선 호출 없음.
+- **async**: answer 호출은 `asyncio.gather`로 동시 실행, scoring은 순차(CPU/encoder).
 
 ### 통합 지점 (구현 완료)
-- `src/ranksmith/model.py`: `ModelClient.judge` / `AsyncModelClient.judge` 추가.
-- `src/ranksmith/parsing.py`: `parse_judgment_response` 추가.
-- `src/ranksmith/strategies/confidence.py`: `ConfidenceRerankStrategy` / `AsyncConfidenceRerankStrategy`.
+- `src/ranksmith/model.py`: `ModelClient.answer` / `AsyncModelClient.answer` 추가(generation 파이프라인의 answer 프롬프트와 일치 — 학습/추론 일관성).
+- `src/ranksmith/parsing.py`: `parse_answer_response` 추가.
+- `src/ranksmith/strategies/confidence.py`: `AnswerConfidenceRerankStrategy` / `AsyncAnswerConfidenceRerankStrategy`.
 - estimator는 Protocol로 타입해 strategies가 torch를 강제 import하지 않는다.
 
 ### 검증 (2026-07-05)
-- 단위 테스트 8개(synthetic judge client + fake estimator): signed 정렬, 동점 보존, top_k, judge 부재/비-judgment estimator/invalid JSON fast fail, sync/async.
-- 엔드투엔드(LM Studio qwen3.5-9b judge + 스모크 artifact, macOS env 2개): 관련 문서 3개가 모두 상위(top-3 3/3). 스모크 artifact는 판별력이 없어 magnitude는 뭉치지만 sign이 지배해 relevant가 위로 온다.
+- 단위 테스트 8개(synthetic answer client + fake estimator): confidence 내림차순 정렬, 동점 보존, top_k, answer 부재/비-answer estimator/invalid JSON fast fail, sync/async.
+- 엔드투엔드(LM Studio qwen3.5-9b answer + SQuAD 60샘플로 학습한 answer_confidence artifact, macOS env 2개): SQuAD 질문에 정답 문맥 + 무관 문맥 3개를 후보로 주니 **정답 문맥이 rank 1**. 단 점수가 0.408 근처로 뭉쳐(gold 0.408 vs other 0.408) **판별력은 약함** — 60샘플 스모크 artifact의 한계.
 
 ### 남은 작업
-- 쓸 만한 scorer artifact 확보(현재는 45~56샘플 스모크용, 판별력 없음).
+- 쓸 만한 answer_confidence artifact 확보(현재는 60샘플 스모크용, 판별력 약함).
 - 벤치마크: `scripts/compare_reranking.py` 편입 여부, live opt-in.
-- signed confidence 정렬이 실제 순위를 개선하는지 측정(현재는 미측정 — README에 성능 claim 금지).
+- 실제 순위 개선 측정(현재는 미측정 — README에 성능 claim 금지).
 
 ### 범위에 대한 사실 정리
 - CBDR 논문의 CBDR 메커니즘 자체는 "retrieval을 할지 결정하는 트리거"다. ranksmith에는 retriever가 없으므로 **retrieval 트리거는 이 스펙의 범위 밖**이며 caller 애플리케이션 책임이다.

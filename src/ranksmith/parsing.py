@@ -1,38 +1,34 @@
 from __future__ import annotations
 
 import json
-from typing import Literal, cast
 
 from ranksmith.errors import RerankInputError, RerankParseError
 
 __all__ = [
-    "parse_judgment_response",
+    "parse_answer_response",
     "parse_ranking_response",
     "parse_selection_response",
 ]
-
-JudgmentValue = Literal["relevant", "not_relevant"]
 
 
 def _is_json_int(value: object) -> bool:
     return type(value) is int
 
 
-def parse_judgment_response(raw_response: str) -> JudgmentValue:
-    """Parse a relevance judgment ("relevant"/"not_relevant") from provider JSON."""
+def parse_answer_response(raw_response: str) -> str:
+    """Parse a non-empty answer string from provider JSON ({"answer": ...})."""
     try:
         data = json.loads(raw_response)
     except json.JSONDecodeError as exc:
         raise RerankParseError("LLM response is not valid JSON.", raw_response) from exc
 
-    judgment = data.get("judgment") if isinstance(data, dict) else None
-    if judgment not in {"relevant", "not_relevant"}:
+    answer = data.get("answer") if isinstance(data, dict) else None
+    if not isinstance(answer, str) or not answer.strip():
         raise RerankParseError(
-            'LLM response must contain a "judgment" value of '
-            '"relevant" or "not_relevant".',
+            'LLM response must contain a non-empty "answer" string.',
             raw_response,
         )
-    return cast(JudgmentValue, judgment)
+    return answer
 
 
 def parse_ranking_response(raw_response: str, *, expected_count: int) -> list[int]:

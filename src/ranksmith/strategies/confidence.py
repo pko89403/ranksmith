@@ -5,10 +5,10 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
-from ranksmith.confidence.types import JudgmentConfidenceInput
+from ranksmith.confidence.types import AnswerConfidenceInput
 from ranksmith.errors import RerankInputError
 from ranksmith.model import AsyncModelClient, ModelClient
-from ranksmith.parsing import JudgmentValue, parse_judgment_response
+from ranksmith.parsing import parse_answer_response
 from ranksmith.types import Document, RerankResult
 
 from .common import (
@@ -22,20 +22,32 @@ class _ConfidenceResult(Protocol):
     score: float
 
 
-class JudgmentConfidenceScorer(Protocol):
+class AnswerConfidenceScorer(Protocol):
     task_type: str
 
-    def score(self, item: JudgmentConfidenceInput) -> _ConfidenceResult: ...
+    def score(self, item: AnswerConfidenceInput) -> _ConfidenceResult: ...
 
 
 @dataclass(frozen=True)
-class _ConfidenceRerankConfigMixin:
-    estimator: JudgmentConfidenceScorer
+class _AnswerConfidenceRerankConfigMixin:
+    """Confidence-change reranking (CBDR-style), black-box via structural confidence.
+
+    For each candidate the model answers the query from that document, and the
+    document's confidence is the local structural confidence that the answer is
+    correct. Documents are ordered by that confidence, descending.
+
+    This ranks by confidence change: CBDR ranks by Inc = C(query+doc) - C(query).
+    Within a single query the baseline C(query) is a constant, so it does not
+    affect the order — and answer_confidence cannot score an empty context
+    anyway — so the reranker ranks by C(query+doc) directly.
+    """
+
+    estimator: AnswerConfidenceScorer
     max_document_chars: int = 4000
 
     def __post_init__(self) -> None:
-        if self.estimator.task_type != "judgment_confidence":
-            raise RerankInputError('estimator.task_type must be "judgment_confidence"')
+        if self.estimator.task_type != "answer_confidence":
+            raise RerankInputError('estimator.task_type must be "answer_confidence"')
         if self.max_document_chars < 1:
             raise ValueError("max_document_chars must be greater than 0")
 
@@ -45,31 +57,20 @@ class _ConfidenceRerankConfigMixin:
             max_document_chars=self.max_document_chars,
         )
 
-    def _signed_confidence(
-        self,
-        *,
-        query: str,
-        document: Document,
-        judgment: JudgmentValue,
-    ) -> float:
-        confidence = self.estimator.score(
-            JudgmentConfidenceInput(
-                query=query,
-                document=document.text,
-                judgment=judgment,
-            )
+    def _confidence(self, *, document: Document, answer: str) -> float:
+        return self.estimator.score(
+            AnswerConfidenceInput(context=document.text, answer=answer)
         ).score
-        return confidence if judgment == "relevant" else -confidence
 
-    def _results_from_signed(
+    def _results_from_confidence(
         self,
         documents: Sequence[Document],
-        signed: Sequence[tuple[float, JudgmentValue]],
+        confidences: Sequence[float],
         top_k: int | None,
     ) -> list[RerankResult]:
         ordered_indexes = sorted(
             range(len(documents)),
-            key=lambda index: (-signed[index][0], index),
+            key=lambda index: (-confidences[index], index),
         )
         if top_k is not None:
             ordered_indexes = ordered_indexes[:top_k]
@@ -79,9 +80,8 @@ class _ConfidenceRerankConfigMixin:
                 rank=rank,
                 original_index=original_index,
                 metadata={
-                    "strategy": "confidence",
-                    "judgment": signed[original_index][1],
-                    "signed_confidence": signed[original_index][0],
+                    "strategy": "answer_confidence",
+                    "answer_confidence": confidences[original_index],
                 },
             )
             for rank, original_index in enumerate(ordered_indexes, start=1)
@@ -89,7 +89,7 @@ class _ConfidenceRerankConfigMixin:
 
 
 @dataclass(frozen=True)
-class ConfidenceRerankStrategy(_ConfidenceRerankConfigMixin):
+class AnswerConfidenceRerankStrategy(_AnswerConfidenceRerankConfigMixin):
     def rerank(
         self,
         *,
@@ -103,25 +103,16 @@ class ConfidenceRerankStrategy(_ConfidenceRerankConfigMixin):
         if not documents:
             return []
 
-        model_client = ensure_capability(model_client, "relevance", "judge")
-        signed: list[tuple[float, JudgmentValue]] = []
+        model_client = ensure_capability(model_client, "answer", "answer")
+        confidences: list[float] = []
         for document in documents:
-            judgment = parse_judgment_response(model_client.judge(query, document))
-            signed.append(
-                (
-                    self._signed_confidence(
-                        query=query,
-                        document=document,
-                        judgment=judgment,
-                    ),
-                    judgment,
-                )
-            )
-        return self._results_from_signed(documents, signed, top_k)
+            answer = parse_answer_response(model_client.answer(query, document.text))
+            confidences.append(self._confidence(document=document, answer=answer))
+        return self._results_from_confidence(documents, confidences, top_k)
 
 
 @dataclass(frozen=True)
-class AsyncConfidenceRerankStrategy(_ConfidenceRerankConfigMixin):
+class AsyncAnswerConfidenceRerankStrategy(_AnswerConfidenceRerankConfigMixin):
     async def rerank(
         self,
         *,
@@ -135,23 +126,14 @@ class AsyncConfidenceRerankStrategy(_ConfidenceRerankConfigMixin):
         if not documents:
             return []
 
-        model_client = ensure_capability(model_client, "relevance", "judge")
-        # Judge calls are I/O-bound: run them concurrently. Scoring is a
-        # synchronous CPU/encoder step, so it stays sequential afterwards.
-        raw_judgments = await asyncio.gather(
-            *(model_client.judge(query, document) for document in documents)
+        model_client = ensure_capability(model_client, "answer", "answer")
+        # Answer generation is I/O-bound: run the calls concurrently. Scoring is
+        # a synchronous CPU/encoder step, so it stays sequential afterwards.
+        raw_answers = await asyncio.gather(
+            *(model_client.answer(query, document.text) for document in documents)
         )
-        signed: list[tuple[float, JudgmentValue]] = []
-        for document, raw in zip(documents, raw_judgments, strict=True):
-            judgment = parse_judgment_response(raw)
-            signed.append(
-                (
-                    self._signed_confidence(
-                        query=query,
-                        document=document,
-                        judgment=judgment,
-                    ),
-                    judgment,
-                )
-            )
-        return self._results_from_signed(documents, signed, top_k)
+        confidences: list[float] = []
+        for document, raw in zip(documents, raw_answers, strict=True):
+            answer = parse_answer_response(raw)
+            confidences.append(self._confidence(document=document, answer=answer))
+        return self._results_from_confidence(documents, confidences, top_k)

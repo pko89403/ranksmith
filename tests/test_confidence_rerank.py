@@ -6,11 +6,11 @@ from dataclasses import dataclass
 import pytest
 
 from ranksmith import (
-    AsyncConfidenceRerankStrategy,
-    ConfidenceRerankStrategy,
+    AnswerConfidenceRerankStrategy,
+    AsyncAnswerConfidenceRerankStrategy,
     Document,
 )
-from ranksmith.confidence.types import JudgmentConfidenceInput
+from ranksmith.confidence.types import AnswerConfidenceInput
 from ranksmith.errors import RerankInputError
 
 
@@ -20,124 +20,115 @@ class _Result:
 
 
 class FakeEstimator:
-    """Judgment-confidence estimator with scripted per-document scores."""
+    """Answer-confidence estimator with scripted per-context scores."""
 
-    task_type = "judgment_confidence"
+    task_type = "answer_confidence"
 
     def __init__(self, scores: dict[str, float]) -> None:
         self._scores = scores
 
-    def score(self, item: JudgmentConfidenceInput) -> _Result:
-        return _Result(score=self._scores[item.document])
+    def score(self, item: AnswerConfidenceInput) -> _Result:
+        return _Result(score=self._scores[item.context])
 
 
-class FakeJudgeClient:
-    """Model client that returns scripted relevance judgments per document."""
+class FakeAnswerClient:
+    """Model client that returns scripted answers per context."""
 
-    def __init__(self, judgments: dict[str, str]) -> None:
-        self._judgments = judgments
+    def __init__(self, answers: dict[str, str]) -> None:
+        self._answers = answers
         self.calls: list[str] = []
 
-    def judge(self, query: str, document: Document) -> str:
-        self.calls.append(document.text)
-        return json.dumps({"judgment": self._judgments[document.text]})
+    def answer(self, query: str, context: str) -> str:
+        self.calls.append(context)
+        return json.dumps({"answer": self._answers[context]})
 
 
-class AsyncFakeJudgeClient(FakeJudgeClient):
-    async def judge(self, query: str, document: Document) -> str:  # type: ignore[override]
-        self.calls.append(document.text)
-        return json.dumps({"judgment": self._judgments[document.text]})
+class AsyncFakeAnswerClient(FakeAnswerClient):
+    async def answer(self, query: str, context: str) -> str:  # type: ignore[override]
+        self.calls.append(context)
+        return json.dumps({"answer": self._answers[context]})
 
 
 DOCS = [Document(text="a"), Document(text="b"), Document(text="c"), Document(text="d")]
+ANSWERS = {"a": "A1", "b": "B1", "c": "C1", "d": "D1"}
 
 
-def _strategy() -> ConfidenceRerankStrategy:
-    estimator = FakeEstimator({"a": 0.9, "b": 0.4, "c": 0.4, "d": 0.9})
-    return ConfidenceRerankStrategy(estimator=estimator)
+def _strategy() -> AnswerConfidenceRerankStrategy:
+    estimator = FakeEstimator({"a": 0.9, "b": 0.3, "c": 0.7, "d": 0.1})
+    return AnswerConfidenceRerankStrategy(estimator=estimator)
 
 
-def test_signed_confidence_orders_relevant_high_to_not_relevant_high() -> None:
-    # a: relevant/0.9 -> +0.9 ; b: relevant/0.4 -> +0.4 ;
-    # c: not_relevant/0.4 -> -0.4 ; d: not_relevant/0.9 -> -0.9
-    client = FakeJudgeClient(
-        {"a": "relevant", "b": "relevant", "c": "not_relevant", "d": "not_relevant"}
-    )
+def test_orders_by_answer_confidence_descending() -> None:
+    client = FakeAnswerClient(ANSWERS)
     results = _strategy().rerank(query="q", documents=DOCS, model_client=client)
 
-    assert [r.document.text for r in results] == ["a", "b", "c", "d"]
+    assert [r.document.text for r in results] == ["a", "c", "b", "d"]
     assert [r.rank for r in results] == [1, 2, 3, 4]
-    assert results[0].metadata["signed_confidence"] == pytest.approx(0.9)
-    assert results[3].metadata["signed_confidence"] == pytest.approx(-0.9)
-    assert results[0].metadata["judgment"] == "relevant"
-    assert results[3].metadata["judgment"] == "not_relevant"
-    # one judge call per document, no repeated sampling
+    assert results[0].metadata["answer_confidence"] == pytest.approx(0.9)
+    assert results[3].metadata["answer_confidence"] == pytest.approx(0.1)
+    # one answer call per document, no repeated sampling
     assert client.calls == ["a", "b", "c", "d"]
 
 
 def test_ties_preserve_original_order() -> None:
-    client = FakeJudgeClient(
-        {"a": "relevant", "b": "relevant", "c": "not_relevant", "d": "not_relevant"}
-    )
+    client = FakeAnswerClient(ANSWERS)
     estimator = FakeEstimator({"a": 0.5, "b": 0.5, "c": 0.5, "d": 0.5})
-    results = ConfidenceRerankStrategy(estimator=estimator).rerank(
+    results = AnswerConfidenceRerankStrategy(estimator=estimator).rerank(
         query="q", documents=DOCS, model_client=client
     )
-    # a,b (+0.5) keep input order before c,d (-0.5)
     assert [r.document.text for r in results] == ["a", "b", "c", "d"]
 
 
 def test_top_k_slices_after_ordering() -> None:
-    client = FakeJudgeClient(
-        {"a": "relevant", "b": "relevant", "c": "not_relevant", "d": "not_relevant"}
-    )
+    client = FakeAnswerClient(ANSWERS)
     results = _strategy().rerank(
         query="q", documents=DOCS, model_client=client, top_k=2
     )
-    assert [r.document.text for r in results] == ["a", "b"]
+    assert [r.document.text for r in results] == ["a", "c"]
 
 
 def test_empty_documents_returns_empty() -> None:
-    client = FakeJudgeClient({})
+    client = FakeAnswerClient({})
     assert _strategy().rerank(query="q", documents=[], model_client=client) == []
 
 
-def test_rejects_non_judgment_estimator() -> None:
-    class AnswerEstimator:
-        task_type = "answer_confidence"
+def test_rejects_non_answer_estimator() -> None:
+    class JudgmentEstimator:
+        task_type = "judgment_confidence"
 
-        def score(self, item: JudgmentConfidenceInput) -> _Result:
+        def score(self, item: AnswerConfidenceInput) -> _Result:
             return _Result(score=0.5)
 
-    with pytest.raises(RerankInputError, match="judgment_confidence"):
-        ConfidenceRerankStrategy(estimator=AnswerEstimator())
+    with pytest.raises(RerankInputError, match="answer_confidence"):
+        AnswerConfidenceRerankStrategy(estimator=JudgmentEstimator())
 
 
-def test_rejects_client_without_judge() -> None:
-    class NoJudgeClient:
+def test_rejects_client_without_answer() -> None:
+    class NoAnswerClient:
         def rank(self, query: str, documents: list[Document]) -> str:
             return "{}"
 
-    with pytest.raises(RerankInputError, match="judge"):
-        _strategy().rerank(query="q", documents=DOCS, model_client=NoJudgeClient())
+    with pytest.raises(RerankInputError, match="answer"):
+        _strategy().rerank(query="q", documents=DOCS, model_client=NoAnswerClient())
 
 
-def test_invalid_judgment_json_fast_fails() -> None:
-    client = FakeJudgeClient({"a": "maybe", "b": "relevant", "c": "x", "d": "y"})
+def test_invalid_answer_json_fast_fails() -> None:
     from ranksmith.errors import RerankParseError
 
+    class BadClient(FakeAnswerClient):
+        def answer(self, query: str, context: str) -> str:
+            return "not json"
+
     with pytest.raises(RerankParseError):
-        _strategy().rerank(query="q", documents=DOCS, model_client=client)
+        _strategy().rerank(query="q", documents=DOCS, model_client=BadClient(ANSWERS))
 
 
 @pytest.mark.asyncio
-async def test_async_signed_confidence_orders_documents() -> None:
-    client = AsyncFakeJudgeClient(
-        {"a": "relevant", "b": "relevant", "c": "not_relevant", "d": "not_relevant"}
-    )
-    estimator = FakeEstimator({"a": 0.9, "b": 0.4, "c": 0.4, "d": 0.9})
-    results = await AsyncConfidenceRerankStrategy(estimator=estimator).rerank(
+async def test_async_orders_by_answer_confidence() -> None:
+    client = AsyncFakeAnswerClient(ANSWERS)
+    estimator = FakeEstimator({"a": 0.9, "b": 0.3, "c": 0.7, "d": 0.1})
+    results = await AsyncAnswerConfidenceRerankStrategy(estimator=estimator).rerank(
         query="q", documents=DOCS, model_client=client
     )
-    assert [r.document.text for r in results] == ["a", "b", "c", "d"]
+    assert [r.document.text for r in results] == ["a", "c", "b", "d"]
     assert client.calls == ["a", "b", "c", "d"]
