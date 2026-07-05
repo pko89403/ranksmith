@@ -5,8 +5,8 @@ from typing import Any, cast
 
 import pytest
 
-from ranksmith.confidence_generation._errors import ConfidenceGenerationInputError
-from ranksmith.confidence_generation._labeling import (
+from ranksmith.confidence_generation.errors import ConfidenceGenerationInputError
+from ranksmith.confidence_generation.labeling import (
     normalized_exact_match,
     relevance_truth,
 )

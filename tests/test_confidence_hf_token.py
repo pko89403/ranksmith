@@ -5,7 +5,7 @@ from dataclasses import dataclass, fields
 import pytest
 
 from ranksmith.confidence import ConfidenceDependencyError
-from ranksmith.confidence._encoder import (
+from ranksmith.confidence.encoder import (
     FrozenAutoEncoder,
     build_hf_from_pretrained_kwargs,
 )
@@ -139,7 +139,7 @@ def test_hf_token_is_passed_to_tokenizer_and_model_loaders(
         return FakeTorch()
 
     monkeypatch.setattr(
-        "ranksmith.confidence._encoder.import_optional_dependency",
+        "ranksmith.confidence.encoder.import_optional_dependency",
         fake_import,
     )
 
@@ -193,7 +193,7 @@ def test_hf_token_is_not_exposed_when_model_loader_fails(
         return FakeTorch()
 
     monkeypatch.setattr(
-        "ranksmith.confidence._encoder.import_optional_dependency",
+        "ranksmith.confidence.encoder.import_optional_dependency",
         fake_import,
     )
 

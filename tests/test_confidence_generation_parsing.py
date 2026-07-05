@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from ranksmith.confidence_generation._errors import ConfidenceGenerationParseError
-from ranksmith.confidence_generation._parsing import (
+from ranksmith.confidence_generation.errors import ConfidenceGenerationParseError
+from ranksmith.confidence_generation.parsing import (
     parse_answer_output,
     parse_relevance_output,
 )

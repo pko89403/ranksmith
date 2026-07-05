@@ -5,7 +5,7 @@ import importlib
 import pytest
 
 from ranksmith.confidence import ConfidenceDependencyError
-from ranksmith.confidence._dependencies import import_optional_dependency
+from ranksmith.confidence.dependencies import import_optional_dependency
 
 
 def test_import_ranksmith_confidence_without_optional_dependencies() -> None:

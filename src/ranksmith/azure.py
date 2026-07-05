@@ -3,13 +3,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from ranksmith._providers import (
-    AsyncAzureAOAIProvider,
-    AzureAOAIProvider,
-)
 from ranksmith.errors import (
     RerankError,
-    RerankInputError,
     RerankProviderError,
     RerankStrategyError,
 )
@@ -25,6 +20,7 @@ from ranksmith.protocols import (
     AsyncRerankStrategy,
     RerankStrategy,
 )
+from ranksmith.providers import AsyncAzureAOAIProvider, AzureAOAIProvider
 from ranksmith.strategies import (
     AcuRankStrategy,
     AsyncAcuRankStrategy,
@@ -37,6 +33,7 @@ from ranksmith.strategies import (
     SetwiseStrategy,
     TourRankStrategy,
 )
+from ranksmith.strategies.common import validate_top_k
 from ranksmith.types import Document, RerankResult
 
 
@@ -84,7 +81,7 @@ class AzureOpenAIReranker:
         *,
         top_k: int | None = None,
     ) -> list[RerankResult]:
-        _validate_top_k(top_k)
+        validate_top_k(top_k)
         normalized_documents = _normalize_documents(documents)
         try:
             return self._strategy.rerank(
@@ -145,7 +142,7 @@ class AsyncAzureOpenAIReranker:
         *,
         top_k: int | None = None,
     ) -> list[RerankResult]:
-        _validate_top_k(top_k)
+        validate_top_k(top_k)
         normalized_documents = _normalize_documents(documents)
         try:
             return await self._strategy.rerank(
@@ -180,11 +177,6 @@ def _is_builtin_async_strategy(strategy: object) -> bool:
         AsyncSetwiseStrategy,
         AsyncTourRankStrategy,
     }
-
-
-def _validate_top_k(top_k: int | None) -> None:
-    if top_k is not None and top_k < 0:
-        raise RerankInputError("top_k must be greater than or equal to 0")
 
 
 def _normalize_documents(documents: Sequence[str | Document]) -> list[Document]:

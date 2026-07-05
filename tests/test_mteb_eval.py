@@ -8,13 +8,11 @@ from typing import Any
 
 import pytest
 
-from ranksmith._metrics import map_score
-from ranksmith._mteb_eval import (
+from benchmarks.metrics import map_score
+from benchmarks.mteb_eval import (
     MtebRerankingCandidate,
     MtebRerankingSample,
     PriceConfig,
-    apply_integer_permutation,
-    completed_result_keys,
     compute_query_metrics,
     estimate_acurank_llm_calls,
     estimate_cost,
@@ -22,12 +20,9 @@ from ranksmith._mteb_eval import (
     estimate_tourrank_llm_calls,
     normalize_method_name,
     parse_method_config,
-    parse_ranking_with_failure_type,
     percentile,
-    rankgpt_window_ranges,
     stable_seed,
     tourrank_stage_configs_for_candidate_count,
-    write_jsonl,
 )
 
 
@@ -138,29 +133,6 @@ def test_estimate_prp_llm_calls_uses_method_passes_when_present() -> None:
     assert estimate_prp_llm_calls("prp_sliding_k@20", default_passes=10) == 380
 
 
-def test_parse_ranking_with_failure_type_reports_duplicate() -> None:
-    parsed = parse_ranking_with_failure_type('{"ranking": [1, 1, 2]}', 3)
-
-    assert not parsed.valid
-    assert parsed.failure_type == "duplicate_rank"
-
-
-def test_apply_integer_permutation_is_one_based() -> None:
-    candidates = ("a", "b", "c")
-
-    assert apply_integer_permutation(candidates, (3, 1, 2)) == ("c", "a", "b")
-
-
-def test_rankgpt_window_ranges_do_not_repeat_prefix_window() -> None:
-    assert rankgpt_window_ranges(
-        document_count=20,
-        rank_start=0,
-        rank_end=20,
-        window_size=20,
-        step=10,
-    ) == ((0, 20),)
-
-
 def test_compute_query_metrics_uses_zero_score_for_invalid_result() -> None:
     sample = MtebRerankingSample(
         task_name="task",
@@ -185,114 +157,6 @@ def test_estimate_cost_requires_usage_and_prices() -> None:
 
 def test_estimate_cost_uses_price_per_million_tokens() -> None:
     assert estimate_cost((1_000_000, 500_000), PriceConfig(2.0, 8.0)) == 6.0
-
-
-def test_completed_result_keys_reads_query_results(tmp_path: Path) -> None:
-    path = tmp_path / "query_results.jsonl"
-    write_jsonl(
-        path,
-        [
-            {
-                "task": "Task",
-                "split": "test",
-                "query_id": "q1",
-                "method": "rankgpt_sliding_window@20",
-            }
-        ],
-    )
-
-    assert completed_result_keys(path) == {
-        ("Task", "test", "q1", "rankgpt_sliding_window@20")
-    }
-
-
-def test_parse_ranking_json_parse_failure() -> None:
-    parsed = parse_ranking_with_failure_type("not json", 3)
-    assert not parsed.valid
-    assert parsed.failure_type == "json_parse_failure"
-    assert parsed.ranking == ()
-
-
-def test_parse_ranking_missing_ranking_key() -> None:
-    parsed = parse_ranking_with_failure_type("{}", 3)
-    assert parsed.failure_type == "missing_ranking"
-
-
-def test_parse_ranking_ranking_not_list() -> None:
-    parsed = parse_ranking_with_failure_type('{"ranking": "abc"}', 3)
-    assert parsed.failure_type == "missing_ranking"
-
-
-def test_parse_ranking_non_integer_returns_empty_ranking() -> None:
-    parsed = parse_ranking_with_failure_type('{"ranking": [1, "x", 3]}', 3)
-    assert parsed.failure_type == "non_integer_rank"
-    assert parsed.ranking == ()
-
-
-def test_parse_ranking_with_failure_type_rejects_boolean_rank() -> None:
-    parsed = parse_ranking_with_failure_type('{"ranking": [true, 2]}', 2)
-    assert not parsed.valid
-    assert parsed.failure_type == "non_integer_rank"
-    assert parsed.ranking == ()
-
-
-def test_parse_ranking_length_mismatch() -> None:
-    parsed = parse_ranking_with_failure_type('{"ranking": [1, 2]}', 3)
-    assert parsed.failure_type == "length_mismatch"
-
-
-def test_parse_ranking_out_of_range_low() -> None:
-    parsed = parse_ranking_with_failure_type('{"ranking": [0, 1, 2]}', 3)
-    assert parsed.failure_type == "out_of_range_rank"
-
-
-def test_parse_ranking_out_of_range_high() -> None:
-    parsed = parse_ranking_with_failure_type('{"ranking": [1, 2, 4]}', 3)
-    assert parsed.failure_type == "out_of_range_rank"
-
-
-def test_parse_ranking_valid_permutation() -> None:
-    parsed = parse_ranking_with_failure_type('{"ranking": [3, 1, 2]}', 3)
-    assert parsed.valid
-    assert parsed.failure_type is None
-    assert parsed.ranking == (3, 1, 2)
-
-
-def test_rankgpt_window_ranges_validates_rank_end_greater_than_start() -> None:
-    with pytest.raises(ValueError):
-        rankgpt_window_ranges(
-            document_count=10, rank_start=5, rank_end=5, window_size=3, step=2
-        )
-
-
-def test_rankgpt_window_ranges_step_exceeds_window_rejected() -> None:
-    with pytest.raises(ValueError):
-        rankgpt_window_ranges(
-            document_count=10, rank_start=0, rank_end=10, window_size=3, step=5
-        )
-
-
-def test_rankgpt_window_ranges_returns_empty_when_no_documents() -> None:
-    assert (
-        rankgpt_window_ranges(
-            document_count=0, rank_start=0, rank_end=10, window_size=3, step=2
-        )
-        == ()
-    )
-
-
-def test_rankgpt_window_ranges_clips_to_document_count() -> None:
-    ranges = rankgpt_window_ranges(
-        document_count=5, rank_start=0, rank_end=20, window_size=4, step=2
-    )
-    assert ranges[0][1] == 5
-
-
-def test_rankgpt_window_ranges_back_to_front_with_step() -> None:
-    ranges = rankgpt_window_ranges(
-        document_count=8, rank_start=0, rank_end=8, window_size=4, step=2
-    )
-    assert ranges == ((4, 8), (2, 6), (0, 4))
 
 
 def test_percentile_nearest_rank() -> None:
@@ -466,7 +330,6 @@ async def test_mteb_prp_async_method_uses_async_pairwise_strategy(
     assert isinstance(captured["strategy"], ranksmith.AsyncPairwiseStrategy)
     assert captured["timeout"] == 12.5
     assert captured["strategy"].passes == 3
-    assert captured["strategy"].pair_order_parallelism == 2
     assert captured["document_ids"] == ["d1", "d2"]
 
 

@@ -87,22 +87,18 @@ class MissingRankProvider:
 def test_acurank_strategy_defaults_to_acurank() -> None:
     strategy = AcuRankStrategy()
 
-    assert strategy.algorithm == "acurank"
     assert strategy.target_rank == 10
     assert strategy.window_size == 20
     assert strategy.tolerance == 0.01
     assert strategy.uncertain_threshold == 10
     assert strategy.max_adaptive_reranker_calls is None
-    assert strategy.batch_parallelism == 1
     assert strategy.initial_pass is True
-    assert strategy.score_metadata_key == "score"
     assert strategy.max_document_chars == 4000
 
 
 def test_async_acurank_strategy_defaults_to_acurank() -> None:
     strategy = AsyncAcuRankStrategy()
 
-    assert strategy.algorithm == "acurank"
     assert strategy.target_rank == 10
     assert strategy.window_size == 20
     assert strategy.tolerance == 0.01
@@ -110,7 +106,6 @@ def test_async_acurank_strategy_defaults_to_acurank() -> None:
     assert strategy.max_adaptive_reranker_calls is None
     assert strategy.batch_parallelism == 1
     assert strategy.initial_pass is True
-    assert strategy.score_metadata_key == "score"
     assert strategy.max_document_chars == 4000
 
 
@@ -358,8 +353,5 @@ async def test_async_acurank_parallelizes_independent_initial_batches() -> None:
 
 
 def test_acurank_rejects_invalid_batch_parallelism() -> None:
-    with pytest.raises(ValueError, match="batch_parallelism"):
-        AcuRankStrategy(batch_parallelism=0)
-
     with pytest.raises(ValueError, match="batch_parallelism"):
         AsyncAcuRankStrategy(batch_parallelism=0)

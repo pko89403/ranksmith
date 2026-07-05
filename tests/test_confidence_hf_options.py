@@ -6,7 +6,7 @@ from dataclasses import FrozenInstanceError, dataclass
 import pytest
 
 from ranksmith.confidence import ConfidenceInputError
-from ranksmith.confidence._encoder import (
+from ranksmith.confidence.encoder import (
     HF_LIVE_TEST_ENV,
     FrozenAutoEncoder,
     build_hf_from_pretrained_kwargs,
