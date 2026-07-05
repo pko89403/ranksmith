@@ -3,9 +3,7 @@ from __future__ import annotations
 import asyncio
 import random
 from collections.abc import Sequence
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from typing import Literal
 
 from ranksmith.model import AsyncModelClient, ModelClient
 from ranksmith.parsing import parse_selection_response
@@ -17,8 +15,6 @@ from ._common import (
     validate_documents_max_chars,
     validate_top_k,
 )
-
-TourRankAlgorithm = Literal["tourrank_r"]
 
 
 @dataclass(frozen=True)
@@ -49,24 +45,18 @@ DEFAULT_TOURRANK_STAGE_CONFIGS: tuple[TourRankStageConfig, ...] = (
 
 @dataclass(frozen=True)
 class _TourRankConfigMixin:
-    algorithm: TourRankAlgorithm = "tourrank_r"
     rounds: int = 2
     stage_configs: tuple[TourRankStageConfig, ...] = field(
         default_factory=lambda: DEFAULT_TOURRANK_STAGE_CONFIGS
     )
     shuffle_seed: int = 13
-    group_parallelism: int | None = None
     max_document_chars: int = 4000
 
     def __post_init__(self) -> None:
-        if self.algorithm != "tourrank_r":
-            raise ValueError('algorithm must be "tourrank_r"')
         if self.rounds < 1:
             raise ValueError("rounds must be greater than 0")
         if not self.stage_configs:
             raise ValueError("stage_configs must not be empty")
-        if self.group_parallelism is not None and self.group_parallelism < 1:
-            raise ValueError("group_parallelism must be greater than 0")
         if self.max_document_chars < 1:
             raise ValueError("max_document_chars must be greater than 0")
 
@@ -121,7 +111,6 @@ class _TourRankConfigMixin:
         scores: Sequence[int],
         top_k: int | None,
     ) -> list[RerankResult]:
-        validate_top_k(top_k)
         ordered_indexes = sorted(
             range(len(documents)),
             key=lambda index: (-scores[index], index),
@@ -135,7 +124,7 @@ class _TourRankConfigMixin:
                 original_index=original_index,
                 metadata={
                     "strategy": "tourrank",
-                    "algorithm": self.algorithm,
+                    "algorithm": "tourrank_r",
                     "rounds": self.rounds,
                     "score": scores[original_index],
                 },
@@ -147,13 +136,6 @@ class _TourRankConfigMixin:
 
 @dataclass(frozen=True)
 class TourRankStrategy(_TourRankConfigMixin):
-    group_parallelism: int = 1
-
-    def __post_init__(self) -> None:
-        if self.group_parallelism is None:
-            raise ValueError("group_parallelism must be greater than 0")
-        super().__post_init__()
-
     def rerank(
         self,
         *,
@@ -204,35 +186,17 @@ class TourRankStrategy(_TourRankConfigMixin):
             round_index=round_index,
             stage_index=stage_index,
         )
-        if self.group_parallelism == 1 or len(groups) == 1:
-            for group in groups:
-                selected_indexes = self._select_group(
-                    query=query,
-                    documents=documents,
-                    model_client=model_client,
-                    group=group,
-                    selected_count=stage.selected_count,
-                )
-                for original_index in selected_indexes:
-                    scores[original_index] += 1
-                next_order.extend(selected_indexes)
-            return next_order
-
-        with ThreadPoolExecutor(max_workers=self.group_parallelism) as executor:
-            selected_groups = executor.map(
-                lambda group: self._select_group(
-                    query=query,
-                    documents=documents,
-                    model_client=model_client,
-                    group=group,
-                    selected_count=stage.selected_count,
-                ),
-                groups,
+        for group in groups:
+            selected_indexes = self._select_group(
+                query=query,
+                documents=documents,
+                model_client=model_client,
+                group=group,
+                selected_count=stage.selected_count,
             )
-            for selected_indexes in selected_groups:
-                for original_index in selected_indexes:
-                    scores[original_index] += 1
-                next_order.extend(selected_indexes)
+            for original_index in selected_indexes:
+                scores[original_index] += 1
+            next_order.extend(selected_indexes)
         return next_order
 
     def _select_group(
@@ -256,6 +220,13 @@ class TourRankStrategy(_TourRankConfigMixin):
 
 @dataclass(frozen=True)
 class AsyncTourRankStrategy(_TourRankConfigMixin):
+    group_parallelism: int | None = None
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if self.group_parallelism is not None and self.group_parallelism < 1:
+            raise ValueError("group_parallelism must be greater than 0")
+
     async def rerank(
         self,
         *,

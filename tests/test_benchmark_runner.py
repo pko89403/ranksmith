@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from ranksmith._benchmark import (
+from benchmarks.benchmark import (
     aggregate_evaluations,
     aggregate_to_dict,
     evaluate_ranked_ids,

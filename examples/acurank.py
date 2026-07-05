@@ -84,7 +84,6 @@ def main() -> None:
             target_rank=3,
             window_size=3,
             max_adaptive_reranker_calls=1,
-            batch_parallelism=1,
         ),
     )
 

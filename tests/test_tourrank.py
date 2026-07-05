@@ -4,7 +4,6 @@ import asyncio
 import json
 import threading
 import time
-from typing import Any, cast
 
 import pytest
 
@@ -121,9 +120,7 @@ def test_selection_parser_rejects_boolean_indexes() -> None:
 def test_tourrank_strategy_defaults_to_tourrank_2() -> None:
     strategy = TourRankStrategy()
 
-    assert strategy.algorithm == "tourrank_r"
     assert strategy.rounds == 2
-    assert strategy.group_parallelism == 1
     assert strategy.stage_configs == (
         TourRankStageConfig(group_count=5, group_size=20, selected_count=10),
         TourRankStageConfig(group_count=5, group_size=10, selected_count=4),
@@ -173,34 +170,6 @@ def test_tourrank_default_group_parallelism_is_serial() -> None:
     reranker.rerank("query", _documents())
 
     assert provider.max_in_flight == 1
-
-
-def test_tourrank_can_run_stage_groups_in_parallel() -> None:
-    provider = BlockingSelectionProvider(
-        {"a": 1, "b": 9, "c": 2, "d": 8, "e": 3, "f": 7}
-    )
-    reranker = AzureOpenAIReranker(
-        api_key="key",
-        azure_endpoint="https://example.openai.azure.com",
-        azure_deployment="gpt-4o-mini",
-        model_client=provider,
-        strategy=TourRankStrategy(
-            rounds=1,
-            stage_configs=SMALL_STAGES,
-            group_parallelism=2,
-        ),
-    )
-
-    reranker.rerank("query", _documents())
-
-    assert provider.max_in_flight == 2
-
-
-def test_tourrank_rejects_invalid_group_parallelism() -> None:
-    with pytest.raises(ValueError, match="group_parallelism"):
-        TourRankStrategy(group_parallelism=0)
-    with pytest.raises(ValueError, match="group_parallelism"):
-        TourRankStrategy(group_parallelism=cast(Any, None))
 
 
 def test_tourrank_fast_fails_when_stage_does_not_match_document_count() -> None:

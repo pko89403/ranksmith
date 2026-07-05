@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Literal
 
 from ranksmith.errors import RerankInputError
 from ranksmith.model import AsyncModelClient, ModelClient
@@ -16,27 +15,19 @@ from ._common import (
     validate_top_k,
 )
 
-Algorithm = Literal["rankgpt_sliding_window"]
-
 
 @dataclass(frozen=True)
 class _ListwiseConfigMixin:
-    algorithm: Algorithm = "rankgpt_sliding_window"
     window_size: int = 20
     stride: int = 10
     max_document_chars: int = 4000
 
     def __post_init__(self) -> None:
-        if self.algorithm != "rankgpt_sliding_window":
-            raise ValueError('algorithm must be "rankgpt_sliding_window"')
         if self.window_size < 1:
             raise ValueError("window_size must be greater than 0")
         if self.stride < 1:
             raise ValueError("stride must be greater than 0")
-        if (
-            self.algorithm == "rankgpt_sliding_window"
-            and self.stride > self.window_size
-        ):
+        if self.stride > self.window_size:
             raise RerankInputError(
                 "stride must be less than or equal to window_size "
                 'for "rankgpt_sliding_window".'
@@ -79,7 +70,10 @@ class ListwiseStrategy(_ListwiseConfigMixin):
                 document=documents[original_index],
                 rank=rank,
                 original_index=original_index,
-                metadata={"strategy": "listwise", "algorithm": self.algorithm},
+                metadata={
+                    "strategy": "listwise",
+                    "algorithm": "rankgpt_sliding_window",
+                },
             )
             for rank, original_index in enumerate(ordered_indexes, start=1)
         ]
@@ -158,7 +152,10 @@ class AsyncListwiseStrategy(_ListwiseConfigMixin):
                 document=documents[original_index],
                 rank=rank,
                 original_index=original_index,
-                metadata={"strategy": "listwise", "algorithm": self.algorithm},
+                metadata={
+                    "strategy": "listwise",
+                    "algorithm": "rankgpt_sliding_window",
+                },
             )
             for rank, original_index in enumerate(ordered_indexes, start=1)
         ]

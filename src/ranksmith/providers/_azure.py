@@ -32,8 +32,8 @@ class AzureAOAIProvider:
             response = self._client.chat.completions.create(
                 model=self._azure_deployment,
                 messages=_to_openai_messages(request),
-                response_format=cast(Any, {"type": request.response_format}),
-                temperature=request.temperature,
+                response_format=cast(Any, {"type": "json_object"}),
+                temperature=0,
             )
         except Exception as exc:
             raise RerankProviderError(str(exc)) from exc
@@ -67,8 +67,8 @@ class AsyncAzureAOAIProvider:
             response = await self._client.chat.completions.create(
                 model=self._azure_deployment,
                 messages=_to_openai_messages(request),
-                response_format=cast(Any, {"type": request.response_format}),
-                temperature=request.temperature,
+                response_format=cast(Any, {"type": "json_object"}),
+                temperature=0,
             )
         except Exception as exc:
             raise RerankProviderError(str(exc)) from exc
