@@ -123,13 +123,20 @@ listwise가 완벽하고 answer_confidence는 훨씬 나쁘며 10배 비싸다. 
 
 ## 2. 요구 사항 및 제약 (Requirements & Constraints)
 
+> **초안 단계 기록 (superseded).** 아래 §2~§7은 설계 초안 시점의 요구/계획
+> 기록이다. 최종 확정·구현된 설계는 상단 "확정 설계 (구현됨)" 섹션이 정본이며,
+> 초안과의 주요 차이는: ① confidence 소스가 `judgment_confidence`가 아니라
+> **`answer_confidence`**(문서로 답변 생성 → 답변 신뢰도 채점)로 바뀌었고,
+> ② LCR binning/threshold/환원 gate는 **미채택** — 구현은 confidence 원점수
+> 내림차순 + 동점 시 원래 순서 유지다(채택 여부는 실측 후 재검토, Q004 참조).
+
 ### 포함 범위
 - 기존 reranking 결과(`list[RerankResult]`) 또는 첫 단계 순서를 입력으로 받아, 후보별 confidence로 순위를 보정하는 모듈 1개.
 - confidence 소스는 **경로 A로 확정**(Q004-1 resolved). 호출 비용 때문에 경로 B(LCR/MSCP)는 채택하지 않는다.
-  - **경로 A (structural, 확정)**: `StructuralConfidenceEstimator.score_batch(...)`의 `judgment_confidence` 신호. runtime readiness 계약대로 candidate identity 결합은 이 모듈(adapter)의 책임. 추론 시 문서당 judgment 1회 + 로컬 CPU 특징 추출.
+  - ~~**경로 A 초안**: `StructuralConfidenceEstimator.score_batch(...)`의 `judgment_confidence` 신호.~~ → **교체됨(구현)**: 문서당 `ModelClient.answer` 1회로 답변을 만들고 `estimator.score(AnswerConfidenceInput(context, answer))`로 채점하는 `answer_confidence` 신호. candidate identity 결합은 Strategy 내부 책임.
   - ~~경로 B (LCR/MSCP)~~: 문서당 K회+ 호출 비용으로 미채택.
-- 정렬 규칙은 LCR 방식을 기본 후보로 한다: `T_upper`/`T_lower`로 High(+1)/Medium(0)/Low(−1) binning 후 [bin 내림차순, 기존 순위] StableSort. query-level gate(`T_query`) 채택 여부는 열린 결정.
-- 기존 순위로의 환원성 보장: gate 조건에서 원래 순위를 그대로 반환한다 (LCR의 `T_query=0` 환원성과 동일한 안전장치).
+- ~~정렬 규칙은 LCR 방식을 기본 후보로 한다: `T_upper`/`T_lower` binning + StableSort, query-level gate.~~ → **교체됨(구현)**: confidence 원점수 내림차순 + 동점 시 원래 순서 유지. binning/gate는 미채택(실측 후 재검토).
+- ~~기존 순위로의 환원성 보장: gate 조건에서 원래 순위를 그대로 반환.~~ → gate 미채택으로 해당 없음. fast-fail 원칙은 유지(아래 제약).
 
 ### 제외 범위
 - retrieval 트리거 (CBDR 본래 의미) — caller 책임.
@@ -138,52 +145,53 @@ listwise가 완벽하고 answer_confidence는 훨씬 나쁘며 10배 비싸다. 
 
 ### 제약
 - fast fail 원칙 유지. silent fallback 금지 — confidence 계산 실패 시 원래 순위로 조용히 돌아가지 않고 에러를 낸다.
-- 경로 B 채택 시 `ModelClient`의 temperature 0 / JSON-only 계약과 충돌한다. sampling 전용 요청 경로(예: `ModelRequest`에 sampling 파라미터 복원 또는 별도 client 메서드)가 선행 결정 사항이다.
-- 경로 A 채택 시 학습된 scorer artifact가 선행 조건이다. 현재 리포에 커밋된 artifact는 없다 — generation → training 파이프라인을 한 번 실행해 만들어야 한다.
+- ~~경로 B 채택 시 sampling 전용 요청 경로가 선행 결정 사항이다.~~ → 경로 B 미채택으로 해당 없음.
+- 경로 A는 학습된 scorer artifact가 선행 조건이다. 리포에 커밋된 artifact는 없다(정책) — `scripts/build_answer_confidence_training_data.py` → `scripts/train_answer_confidence.py`로 만들어야 한다.
 
-## 3. 상세 설계 (Architecture & Design) — 방향만, 확정 아님
+## 3. 상세 설계 (Architecture & Design) — 초안 기록 (superseded)
 
-### 동작 메커니즘 (공통 골격)
+> 확정 메커니즘은 상단 "확정 설계 (구현됨)"가 정본이다. 아래는 초안 시점 골격.
+
+### 동작 메커니즘 (초안 골격 — binning은 미채택됨)
 1. 입력: `query`, 순서 있는 후보 목록(기존 순위 = PrevRank), confidence 파라미터.
 2. 후보별 confidence 계산 (경로 A: score_batch 순서 보존 결과를 zip / 경로 B: MSCP).
-3. binning: `c >= T_upper → +1`, `c <= T_lower → −1`, 그 외 0.
-4. StableSort by (bin desc, PrevRank asc). gate 조건이면 PrevRank 그대로.
-5. 출력: `list[RerankResult]`, metadata에 `confidence_score`와 bin을 포함.
+3. ~~binning: `c >= T_upper → +1`, `c <= T_lower → −1`, 그 외 0.~~
+4. ~~StableSort by (bin desc, PrevRank asc). gate 조건이면 PrevRank 그대로.~~
+5. 출력: `list[RerankResult]`, metadata에 confidence 점수 포함(구현: `answer_confidence` 키).
 
-### 통합 지점 (후보)
-- 형태 1: 새 Strategy (`docs/wiki/08_custom_strategy_extension.md` 패턴) — 다른 Strategy와 조합하려면 caller가 2단계 호출.
-- 형태 2: `list[RerankResult]`를 받는 post-processor 함수 — Strategy 계약을 건드리지 않음. LCR이 "기존 reranker 뒤에 붙는" 구조라는 점과 정합.
-- 어느 쪽인지 Q004-2에서 결정.
+### 통합 지점 (초안 후보 → 형태 1로 확정)
+- **형태 1: 새 Strategy — 채택됨** (`AnswerConfidenceRerankStrategy`, `docs/wiki/08_custom_strategy_extension.md` 패턴). 다른 Strategy와 조합하려면 caller가 2단계 호출.
+- ~~형태 2: `list[RerankResult]`를 받는 post-processor 함수~~ — 미채택 (Q004-2 resolved).
 
 ## 5. 에러 핸들링 (Error Handling)
-- confidence 소스 실패(artifact 불일치, sampling 파싱 실패): 해당 confidence 에러로 fast fail.
-- threshold 검증: `0 <= T_lower <= T_upper <= 1` 위반 시 `ValueError`.
+- confidence 소스 실패(artifact 불일치 등): 해당 confidence 에러로 fast fail.
+- ~~threshold 검증: `0 <= T_lower <= T_upper <= 1` 위반 시 `ValueError`.~~ → threshold 미채택으로 해당 없음. 구현된 검증: estimator `task_type` 불일치·invalid answer JSON·빈/공백 문서·잘못된 `top_k`는 `RerankError` 계열로 fast fail.
 - 빈 후보 목록: 빈 결과 반환 (기존 Strategy들과 동일).
 
-## 6. 테스트 계획 (Test Plan)
-- binning 경계값 (c == T_upper, c == T_lower).
-- 환원성: gate 조건에서 입력 순위와 출력 순위가 동일.
-- StableSort 안정성: 같은 bin 내에서 PrevRank 유지.
-- 경로 A: score_batch 순서 보존 결과와 candidate zip 정합성.
-- 경로 B: MSCP 계산(클러스터 비율), entailment 응답 파싱 fast fail.
-- fixture 기반 smoke test (`tests/fixtures/reranking_smoke_fixture.jsonl` + `benchmarks/metrics.py`).
+## 6. 테스트 계획 (Test Plan) — 초안 (superseded)
+> 실제 수행된 검증은 상단 "검증 (2026-07-05)" 및 `tests/test_confidence_rerank.py`,
+> `tests/test_model_architecture.py`, `tests/test_public_protocols.py`의
+> answer 경로 테스트가 정본이다. ~~binning 경계값·환원성·StableSort bin 테스트~~는
+> binning 미채택으로 함께 폐기됐다.
 
-## 7. 열린 결정 (`docs/wiki/05_open_questions.md` Q004)
+## 7. 열린 결정 (`docs/wiki/05_open_questions.md` Q004) — 전부 해소됨
 1. ~~confidence 소스~~ — **경로 A(structural + LightGBM)로 확정**. 호출 비용으로 경로 B 미채택.
-2. **형태**: 새 Strategy vs post-processor. (미결)
-3. **score → 순위 반영 규칙**: bin 방식 유지 여부와 threshold 기본값. (미결)
-4. **artifact 학습 데이터**: score_batch가 소비할 scorer artifact를 만들 실제 라벨 데이터 ≥30개 확보. (미결)
+2. ~~형태~~ — **새 Strategy로 확정** (`AnswerConfidenceRerankStrategy` / async 변형, 구현 완료).
+3. ~~score → 순위 반영 규칙~~ — **원점수 내림차순 + 동점 시 원래 순서 유지로 확정**. binning/threshold는 미채택(실측 후 재검토).
+4. ~~artifact 학습 데이터~~ — **gold answer가 있는 QA 데이터로 확정**. SQuAD v1.1 경로가 도구화됨(`scripts/build_answer_confidence_training_data.py`), ≥30 샘플 요건은 기본 500행으로 충족.
 
 ## 스모크 검증 기록 (2026-07-05)
 경로 A 파이프라인을 LM Studio(qwen3.5-9b) + libomp 설치 환경에서 부분 관통했다.
 - generation: `generate_judgment_confidence_dataset`가 fixture 15개를 엔드투엔드 생성 (LM Studio provider).
 - 추론 절반: `FrozenAutoEncoder`(bert-base-uncased) 로드 + 70차원 `structural-v1` 특징 추출 확인.
-- 학습: `split.py`의 `MIN_TOTAL_SAMPLES = 30` 가드에 막힘 — 리포 fixture는 15개뿐. **artifact 생성에는 ≥30개 실제 라벨 데이터가 필요**하다(위 결정 4).
+- 학습: `split.py`의 `MIN_TOTAL_SAMPLES = 30` 가드에 막힘 — 리포 fixture는 15개뿐. (이후 SciFact 실데이터 56개, 그리고 SQuAD 빌더 기본 500행으로 해소 — Q004 참조.)
 
 ## 작업 태스크 추적 (Task Checklist)
 ### Phase 0: 결정
 - [x] Q004-1 confidence 소스 = 경로 A
-- [ ] Q004 나머지 (형태, 순위 반영 규칙, 학습 데이터)
+- [x] Q004 나머지 (형태 = 새 Strategy, 순위 규칙 = 원점수 내림차순, 학습 데이터 = QA/SQuAD)
 ### Phase 1 이후
-- [ ] ≥30개 실제 라벨 데이터로 scorer artifact 생성
-- [ ] 결정 반영해 본 스펙 확정(§3 의사 코드 구체화) 후 구현 착수
+- [x] ≥30개 실제 라벨 데이터로 scorer artifact 생성 (SciFact 56개 스모크 → SQuAD 500행 도구화)
+- [x] 구현: `AnswerConfidenceRerankStrategy` / async 변형 + `ModelClient.answer` + 단위 테스트
+- [x] 표준 벤치마크 편입 도구 + 러닝북 (`docs/benchmarks/answer_confidence_askubuntu.md`)
+- [ ] README 표 편입 실행 (AskUbuntu 캐시 + gpt-5.4-nano 환경에서 러닝북 실행, 도메인 라벨 필수)
