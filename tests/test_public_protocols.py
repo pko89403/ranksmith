@@ -424,3 +424,29 @@ async def test_custom_async_strategy_unexpected_error_is_not_provider_error() ->
         await reranker.rerank("query", ["first"])
 
     assert "custom async strategy bug" in str(error.value)
+
+
+def test_parse_answer_response_is_publicly_importable_from_root() -> None:
+    from ranksmith import parse_answer_response  # noqa: PLC0415
+
+    assert parse_answer_response('{"answer": "scurvy"}') == "scurvy"
+
+
+@pytest.mark.parametrize(
+    "raw_response",
+    [
+        "[]",
+        "{}",
+        '{"answer": 3}',
+        '{"answer": ""}',
+        '{"answer": "   "}',
+        '{"Answer": "wrong key"}',
+    ],
+)
+def test_parse_answer_response_fast_fails_invalid_payloads(
+    raw_response: str,
+) -> None:
+    from ranksmith import parse_answer_response  # noqa: PLC0415
+
+    with pytest.raises(RerankParseError, match='non-empty "answer" string'):
+        parse_answer_response(raw_response)

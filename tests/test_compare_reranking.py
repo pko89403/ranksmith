@@ -899,3 +899,39 @@ def test_compare_answer_confidence_requires_existing_artifact_file() -> None:
 
     with pytest.raises(SystemExit, match="does not exist"):
         compare_reranking._validate_args(args)
+
+
+def test_compare_estimates_one_answer_call_per_document_for_answer_confidence() -> None:
+    assert (
+        compare_reranking._estimate_provider_calls(
+            20,
+            "answer_confidence",
+            window_size=20,
+            stride=10,
+        )
+        == 20
+    )
+
+
+def test_compare_rank_case_fast_fails_answer_confidence_without_artifact() -> None:
+    case = BenchmarkCase(
+        fixture_id="fixture",
+        dataset="dataset",
+        source="source",
+        license="license",
+        query_id="q1",
+        query="query",
+        documents=(BenchmarkDocument(id="1", title="", text="text"),),
+        qrels={},
+    )
+
+    with pytest.raises(ValueError, match="answer-confidence-artifact"):
+        compare_reranking._rank_case(
+            case=case,
+            algorithm="answer_confidence",
+            window_size=20,
+            stride=10,
+            passes=10,
+            tourrank_rounds=2,
+            answer_confidence_artifact=None,
+        )
