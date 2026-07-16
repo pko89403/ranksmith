@@ -132,3 +132,67 @@ async def test_async_orders_by_answer_confidence() -> None:
     )
     assert [r.document.text for r in results] == ["a", "c", "b", "d"]
     assert client.calls == ["a", "b", "c", "d"]
+
+
+def test_metadata_carries_strategy_and_algorithm_keys() -> None:
+    client = FakeAnswerClient(ANSWERS)
+    results = _strategy().rerank(query="q", documents=DOCS, model_client=client)
+
+    assert results[0].metadata["strategy"] == "answer_confidence"
+    assert results[0].metadata["algorithm"] == "answer_confidence"
+
+
+def test_blank_document_fast_fails_before_any_answer_call() -> None:
+    client = FakeAnswerClient(ANSWERS)
+    documents = [Document(text="a"), Document(text="   ")]
+
+    with pytest.raises(RerankInputError, match="documents\\[1\\]"):
+        _strategy().rerank(query="q", documents=documents, model_client=client)
+    assert client.calls == []
+
+
+def test_rejects_negative_top_k() -> None:
+    client = FakeAnswerClient(ANSWERS)
+    with pytest.raises(RerankInputError, match="top_k"):
+        _strategy().rerank(query="q", documents=DOCS, model_client=client, top_k=-1)
+
+
+@pytest.mark.asyncio
+async def test_async_invalid_answer_json_fast_fails() -> None:
+    from ranksmith.errors import RerankParseError
+
+    class AsyncBadClient(AsyncFakeAnswerClient):
+        async def answer(self, query: str, context: str) -> str:
+            return "not json"
+
+    estimator = FakeEstimator({"a": 0.9, "b": 0.3, "c": 0.7, "d": 0.1})
+    with pytest.raises(RerankParseError):
+        await AsyncAnswerConfidenceRerankStrategy(estimator=estimator).rerank(
+            query="q", documents=DOCS, model_client=AsyncBadClient(ANSWERS)
+        )
+
+
+@pytest.mark.asyncio
+async def test_async_rejects_client_without_answer() -> None:
+    class AsyncNoAnswerClient:
+        async def rank(self, query: str, documents: list[Document]) -> str:
+            return "{}"
+
+    estimator = FakeEstimator({"a": 0.9})
+    with pytest.raises(RerankInputError, match="answer"):
+        await AsyncAnswerConfidenceRerankStrategy(estimator=estimator).rerank(
+            query="q", documents=DOCS, model_client=AsyncNoAnswerClient()
+        )
+
+
+@pytest.mark.asyncio
+async def test_async_blank_document_fast_fails_before_any_answer_call() -> None:
+    client = AsyncFakeAnswerClient(ANSWERS)
+    estimator = FakeEstimator({"a": 0.9})
+    documents = [Document(text="a"), Document(text="")]
+
+    with pytest.raises(RerankInputError, match="documents\\[1\\]"):
+        await AsyncAnswerConfidenceRerankStrategy(estimator=estimator).rerank(
+            query="q", documents=documents, model_client=client
+        )
+    assert client.calls == []
