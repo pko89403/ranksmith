@@ -229,8 +229,14 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=13)
     parser.add_argument(
         "--algorithm",
+        action="append",
         choices=("all", *ALGORITHMS, *OPTIONAL_ALGORITHMS, *LEGACY_ALGORITHMS),
-        default="all",
+        default=None,
+        help=(
+            "Algorithm to run; repeat the flag to run several algorithms on "
+            "identical cases in one invocation. Defaults to the default "
+            "method set ('all')."
+        ),
     )
     parser.add_argument("--window-size", type=int, default=20)
     parser.add_argument("--stride", type=int, default=10)
@@ -329,6 +335,17 @@ def _validate_args(args: argparse.Namespace) -> None:
             "--candidates is required for BEIR benchmark mode. "
             "Use --candidate-strategy oracle_plus_random only for diagnostics."
         )
+    if "answer_confidence" in (args.algorithm or []):
+        if args.answer_confidence_artifact is None:
+            raise SystemExit(
+                "--algorithm answer_confidence requires "
+                "--answer-confidence-artifact (a trained scorer .joblib)."
+            )
+        if not Path(args.answer_confidence_artifact).is_file():
+            raise SystemExit(
+                "--answer-confidence-artifact file does not exist: "
+                f"{args.answer_confidence_artifact}"
+            )
 
 
 def _load_cases(args: argparse.Namespace) -> list[BenchmarkCase]:
@@ -368,9 +385,16 @@ def _selected_algorithms(
     args: argparse.Namespace,
     cases: Sequence[BenchmarkCase],
 ) -> tuple[Algorithm, ...]:
-    if args.algorithm != "all":
-        return (cast(Algorithm, args.algorithm),)
-    return ALGORITHMS
+    selected: list[str] = args.algorithm or ["all"]
+    if "all" in selected:
+        if len(selected) > 1:
+            raise SystemExit(
+                "--algorithm all cannot be combined with other --algorithm values."
+            )
+        return ALGORITHMS
+    if len(set(selected)) != len(selected):
+        raise SystemExit("--algorithm values must not repeat.")
+    return tuple(cast(Algorithm, algorithm) for algorithm in selected)
 
 
 def _evaluate_cases(
