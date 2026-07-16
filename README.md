@@ -374,12 +374,14 @@ reranker = AzureOpenAIReranker(
 
 > **Experimental — not a default choice.** It needs a trained
 > `answer_confidence` artifact (QA data with gold answers) and costs one LLM
-> answer call per document. On the committed evaluation (15 held-out SQuAD
-> queries, 1 gold context + 3 random distractors) it scores acc@1 0.80 / MRR
-> 0.878, while a plain `ListwiseStrategy` scores 1.00 / 1.00 at a quarter of the
-> LLM cost. No setting has yet shown it beating an existing strategy; its
+> answer call per document. In the spec's small self-reported eval (15
+> held-out SQuAD queries, run outside this repo — no evidence artifact is
+> committed) it lost to a plain `ListwiseStrategy` at four times the LLM
+> cost. No setting has yet shown it beating an existing strategy; its
 > plausible niche (candidate sets larger than the listwise window) is
-> unmeasured. See `docs/specs/spec_confidence_aware_reranking.md`.
+> unmeasured. Numbers and caveats live in
+> `docs/specs/spec_confidence_aware_reranking.md`; the standard-benchmark
+> procedure is `docs/benchmarks/answer_confidence_askubuntu.md`.
 
 ## Examples
 

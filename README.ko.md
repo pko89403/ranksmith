@@ -367,11 +367,12 @@ reranker = AzureOpenAIReranker(
 ```
 
 > **실험적 — 기본 선택 아님.** 학습된 `answer_confidence` artifact(정답이 있는 QA
-> 데이터)가 필요하고 문서당 LLM answer 1회 비용이 듭니다. 커밋된 평가(held-out
-> SQuAD 15개, 정답 문맥 1 + 무관 distractor 3)에서 acc@1 0.80 / MRR 0.878인데,
-> 순수 `ListwiseStrategy`는 1.00 / 1.00을 1/4 비용으로 냅니다. 아직 기존 전략을
-> 이기는 세팅을 입증하지 못했고, 가능성 있는 영역(listwise window 초과 후보)은
-> 미측정입니다. `docs/specs/spec_confidence_aware_reranking.md` 참고.
+> 데이터)가 필요하고 문서당 LLM answer 1회 비용이 듭니다. 스펙에 기록된 소규모
+> 자체 평가(held-out SQuAD 15개, 리포 밖 환경에서 실행 — 증거 artifact는 커밋되어
+> 있지 않음)에서는 순수 `ListwiseStrategy`에 4배 비용으로 졌습니다. 아직 기존
+> 전략을 이기는 세팅을 입증하지 못했고, 가능성 있는 영역(listwise window 초과
+> 후보)은 미측정입니다. 수치와 한계는 `docs/specs/spec_confidence_aware_reranking.md`,
+> 표준 벤치마크 절차는 `docs/benchmarks/answer_confidence_askubuntu.md` 참고.
 
 ## 실전 가이드 (Examples)
 
