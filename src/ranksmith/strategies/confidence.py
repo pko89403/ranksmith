@@ -19,11 +19,16 @@ from .common import (
 
 
 class _ConfidenceResult(Protocol):
-    score: float
+    @property
+    def score(self) -> float: ...
 
 
 class AnswerConfidenceScorer(Protocol):
-    task_type: str
+    # Read-only property members so frozen estimators (for example
+    # StructuralConfidenceEstimator with its Literal task_type) satisfy the
+    # protocol; plain attribute members would demand settable fields.
+    @property
+    def task_type(self) -> str: ...
 
     def score(self, item: AnswerConfidenceInput) -> _ConfidenceResult: ...
 
@@ -56,6 +61,15 @@ class _AnswerConfidenceRerankConfigMixin:
             documents,
             max_document_chars=self.max_document_chars,
         )
+        # answer_confidence cannot score an empty context; fail before any
+        # paid answer() call instead of surfacing a non-RerankError from the
+        # estimator afterwards.
+        for index, document in enumerate(documents):
+            if document.text.strip() == "":
+                raise RerankInputError(
+                    f"documents[{index}].text must not be empty or "
+                    "whitespace-only for answer_confidence."
+                )
 
     def _confidence(self, *, document: Document, answer: str) -> float:
         return self.estimator.score(
@@ -81,6 +95,7 @@ class _AnswerConfidenceRerankConfigMixin:
                 original_index=original_index,
                 metadata={
                     "strategy": "answer_confidence",
+                    "algorithm": "answer_confidence",
                     "answer_confidence": confidences[original_index],
                 },
             )
