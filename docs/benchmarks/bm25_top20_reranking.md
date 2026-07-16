@@ -53,6 +53,10 @@ Optional methods:
 | `acurank_b4` | `N=20`, `target_rank=10`, `w=20`, adaptive budget 4 | legacy stronger AcuRank top-10-boundary reference | 5 |
 | `tourrank_r10` | `N=20`, `r=10` | high-cost setwise reference | 40 |
 | `prp_sliding_p3` | `N=20`, `passes=3` | stronger but expensive PRP | 114 |
+| `answer_confidence` | `N=20`, 학습된 scorer artifact 필요 | confidence-change reranker (도메인 밖 artifact 라벨링 필수) | 20 |
+
+`answer_confidence`는 학습된 artifact가 전제조건이며 절차와 보고 규칙이
+별도 러닝북에 있습니다: `docs/benchmarks/answer_confidence_askubuntu.md`.
 
 `prp_sliding_p1`은 asymptotic하게 O(n)이지만, 현재 `PairwiseStrategy`는 인접 pair마다 양방향 비교를 수행합니다. 그래서 20개 후보에서는 `2 * (20 - 1) = 38` calls/query로 추정합니다.
 
