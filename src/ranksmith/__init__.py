@@ -16,7 +16,11 @@ from ranksmith.model import (
     ModelRequest,
     ModelResponse,
 )
-from ranksmith.parsing import parse_ranking_response, parse_selection_response
+from ranksmith.parsing import (
+    parse_answer_response,
+    parse_ranking_response,
+    parse_selection_response,
+)
 from ranksmith.protocols import AsyncRerankStrategy, RerankStrategy
 from ranksmith.providers import AsyncAzureAOAIProvider, AzureAOAIProvider
 from ranksmith.strategies import (
@@ -72,6 +76,7 @@ __all__ = [
     "RerankUsage",
     "TourRankStageConfig",
     "TourRankStrategy",
+    "parse_answer_response",
     "parse_ranking_response",
     "parse_selection_response",
 ]
