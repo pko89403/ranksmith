@@ -75,6 +75,24 @@ CBDR 논문의 핵심은 confidence 변화다: `Inc(Q, D) = Conf(질문+문서) 
   환경에서 PR을 받아 실행**해야 한다. 그 환경에서도 artifact는 QA 데이터로 별도
   학습해야 하며, SQuAD 등 도메인 밖 artifact를 쓰면 참고 수치(도메인 shift)일 뿐
   README 표에 넣을 공정 비교가 아니다.
+- **(2026-07-16 갱신) 그 실행을 턴키로 만드는 도구가 추가됐다** — 절차 전체는
+  `docs/benchmarks/answer_confidence_askubuntu.md` 러닝북 참고:
+  - `scripts/build_answer_confidence_training_data.py`: SQuAD v1.1 train에서
+    질문당 gold 문맥 + BM25 hard negative 문맥 쌍을 만드는 결정적 빌더
+    (`benchmarks/bm25.py` 순수 파이썬 BM25 포함). 추론 분포(관련/무관 후보
+    양쪽의 답변 채점)와 학습 분포를 일치시킨다.
+  - `scripts/train_answer_confidence.py`: generation(라이브 모델) → labeling →
+    training → artifact 내보내기 턴키. test roc_auc < 0.6이면 fast fail
+    (100샘플 과적합 사고 재발 방지 게이트).
+  - `scripts/compare_reranking.py`: `--algorithm` 반복 지정으로 여러 메소드를
+    동일 케이스에서 한 번에 실행 가능. answer_confidence 선택 시 artifact
+    경로/존재를 실행 전에 검증(fast fail).
+  - `scripts/merge_benchmark_reports.py`: 커밋된 v3.merged.json 같은 기존
+    결과와 새 단독 run을 병합. 벤치마크 정체성과 알고리즘별 query_id 집합
+    일치를 검증해 조건 불일치 병합을 거부한다.
+  - 전 경로(빌드→생성→학습→벤치마크→병합)는 실제 SQuAD 다운로드 + 결정적
+    fake OpenAI 호환 서버 + 로컬 소형 encoder로 기계 검증 완료. LLM 품질
+    수치만 실행 환경 몫이다.
 
 #### 예비 진단 (LM Studio, SciFact, 도메인 밖 artifact — README에 넣지 말 것)
 official 스크립트를 LM Studio(qwen3.5-9b)로 SciFact 15케이스(oracle+random,
@@ -90,6 +108,10 @@ listwise가 완벽하고 answer_confidence는 훨씬 나쁘며 10배 비싸다. 
 조건(도메인 밖 + 쉬운 distractor + 작은 로컬 모델) 때문이며, 공정 비교가 아니다.
 
 ### 남은 작업
+- **README 표 편입 실행**: `docs/benchmarks/answer_confidence_askubuntu.md`
+  러닝북을 AskUbuntu 캐시 + gpt-5.4-nano 접근이 있는 환경에서 실행하고,
+  결과를 artifact 도메인(SQuAD, 도메인 밖) 라벨과 함께 보고. 도구는 준비
+  완료, 실행만 남음.
 - IR에 맞는 변형: qrels로 학습 가능한 judgment_confidence 리랭커(초기 구현 후
   교체됨)를 되살리면 이 IR 벤치마크로 공정 비교 가능.
 - 학습된 artifact는 커밋하지 않는다(`.gitignore`). 배포 시 사용자가 자기 도메인
