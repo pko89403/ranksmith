@@ -420,6 +420,102 @@ result = train_confidence_scorer(
 print(result.export_path)
 ```
 
+### Local LM Studio confidence pipeline
+
+For CBDR, train two answerability scorers: `Conf(Q)` from query-only examples
+and `Conf(Q+C)` from query+context examples. LM Studio is used only to generate
+supervised labels; the scorer artifact is still trained by
+`ranksmith.confidence_training`.
+
+Start the local OpenAI-compatible server and select the loaded model:
+
+```bash
+lms server start
+export LMSTUDIO_MODEL=google/gemma-4-12b
+```
+
+Generate canonical JSONL datasets:
+
+```bash
+uv run python scripts/generate_confidence_dataset.py \
+  --task query_answerability_confidence \
+  --provider lmstudio \
+  --input runs/confidence/local/raw/query_answerability.jsonl \
+  --output runs/confidence/local/canonical/query_answerability_confidence.jsonl \
+  --resume
+
+uv run python scripts/generate_confidence_dataset.py \
+  --task query_context_answerability_confidence \
+  --provider lmstudio \
+  --input runs/confidence/local/raw/query_context_answerability.jsonl \
+  --output runs/confidence/local/canonical/query_context_answerability_confidence.jsonl \
+  --max-context-chars 8000 \
+  --resume
+```
+
+Review source and group balance before treating the scorer as general:
+
+```bash
+uv run python scripts/report_confidence_dataset.py \
+  --task query_answerability_confidence \
+  --dataset runs/confidence/local/canonical/query_answerability_confidence.jsonl
+```
+
+Train CBDR-compatible scorer artifacts:
+
+```bash
+uv run python scripts/train_confidence_scorer.py \
+  --task query_answerability_confidence \
+  --dataset runs/confidence/local/canonical/query_answerability_confidence.jsonl \
+  --output-dir runs/confidence/local/training/query_answerability \
+  --export-path runs/confidence/local/artifacts/query_answerability.joblib \
+  --encoder-name bert-base-uncased \
+  --max-length 256
+
+uv run python scripts/train_confidence_scorer.py \
+  --task query_context_answerability_confidence \
+  --dataset runs/confidence/local/canonical/query_context_answerability_confidence.jsonl \
+  --output-dir runs/confidence/local/training/query_context_answerability \
+  --export-path runs/confidence/local/artifacts/query_context_answerability.joblib \
+  --encoder-name bert-base-uncased \
+  --max-length 256
+```
+
+Use the artifacts with LM Studio at runtime:
+
+```python
+from ranksmith.integrations import LMStudioModelProvider, ProviderAnswerGenerator
+from ranksmith.strategies import CBDRStrategy
+
+answer_generator = ProviderAnswerGenerator(
+    provider=LMStudioModelProvider(model="google/gemma-4-12b")
+)
+
+strategy = CBDRStrategy.from_artifacts(
+    base_artifact_path="runs/confidence/local/artifacts/query_answerability.joblib",
+    context_artifact_path="runs/confidence/local/artifacts/query_context_answerability.joblib",
+    answer_generator=answer_generator,
+    skip_threshold=0.8,
+)
+```
+
+The benchmark runner can use the same provider. This command is live and
+requires `--allow-live`; it does not imply any benchmark quality number unless
+summary artifacts are produced and committed.
+
+```bash
+uv run python scripts/compare_reranking.py \
+  --dataset benchmark-cache \
+  --cache-dir .benchmark-cache/askubuntu-bm25 \
+  --candidates benchmark-results/pyserini/askubuntu-bm25-top20.trec \
+  --algorithm cbdr \
+  --cbdr-answer-provider lmstudio \
+  --cbdr-base-artifact runs/confidence/local/artifacts/query_answerability.joblib \
+  --cbdr-context-artifact runs/confidence/local/artifacts/query_context_answerability.joblib \
+  --lmstudio-model google/gemma-4-12b \
+  --allow-live
+```
+
 ## Examples
 
 Runnable examples live in the `examples/` directory.
@@ -451,6 +547,7 @@ algorithm run. The committed evidence artifacts are:
 
 - [`benchmark-results/live/askubuntu-bm25-top20-default-live.v3.merged.json`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/live/askubuntu-bm25-top20-default-live.v3.merged.json)
 - [`benchmark-results/pyserini/askubuntu-bm25-top20.trec`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/pyserini/askubuntu-bm25-top20.trec)
+- [`benchmark-results/askubuntu-bm25-top20-cbdr-live.json`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/askubuntu-bm25-top20-cbdr-live.json) (optional `cbdr` method, run separately)
 
 | Method | NDCG@5 | MRR@5 | Recall@5 | Valid rows | Invalid rate | Nominal LLM calls/query | LLM row attempts/query incl. retries |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -461,13 +558,27 @@ algorithm run. The committed evidence artifacts are:
 | `tourrank_r2` | 0.4236 | 0.5725 | 0.3601 | 361/361 | 0.000 | 8 | 1.03 |
 | `setwise_hs_s10` | 0.3653 | 0.5059 | 0.3005 | 361/361 | 0.000 | 12 | 1.00 |
 | `prp_sliding_p1` | 0.4065 | 0.5818 | 0.3277 | 361/361 | 0.000 | 38 | 1.00 |
+| `cbdr` *(scorers: TriviaQA, out-of-domain)* | 0.2259 | 0.3458 | 0.1867 | 361/361 | 0.000 | 21 | 1.00 |
 
 `tourrank_r2` had the best NDCG@5 and Recall@5, while `prp_sliding_p1` had the
 best MRR@5. `single_call_listwise@20` is the one-shot listwise baseline.
 `rankgpt_sw_w5` is the true sliding-window listwise baseline for this top-20
 setup. `acurank_k5_b1` aligns AcuRank's uncertainty boundary with the `@5`
 evaluation cutoff. `setwise_hs_s10` is a practical Setwise Heapsort setting
-that extracts only the evaluated top-5 from 20 candidates.
+that extracts only the evaluated top-5 from 20 candidates. `cbdr` uses the two
+`Conf(Q)`/`Conf(Q+C)` scorers documented under [Local LM Studio confidence
+pipeline](#local-lm-studio-confidence-pipeline), trained on TriviaQA (out-of-domain
+for AskUbuntu); it scores below the BM25 baseline here and is reported as
+measured, not tuned to win.
+
+Why not tune it to win: fitting the scorer to this benchmark's distribution
+would measure overfitting to AskUbuntu, not the algorithm's general quality,
+which conflicts with this project's reporting rule that smoke/partial runs
+and cherry-picked numbers are never reported as benchmark quality (see
+[`docs/benchmarks/bm25_top20_reranking.md`](docs/benchmarks/bm25_top20_reranking.md#reporting-rules)).
+A stronger in-domain scorer is a legitimate follow-up, but that means
+training a better artifact and re-running this exact command, not adjusting
+the report.
 
 After retries, 2 `single_call_listwise@20` rows and 5 `acurank_k5_b1` rows
 remained invalid. They are included in the invalid-rate accounting instead of

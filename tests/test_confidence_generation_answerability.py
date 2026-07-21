@@ -74,7 +74,7 @@ def test_query_answerability_prompt_uses_parametric_knowledge_contract() -> None
 
     assert "Question:\nWho played Karen?" in prompt
     assert "Context:" not in prompt
-    assert '{"answer":"..."}' in prompt
+    assert '{"answer":"short answer"}' in prompt
     assert '{"answer":"UNKNOWN"}' in prompt
     assert "parametric knowledge" in prompt
 
@@ -92,7 +92,7 @@ def test_query_context_answerability_prompt_uses_context_contract() -> None:
 
     assert "Question:\nWho played Karen?" in prompt
     assert "Context:\nNancy Travis played Karen." in prompt
-    assert '{"answer":"..."}' in prompt
+    assert '{"answer":"short answer"}' in prompt
     assert '{"answer":"NO_CONTEXT_ANSWER"}' in prompt
     assert "Use only the context" in prompt
 

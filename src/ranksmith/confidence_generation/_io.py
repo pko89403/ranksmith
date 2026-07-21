@@ -224,7 +224,7 @@ def open_output_path(
 
 
 def write_jsonl_row(handle: IO[str], row: Mapping[str, Any]) -> None:
-    handle.write(json.dumps(dict(row), ensure_ascii=False, allow_nan=False) + "\n")
+    handle.write(json.dumps(dict(row), ensure_ascii=True, allow_nan=False) + "\n")
     handle.flush()
 
 

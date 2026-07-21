@@ -414,6 +414,102 @@ result = train_confidence_scorer(
 print(result.export_path)
 ```
 
+### LM Studio 로컬 confidence pipeline
+
+CBDR에는 두 answerability scorer가 필요합니다. query-only 예시에서 `Conf(Q)`를,
+query+context 예시에서 `Conf(Q+C)`를 학습합니다. LM Studio는 supervised label
+생성에만 사용하며, scorer artifact는 그대로 `ranksmith.confidence_training`이
+학습합니다.
+
+로컬 OpenAI-compatible server를 시작하고 loaded model을 지정합니다.
+
+```bash
+lms server start
+export LMSTUDIO_MODEL=google/gemma-4-12b
+```
+
+canonical JSONL dataset을 생성합니다.
+
+```bash
+uv run python scripts/generate_confidence_dataset.py \
+  --task query_answerability_confidence \
+  --provider lmstudio \
+  --input runs/confidence/local/raw/query_answerability.jsonl \
+  --output runs/confidence/local/canonical/query_answerability_confidence.jsonl \
+  --resume
+
+uv run python scripts/generate_confidence_dataset.py \
+  --task query_context_answerability_confidence \
+  --provider lmstudio \
+  --input runs/confidence/local/raw/query_context_answerability.jsonl \
+  --output runs/confidence/local/canonical/query_context_answerability_confidence.jsonl \
+  --max-context-chars 8000 \
+  --resume
+```
+
+scorer를 범용적으로 다루기 전에 source/group balance를 확인합니다.
+
+```bash
+uv run python scripts/report_confidence_dataset.py \
+  --task query_answerability_confidence \
+  --dataset runs/confidence/local/canonical/query_answerability_confidence.jsonl
+```
+
+CBDR-compatible scorer artifact를 학습합니다.
+
+```bash
+uv run python scripts/train_confidence_scorer.py \
+  --task query_answerability_confidence \
+  --dataset runs/confidence/local/canonical/query_answerability_confidence.jsonl \
+  --output-dir runs/confidence/local/training/query_answerability \
+  --export-path runs/confidence/local/artifacts/query_answerability.joblib \
+  --encoder-name bert-base-uncased \
+  --max-length 256
+
+uv run python scripts/train_confidence_scorer.py \
+  --task query_context_answerability_confidence \
+  --dataset runs/confidence/local/canonical/query_context_answerability_confidence.jsonl \
+  --output-dir runs/confidence/local/training/query_context_answerability \
+  --export-path runs/confidence/local/artifacts/query_context_answerability.joblib \
+  --encoder-name bert-base-uncased \
+  --max-length 256
+```
+
+학습된 artifact를 LM Studio runtime과 함께 사용합니다.
+
+```python
+from ranksmith.integrations import LMStudioModelProvider, ProviderAnswerGenerator
+from ranksmith.strategies import CBDRStrategy
+
+answer_generator = ProviderAnswerGenerator(
+    provider=LMStudioModelProvider(model="google/gemma-4-12b")
+)
+
+strategy = CBDRStrategy.from_artifacts(
+    base_artifact_path="runs/confidence/local/artifacts/query_answerability.joblib",
+    context_artifact_path="runs/confidence/local/artifacts/query_context_answerability.joblib",
+    answer_generator=answer_generator,
+    skip_threshold=0.8,
+)
+```
+
+benchmark runner도 같은 provider를 사용할 수 있습니다. 이 명령은 live 실행이므로
+`--allow-live`가 필요합니다. summary artifact를 만들고 커밋하기 전까지는 benchmark
+품질 수치로 주장하지 않습니다.
+
+```bash
+uv run python scripts/compare_reranking.py \
+  --dataset benchmark-cache \
+  --cache-dir .benchmark-cache/askubuntu-bm25 \
+  --candidates benchmark-results/pyserini/askubuntu-bm25-top20.trec \
+  --algorithm cbdr \
+  --cbdr-answer-provider lmstudio \
+  --cbdr-base-artifact runs/confidence/local/artifacts/query_answerability.joblib \
+  --cbdr-context-artifact runs/confidence/local/artifacts/query_context_answerability.joblib \
+  --lmstudio-model google/gemma-4-12b \
+  --allow-live
+```
+
 ## 실전 가이드 (Examples)
 
 실행 가능한 예제는 `examples/` 폴더에 있습니다.
@@ -445,6 +541,7 @@ top-5만 출력할 수 있습니다. Live LLM 호출에는 Azure OpenAI deployme
 
 - [`benchmark-results/live/askubuntu-bm25-top20-default-live.v3.merged.json`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/live/askubuntu-bm25-top20-default-live.v3.merged.json)
 - [`benchmark-results/pyserini/askubuntu-bm25-top20.trec`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/pyserini/askubuntu-bm25-top20.trec)
+- [`benchmark-results/askubuntu-bm25-top20-cbdr-live.json`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/askubuntu-bm25-top20-cbdr-live.json) (optional `cbdr` method, 별도 run)
 
 | Method | NDCG@5 | MRR@5 | Recall@5 | Valid rows | Invalid rate | Nominal LLM calls/query | LLM row attempts/query incl. retries |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -455,13 +552,26 @@ top-5만 출력할 수 있습니다. Live LLM 호출에는 Azure OpenAI deployme
 | `tourrank_r2` | 0.4236 | 0.5725 | 0.3601 | 361/361 | 0.000 | 8 | 1.03 |
 | `setwise_hs_s10` | 0.3653 | 0.5059 | 0.3005 | 361/361 | 0.000 | 12 | 1.00 |
 | `prp_sliding_p1` | 0.4065 | 0.5818 | 0.3277 | 361/361 | 0.000 | 38 | 1.00 |
+| `cbdr` *(scorer: TriviaQA, 도메인 밖)* | 0.2259 | 0.3458 | 0.1867 | 361/361 | 0.000 | 21 | 1.00 |
 
 `tourrank_r2`는 NDCG@5와 Recall@5가 가장 높았고, `prp_sliding_p1`은 MRR@5가
 가장 높았습니다. `single_call_listwise@20`은 one-shot listwise baseline입니다.
 `rankgpt_sw_w5`는 이 top-20 설정의 실제 sliding-window listwise baseline입니다.
 `acurank_k5_b1`은 AcuRank uncertainty boundary를 `@5` 평가 cutoff와 맞춘
 설정입니다. `setwise_hs_s10`은 20개 후보에서 평가 대상 top-5만 추출하는 실용적인
-Setwise Heapsort 설정입니다.
+Setwise Heapsort 설정입니다. `cbdr`은 [LM Studio 로컬 confidence
+pipeline](#lm-studio-로컬-confidence-pipeline)에 문서화된 `Conf(Q)`/`Conf(Q+C)`
+스코어러 두 개를 사용하며, TriviaQA로 학습해 AskUbuntu 기준 도메인 밖입니다.
+이 벤치마크에서는 BM25 baseline보다 낮은 점수를 기록했고, 이기도록 튜닝하지
+않고 측정된 그대로 보고합니다.
+
+왜 이기게 튜닝하지 않는가: 스코어러를 이 벤치마크 분포에 맞추면 알고리즘의
+일반적인 품질이 아니라 AskUbuntu에 대한 과적합을 측정하게 됩니다. 이는
+smoke/partial run이나 cherry-pick된 수치를 벤치마크 품질로 보고하지 않는다는
+이 프로젝트의 보고 규칙([`docs/benchmarks/bm25_top20_reranking.md`](docs/benchmarks/bm25_top20_reranking.md#reporting-rules))과도
+어긋납니다. 더 강한 domain-in 스코어러를 만드는 건 정당한 후속 작업이지만,
+그건 더 나은 artifact를 학습해서 같은 커맨드를 다시 돌리는 것이지 보고
+방식을 바꾸는 게 아닙니다.
 
 재시도 후에도 `single_call_listwise@20` 2개 row와 `acurank_k5_b1` 5개 row가
 invalid로 남았습니다. 이 row는 보정하지 않고 invalid rate에 반영했습니다.
