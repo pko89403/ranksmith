@@ -42,7 +42,6 @@ def main() -> None:
         azure_endpoint=endpoint,
         azure_deployment=deployment,
         strategy=ListwiseStrategy(
-            algorithm="rankgpt_sliding_window",
             window_size=10,
             stride=5,
         ),

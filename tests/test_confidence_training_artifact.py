@@ -17,12 +17,12 @@ from ranksmith.confidence_training import (
     ConfidenceTrainingResult,
     train_confidence_scorer,
 )
-from ranksmith.confidence_training._artifact import export_scorer_artifact
-from ranksmith.confidence_training._train import (
+from ranksmith.confidence_training.artifact import export_scorer_artifact
+from ranksmith.confidence_training.train import (
     calibrate_classifier,
     train_lightgbm_classifier,
 )
-from ranksmith.confidence_training._types import ConfidenceFeatureRow
+from ranksmith.confidence_training.types import ConfidenceFeatureRow
 
 
 class FakeEncoder:
@@ -170,7 +170,7 @@ def test_train_confidence_scorer_pipeline_exports_artifact(
     _write_answer_dataset(dataset_path)
 
     monkeypatch.setattr(
-        "ranksmith.confidence_training._pipeline.FrozenAutoEncoder.from_pretrained",
+        "ranksmith.confidence_training.pipeline.FrozenAutoEncoder.from_pretrained",
         _fake_from_pretrained,
     )
 
@@ -202,11 +202,11 @@ def test_train_confidence_scorer_artifact_scores_judgment_batch(
     _write_judgment_dataset(dataset_path)
 
     monkeypatch.setattr(
-        "ranksmith.confidence_training._pipeline.FrozenAutoEncoder.from_pretrained",
+        "ranksmith.confidence_training.pipeline.FrozenAutoEncoder.from_pretrained",
         _fake_from_pretrained,
     )
     monkeypatch.setattr(
-        "ranksmith.confidence._structural.FrozenAutoEncoder.from_pretrained",
+        "ranksmith.confidence.structural.FrozenAutoEncoder.from_pretrained",
         _fake_from_pretrained,
     )
 

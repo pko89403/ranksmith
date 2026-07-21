@@ -1,12 +1,12 @@
-from ranksmith.confidence._errors import (
+from ranksmith.confidence.errors import (
     ConfidenceArtifactError,
     ConfidenceDependencyError,
     ConfidenceError,
     ConfidenceInputError,
 )
-from ranksmith.confidence._scorer import load_lightgbm_scorer
-from ranksmith.confidence._structural import StructuralConfidenceEstimator
-from ranksmith.confidence._types import (
+from ranksmith.confidence.scorer import load_lightgbm_scorer
+from ranksmith.confidence.structural import StructuralConfidenceEstimator
+from ranksmith.confidence.types import (
     AnswerConfidenceInput,
     JudgmentConfidenceInput,
     QueryAnswerabilityConfidenceInput,

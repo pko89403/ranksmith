@@ -82,7 +82,6 @@ Configure a strategy and pass it to `AzureOpenAIReranker`.
 from ranksmith import AzureOpenAIReranker, ListwiseStrategy
 
 strategy = ListwiseStrategy(
-    algorithm="rankgpt_sliding_window",
     window_size=20,
     stride=10,
     max_document_chars=4000,
@@ -120,7 +119,7 @@ reranker = AzureOpenAIReranker(
     api_key="...",
     azure_endpoint="https://example.openai.azure.com",
     azure_deployment="gpt-4o-mini",
-    strategy=TourRankStrategy(rounds=2, group_parallelism=1),
+    strategy=TourRankStrategy(rounds=2),
 )
 ```
 
@@ -149,7 +148,6 @@ reranker = AzureOpenAIReranker(
         target_rank=10,
         window_size=20,
         max_adaptive_reranker_calls=20,  # Optional adaptive-phase budget cap.
-        batch_parallelism=2,  # Optional; keep 1 if your provider is not thread-safe.
     ),
 )
 ```
@@ -160,17 +158,17 @@ TrueSkill prior. Partial score metadata and boolean score values fail fast.
 
 For small candidate sets, `target_rank` is clipped to the number of documents.
 `max_adaptive_reranker_calls` limits only the adaptive refinement phase; the
-optional initial pass is counted separately in result metadata.
-`batch_parallelism` parallelizes independent batches within the same AcuRank
-iteration, while posterior updates are still applied in deterministic batch
-order.
+optional initial pass is counted separately in result metadata. On
+`AsyncAcuRankStrategy`, `batch_parallelism` runs independent batches within the
+same iteration concurrently, while posterior updates are still applied in
+deterministic batch order.
 
-> **Note**: If `strategy` is not provided, it defaults to `ListwiseStrategy(algorithm="rankgpt_sliding_window")`. Pairwise PRP, Setwise, TourRank-r, and AcuRank can use more LLM calls than basic listwise reranking, so check call estimates before live benchmarks.
+> **Note**: If `strategy` is not provided, it defaults to `ListwiseStrategy()` (RankGPT sliding window). Pairwise PRP, Setwise, TourRank-r, and AcuRank can use more LLM calls than basic listwise reranking, so check call estimates before live benchmarks.
 
 ## Custom Strategies
 
 Custom reranking methods should be implemented as new strategy classes instead
-of adding new string values to `ListwiseStrategy.algorithm`. A strategy receives
+of patching the built-in strategy classes. A strategy receives
 the normalized `Document` objects, a model client, and optional `top_k`, then
 returns `RerankResult` objects.
 
@@ -258,10 +256,6 @@ reranker = AzureOpenAIReranker(
     strategy=PairwiseStrategy(passes=3),
 )
 ```
-
-`OpenAIProvider`, `AnthropicProvider`, and `GeminiProvider` are reserved public
-stubs for future SDK-backed implementations. Calling them fails fast with
-`RerankProviderError`.
 
 ## Async Support
 
@@ -527,6 +521,26 @@ Runnable examples live in the `examples/` directory.
 - [tourrank.py](https://github.com/pko89403/ranksmith/blob/main/examples/tourrank.py): TourRank-r with a fake provider
 - [acurank.py](https://github.com/pko89403/ranksmith/blob/main/examples/acurank.py): AcuRank with first-stage score priors
 - [custom_strategy.py](https://github.com/pko89403/ranksmith/blob/main/examples/custom_strategy.py): custom strategy contracts
+
+## Claude Code Advisor
+
+This repo ships a [Claude Code](https://code.claude.com/docs) plugin,
+`ranksmith-advisor`, that helps you choose a reranking strategy for your use
+case and returns working, CI-verified snippets. It encodes ranksmith-specific
+guardrails, so the suggested code follows the library's real contracts (Azure
+is the only bundled provider, and `confidence` is not a reranker).
+
+Use it from Claude Code:
+
+```bash
+/plugin marketplace add pko89403/ranksmith
+/plugin install ranksmith-advisor@ranksmith
+```
+
+Repo contributors get it automatically: the project-shared
+`.claude/settings.json` registers the local marketplace and enables the plugin,
+so no manual install is needed. The plugin content lives under
+`skills/ranksmith-advisor/` and is excluded from the PyPI distribution.
 
 ## Benchmarking
 

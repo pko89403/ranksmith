@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from ranksmith.confidence._features import (
+from ranksmith.confidence.features import (
     FEATURE_DIM,
     FEATURE_DTYPE,
     FEATURE_SCHEMA_VERSION,

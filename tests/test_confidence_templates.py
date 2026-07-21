@@ -10,7 +10,7 @@ from ranksmith.confidence import (
     QueryContextAnswerabilityConfidenceInput,
     TaskType,
 )
-from ranksmith.confidence._templates import (
+from ranksmith.confidence.templates import (
     format_confidence_input,
 )
 
