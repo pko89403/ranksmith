@@ -4,7 +4,7 @@ import json
 from dataclasses import dataclass
 
 from ranksmith.errors import RerankParseError, RerankProviderError
-from ranksmith.integrations._validation import validate_no_answer_value
+from ranksmith.integrations.validation import validate_no_answer_value
 from ranksmith.model import ModelMessage, ModelProvider, ModelRequest
 
 

@@ -7,22 +7,22 @@ from typing import Any
 
 import pytest
 
-from ranksmith.confidence_generation._errors import (
+from ranksmith.confidence_generation.errors import (
     ConfidenceGenerationInputError,
     ConfidenceGenerationParseError,
 )
-from ranksmith.confidence_generation._io import (
+from ranksmith.confidence_generation.io import (
     load_completed_ids,
     load_query_answerability_generation_samples,
     load_query_context_answerability_generation_samples,
 )
-from ranksmith.confidence_generation._prompts import (
+from ranksmith.confidence_generation.prompts import (
     QUERY_ANSWERABILITY_SYSTEM_PROMPT,
     QUERY_CONTEXT_ANSWERABILITY_SYSTEM_PROMPT,
     build_query_answerability_prompt,
     build_query_context_answerability_prompt,
 )
-from ranksmith.confidence_generation._types import (
+from ranksmith.confidence_generation.types import (
     QueryAnswerabilityGenerationSample,
     QueryContextAnswerabilityGenerationSample,
 )

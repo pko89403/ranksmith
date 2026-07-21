@@ -11,8 +11,8 @@ from ranksmith.confidence import StructuralConfidenceEstimator
 from ranksmith.errors import RerankInputError
 from ranksmith.types import Document, RerankResult
 
-from ._common import validate_documents_max_chars, validate_top_k
-from ._confidence_gain import (
+from .common import validate_documents_max_chars, validate_top_k
+from .confidence_gain import (
     AnswerGenerator,
     ConfidenceEstimator,
     _call_answer_query,

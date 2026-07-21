@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 
 from ranksmith.confidence_training import ConfidenceDatasetError
-from ranksmith.confidence_training._dataset_report import build_dataset_report
+from ranksmith.confidence_training.dataset_report import build_dataset_report
 
 REPORT_SCRIPT_PATH = Path("scripts/report_confidence_dataset.py")
 

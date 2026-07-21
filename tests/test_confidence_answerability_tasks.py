@@ -67,7 +67,7 @@ class FakeScorer:
 @pytest.fixture(autouse=True)
 def fake_structural_features(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "ranksmith.confidence._structural.extract_structural_features",
+        "ranksmith.confidence.structural.extract_structural_features",
         lambda hidden_states, mask, *, max_length: [0.0] * 70,
     )
 

@@ -4,8 +4,8 @@ import os
 from dataclasses import dataclass, field
 
 from ranksmith.errors import RerankInputError
-from ranksmith.integrations._answer_generator import ProviderAnswerGenerator
-from ranksmith.integrations._validation import validate_no_answer_value
+from ranksmith.integrations.answer_generator import ProviderAnswerGenerator
+from ranksmith.integrations.validation import validate_no_answer_value
 from ranksmith.model import ModelProvider
 from ranksmith.providers import AzureAOAIProvider
 

@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from ranksmith.confidence import TaskType  # noqa: E402
-from ranksmith.confidence_training._dataset_report import (  # noqa: E402
+from ranksmith.confidence_training.dataset_report import (  # noqa: E402
     build_dataset_report,
 )
 

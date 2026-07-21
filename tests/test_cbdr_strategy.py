@@ -16,7 +16,7 @@ from ranksmith.confidence import (
     StructuralConfidenceResult,
     TaskType,
 )
-from ranksmith.confidence._scorer import ARTIFACT_SCHEMA_VERSION
+from ranksmith.confidence.scorer import ARTIFACT_SCHEMA_VERSION
 from ranksmith.errors import (
     DocumentTooLongError,
     RerankInputError,
@@ -162,7 +162,7 @@ def _artifact_strategy(
         return ArtifactEncoder(max_length=cast(int, kwargs["max_length"]))
 
     monkeypatch.setattr(
-        "ranksmith.confidence._structural.FrozenAutoEncoder.from_pretrained",
+        "ranksmith.confidence.structural.FrozenAutoEncoder.from_pretrained",
         fake_from_pretrained,
     )
 
