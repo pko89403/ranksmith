@@ -9,9 +9,9 @@ from ranksmith.confidence_training import (
     ConfidenceDatasetError,
     ConfidenceTrainingConfig,
 )
-from ranksmith.confidence_training._dataset import load_canonical_dataset
-from ranksmith.confidence_training._features import extract_feature_rows
-from ranksmith.confidence_training._types import CanonicalConfidenceSample
+from ranksmith.confidence_training.dataset import load_canonical_dataset
+from ranksmith.confidence_training.features import extract_feature_rows
+from ranksmith.confidence_training.types import CanonicalConfidenceSample
 
 
 class RecordingEncoder:
@@ -147,7 +147,7 @@ def test_extract_feature_rows_formats_answerability_samples(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "ranksmith.confidence_training._features.extract_structural_features",
+        "ranksmith.confidence_training.features.extract_structural_features",
         lambda hidden_states, attention_mask, *, max_length: [0.0] * 70,
     )
     encoder = RecordingEncoder()

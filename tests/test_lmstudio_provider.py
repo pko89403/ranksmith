@@ -168,7 +168,7 @@ def test_lmstudio_provider_uses_lmstudio_model_env_fallback(
 def test_lmstudio_provider_constructs_client_from_env_fallbacks(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import ranksmith.integrations._lmstudio_provider as lmstudio_provider
+    import ranksmith.integrations.lmstudio_provider as lmstudio_provider
     from ranksmith.integrations import LMStudioModelProvider
 
     RecordingOpenAI.instances = []
@@ -191,7 +191,7 @@ def test_lmstudio_provider_constructs_client_from_env_fallbacks(
 def test_lmstudio_provider_constructs_client_from_default_fallbacks(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import ranksmith.integrations._lmstudio_provider as lmstudio_provider
+    import ranksmith.integrations.lmstudio_provider as lmstudio_provider
     from ranksmith.integrations import LMStudioModelProvider
 
     RecordingOpenAI.instances = []

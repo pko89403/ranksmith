@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from ranksmith.confidence import TaskType  # noqa: E402
-from ranksmith.confidence._encoder import FrozenAutoEncoder  # noqa: E402
+from ranksmith.confidence.encoder import FrozenAutoEncoder  # noqa: E402
 from ranksmith.confidence_generation import (  # noqa: E402
     ConfidenceGenerationResult,
     QueryAnswerabilityGenerationConfig,
@@ -26,33 +26,33 @@ from ranksmith.confidence_training import (  # noqa: E402
     ConfidenceTrainingConfig,
     ConfidenceTrainingResult,
 )
-from ranksmith.confidence_training._artifact import (  # noqa: E402
+from ranksmith.confidence_training.artifact import (  # noqa: E402
     export_scorer_artifact,
     write_metadata_json,
 )
-from ranksmith.confidence_training._dataset import load_canonical_dataset  # noqa: E402
-from ranksmith.confidence_training._dataset_report import (  # noqa: E402
+from ranksmith.confidence_training.dataset import load_canonical_dataset  # noqa: E402
+from ranksmith.confidence_training.dataset_report import (  # noqa: E402
     build_dataset_report,
 )
-from ranksmith.confidence_training._features import extract_feature_rows  # noqa: E402
-from ranksmith.confidence_training._manifest import (  # noqa: E402
+from ranksmith.confidence_training.features import extract_feature_rows  # noqa: E402
+from ranksmith.confidence_training.manifest import (  # noqa: E402
     build_dataset_manifest,
     build_split_manifest,
     json_hash,
     training_config_hash,
 )
-from ranksmith.confidence_training._pipeline import (  # noqa: E402
+from ranksmith.confidence_training.pipeline import (  # noqa: E402
     _feature_row_json,
     _write_model,
     _write_report_markdown,
 )
-from ranksmith.confidence_training._report import generate_training_report  # noqa: E402
-from ranksmith.confidence_training._split import split_dataset  # noqa: E402
-from ranksmith.confidence_training._train import (  # noqa: E402
+from ranksmith.confidence_training.report import generate_training_report  # noqa: E402
+from ranksmith.confidence_training.split import split_dataset  # noqa: E402
+from ranksmith.confidence_training.train import (  # noqa: E402
     calibrate_classifier,
     train_lightgbm_classifier,
 )
-from ranksmith.confidence_training._types import ConfidenceFeatureRow  # noqa: E402
+from ranksmith.confidence_training.types import ConfidenceFeatureRow  # noqa: E402
 from ranksmith.integrations import (  # noqa: E402
     LMStudioModelProvider,
     ProviderAnswerGenerator,

@@ -18,7 +18,7 @@ from ranksmith.errors import (
 )
 from ranksmith.types import Document, RerankResult
 
-from ._common import validate_documents_max_chars, validate_top_k
+from .common import validate_documents_max_chars, validate_top_k
 
 ConfidenceGainAlgorithm = Literal["confidence_gain"]
 QUERY_ANSWERABILITY_TASK = "query_answerability_confidence"

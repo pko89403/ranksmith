@@ -4,8 +4,8 @@ from pathlib import Path
 from typing import Any
 
 from ranksmith.confidence import TaskType
-from ranksmith.confidence_training._dataset import load_canonical_dataset
-from ranksmith.confidence_training._types import CanonicalConfidenceSample
+from ranksmith.confidence_training.dataset import load_canonical_dataset
+from ranksmith.confidence_training.types import CanonicalConfidenceSample
 
 MISSING_SOURCE_KEY = "__MISSING__"
 
