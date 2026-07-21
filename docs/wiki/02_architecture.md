@@ -34,6 +34,8 @@ src/ranksmith/
   integrations/
     __init__.py            # public runtime helper exports
     _azure_answer_generator.py
+    _answer_generator.py
+    _lmstudio_provider.py
   _providers.py            # backward-compatible re-export layer
 ```
 
@@ -53,12 +55,14 @@ Strategy나 Algorithm을 추가하지 않고, 기존 Strategy가 필요로 하�
 
 현재 범위:
 - `AzureAnswerGenerator`: Azure OpenAI JSON answer generation helper
+- `ProviderAnswerGenerator`: `ModelProvider` 기반 sync JSON answer generation helper
+- `LMStudioModelProvider`: LM Studio OpenAI-compatible runtime helper
 - confidence generation과 같은 no-answer sentinel prompt contract
 - root import가 아닌 `ranksmith.integrations` submodule export
 
 제외:
 - async answer generation
-- non-Azure provider implementation
+- non-Azure hosted provider implementation
 - scorer training
 
 ## ModelClient
@@ -144,11 +148,12 @@ true pre-retrieval skip, retriever integration, async CBDR은 구현하지 않�
 - LightGBM binary classifier training
 - validation split 기반 sigmoid calibration
 - Phase 1 `ScorerMetadata` compatible artifact export
+- CBDR용 answerability task CLI wrapper
+- source/group balance dataset report helper
 
 제외:
 - 외부 benchmark/source adapter
 - label 생성
-- CLI
 - reranking Strategy 또는 Algorithm
 
 `ranksmith.confidence_generation`은 closed model output을 생성해 confidence training canonical JSONL로 저장하는 utility layer다.
@@ -160,11 +165,11 @@ true pre-retrieval skip, retriever integration, async CBDR은 구현하지 않�
 - query+context answerability raw JSONL -> `query_context_answerability_confidence` canonical JSONL
 - sync closed model call
 - resume 가능한 JSONL output
+- CBDR용 answerability task CLI wrapper
 
 제외:
 - async generation
 - dataset adapter
-- CLI
 - runtime reranking Strategy 또는 Algorithm
 
 ## LLM 응답 계약

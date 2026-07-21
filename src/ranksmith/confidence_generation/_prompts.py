@@ -20,13 +20,15 @@ RELEVANCE_SYSTEM_PROMPT = (
 )
 
 QUERY_ANSWERABILITY_SYSTEM_PROMPT = (
-    "You answer questions using your parametric knowledge. "
-    'Return only JSON with an "answer" string.'
+    "You are a strict JSON answer API. "
+    "Answer questions using your parametric knowledge. "
+    "Never reason or explain. Return exactly one JSON object and stop."
 )
 
 QUERY_CONTEXT_ANSWERABILITY_SYSTEM_PROMPT = (
-    "You answer questions using only the provided context. "
-    'Return only JSON with an "answer" string.'
+    "You are a strict JSON answer API. "
+    "Answer questions using only the provided context. "
+    "Never reason or explain. Return exactly one JSON object and stop."
 )
 
 
@@ -75,10 +77,13 @@ def build_query_answerability_prompt(
     )
     return (
         f"Question:\n{sample.query}\n\n"
-        "Return JSON exactly like this shape:\n"
-        '{"answer":"..."}\n\n'
-        "Answer from your parametric knowledge. If you do not know the answer, "
-        f"return {no_answer_contract}."
+        "Return JSON only. Valid examples:\n"
+        '{"answer":"short answer"}\n'
+        f"{no_answer_contract}\n\n"
+        "The answer string must be a short answer only, not an explanation. "
+        "Do not output any other text. "
+        "Answer from your parametric knowledge. If you are not immediately "
+        f"certain, return {no_answer_contract}."
     )
 
 
@@ -95,8 +100,11 @@ def build_query_context_answerability_prompt(
     return (
         f"Question:\n{sample.query}\n\n"
         f"Context:\n{sample.context}\n\n"
-        "Return JSON exactly like this shape:\n"
-        '{"answer":"..."}\n\n'
-        "Use only the context. If the context does not contain the answer, "
+        "Return JSON only. Valid examples:\n"
+        '{"answer":"short answer"}\n'
+        f"{no_answer_contract}\n\n"
+        "The answer string must be a short answer only, not an explanation. "
+        "Do not output any other text. "
+        "Use only the context. If the context does not directly contain the answer, "
         f"return {no_answer_contract}."
     )

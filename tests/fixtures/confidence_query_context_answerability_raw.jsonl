@@ -1,0 +1,2 @@
+{"id":"qc1","query":"Who played Karen?","context":"Nancy Travis played Karen.","gold_answer":"Nancy Travis","source":"fixture","group_id":"tv"}
+{"id":"qc2","query":"What color is the hidden key?","context":"The passage does not mention a key.","gold_answer":"__NO_ANSWER__","source":"fixture","group_id":"missing"}

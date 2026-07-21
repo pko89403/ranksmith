@@ -1,18 +1,24 @@
 from __future__ import annotations
 
-import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
-from ranksmith.errors import RerankInputError, RerankParseError, RerankProviderError
-from ranksmith.model import ModelMessage, ModelProvider, ModelRequest
+from ranksmith.errors import RerankInputError
+from ranksmith.integrations._answer_generator import ProviderAnswerGenerator
+from ranksmith.integrations._validation import validate_no_answer_value
+from ranksmith.model import ModelProvider
 from ranksmith.providers import AzureAOAIProvider
 
 
 @dataclass(frozen=True)
 class AzureAnswerGenerator:
-    provider: ModelProvider
-    no_answer_value: str = "__NO_ANSWER__"
+    provider: ModelProvider = field(init=False)
+    no_answer_value: str = field(init=False, default="__NO_ANSWER__")
+    _generator: ProviderAnswerGenerator = field(
+        init=False,
+        repr=False,
+        compare=False,
+    )
 
     def __init__(
         self,
@@ -25,30 +31,32 @@ class AzureAnswerGenerator:
         provider: ModelProvider | None = None,
         no_answer_value: str = "__NO_ANSWER__",
     ) -> None:
-        _validate_no_answer_value(no_answer_value)
-        object.__setattr__(self, "no_answer_value", no_answer_value)
+        validate_no_answer_value(no_answer_value)
         if provider is not None:
-            object.__setattr__(self, "provider", provider)
-            return
-        if api_key is None:
-            raise RerankInputError("AZURE_OPENAI_API_KEY is required")
-        if azure_endpoint is None:
-            raise RerankInputError("AZURE_OPENAI_ENDPOINT is required")
-        if azure_deployment is None:
-            raise RerankInputError(
-                "AZURE_OPENAI_LLM_DEPLOYMENT or AZURE_OPENAI_DEPLOYMENT is required"
-            )
-        object.__setattr__(
-            self,
-            "provider",
-            AzureAOAIProvider(
+            resolved_provider = provider
+        else:
+            if api_key is None:
+                raise RerankInputError("AZURE_OPENAI_API_KEY is required")
+            if azure_endpoint is None:
+                raise RerankInputError("AZURE_OPENAI_ENDPOINT is required")
+            if azure_deployment is None:
+                raise RerankInputError(
+                    "AZURE_OPENAI_LLM_DEPLOYMENT or AZURE_OPENAI_DEPLOYMENT is required"
+                )
+            resolved_provider = AzureAOAIProvider(
                 api_key=api_key,
                 azure_endpoint=azure_endpoint,
                 azure_deployment=azure_deployment,
                 api_version=api_version,
                 timeout=timeout,
-            ),
+            )
+        resolved_generator = ProviderAnswerGenerator(
+            provider=resolved_provider,
+            no_answer_value=no_answer_value,
         )
+        object.__setattr__(self, "provider", resolved_provider)
+        object.__setattr__(self, "no_answer_value", no_answer_value)
+        object.__setattr__(self, "_generator", resolved_generator)
 
     @classmethod
     def from_env(
@@ -75,79 +83,10 @@ class AzureAnswerGenerator:
         )
 
     def answer_query(self, query: str) -> str:
-        return self._complete(
-            system=(
-                "You answer questions for confidence estimation. Return only JSON "
-                'with an "answer" string.'
-            ),
-            user=(
-                f"Question:\n{query}\n\n"
-                "Return JSON exactly like this shape:\n"
-                '{"answer":"..."}\n\n'
-                "Answer from your parametric knowledge. If you do not know the "
-                f"answer, return {_answer_contract(self.no_answer_value)}."
-            ),
-        )
+        return self._generator.answer_query(query)
 
     def answer_with_context(self, query: str, context: str) -> str:
-        return self._complete(
-            system=(
-                "You answer questions using the provided context for confidence "
-                'estimation. Return only JSON with an "answer" string.'
-            ),
-            user=(
-                f"Question:\n{query}\n\n"
-                f"Context:\n{context}\n\n"
-                "Return JSON exactly like this shape:\n"
-                '{"answer":"..."}\n\n'
-                "Use only the context. If the context does not contain the answer, "
-                f"return {_answer_contract(self.no_answer_value)}."
-            ),
-        )
-
-    def _complete(self, *, system: str, user: str) -> str:
-        try:
-            response = self.provider.complete(
-                ModelRequest(
-                    messages=[
-                        ModelMessage(role="system", content=system),
-                        ModelMessage(role="user", content=user),
-                    ],
-                    response_format="json_object",
-                    temperature=0,
-                )
-            )
-        except RerankProviderError:
-            raise
-        except Exception as exc:
-            raise RerankProviderError(str(exc)) from exc
-        return _parse_answer(response.content)
-
-
-def _parse_answer(content: str) -> str:
-    try:
-        parsed = json.loads(content)
-    except json.JSONDecodeError as exc:
-        raise RerankParseError("answer response must be valid JSON") from exc
-    if not isinstance(parsed, dict):
-        raise RerankParseError("answer response must be a JSON object")
-    answer = parsed.get("answer")
-    if not isinstance(answer, str) or answer.strip() == "":
-        raise RerankParseError('answer response must contain a non-empty "answer"')
-    return answer
-
-
-def _answer_contract(no_answer_value: str) -> str:
-    return json.dumps(
-        {"answer": no_answer_value},
-        ensure_ascii=False,
-        separators=(",", ":"),
-    )
-
-
-def _validate_no_answer_value(value: object) -> None:
-    if not isinstance(value, str) or value.strip() == "":
-        raise ValueError("no_answer_value must be a non-empty string")
+        return self._generator.answer_with_context(query, context)
 
 
 def _required_env(name: str, *, fallback: str | None = None) -> str:
