@@ -424,7 +424,7 @@ top-5만 출력할 수 있습니다. Live LLM 호출에는 Azure OpenAI deployme
 중간 단계에서 실패할 수 있으므로 정확한 provider-call telemetry는 아닙니다.
 커밋된 근거 artifact는 다음과 같습니다.
 
-- [`benchmark-results/live/askubuntu-bm25-top20-default-live.v3.merged.json`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/live/askubuntu-bm25-top20-default-live.v3.merged.json)
+- [`benchmark-results/live/askubuntu-bm25-top20-default-live.v4.merged.json`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/live/askubuntu-bm25-top20-default-live.v4.merged.json)
 - [`benchmark-results/pyserini/askubuntu-bm25-top20.trec`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/pyserini/askubuntu-bm25-top20.trec)
 
 | Method | NDCG@5 | MRR@5 | Recall@5 | Valid rows | Invalid rate | Nominal LLM calls/query | LLM row attempts/query incl. retries |
@@ -436,13 +436,25 @@ top-5만 출력할 수 있습니다. Live LLM 호출에는 Azure OpenAI deployme
 | `tourrank_r2` | 0.4236 | 0.5725 | 0.3601 | 361/361 | 0.000 | 8 | 1.03 |
 | `setwise_hs_s10` | 0.3653 | 0.5059 | 0.3005 | 361/361 | 0.000 | 12 | 1.00 |
 | `prp_sliding_p1` | 0.4065 | 0.5818 | 0.3277 | 361/361 | 0.000 | 38 | 1.00 |
+| `answer_confidence` *(scorer: SQuAD v1.1, 도메인 밖)* | 0.1722 | 0.2862 | 0.1435 | 361/361 | 0.000 | 20 | 1.00 |
 
 `tourrank_r2`는 NDCG@5와 Recall@5가 가장 높았고, `prp_sliding_p1`은 MRR@5가
 가장 높았습니다. `single_call_listwise@20`은 one-shot listwise baseline입니다.
 `rankgpt_sw_w5`는 이 top-20 설정의 실제 sliding-window listwise baseline입니다.
 `acurank_k5_b1`은 AcuRank uncertainty boundary를 `@5` 평가 cutoff와 맞춘
 설정입니다. `setwise_hs_s10`은 20개 후보에서 평가 대상 top-5만 추출하는 실용적인
-Setwise Heapsort 설정입니다.
+Setwise Heapsort 설정입니다. `answer_confidence`는 SQuAD v1.1로 학습한
+scorer를 사용하며(AskUbuntu 기준 도메인 밖, [러닝북](docs/benchmarks/answer_confidence_askubuntu.md)
+참고) 이 벤치마크에서는 BM25 baseline보다 낮은 점수를 기록했습니다. 이기도록
+튜닝하지 않고 측정된 그대로 보고합니다.
+
+왜 이기게 튜닝하지 않는가: 스코어러를 이 벤치마크 분포에 맞추면 알고리즘의
+일반적인 품질이 아니라 AskUbuntu에 대한 과적합을 측정하게 됩니다.
+`scripts/train_answer_confidence.py`가 test roc_auc < 0.6이면 cherry-pick된
+체크포인트를 통과시키지 않고 fast-fail하는 것도 같은 이유입니다. 더 강한
+domain-in 스코어러를 만드는 건 정당한 후속 작업이지만([스펙](docs/specs/spec_confidence_aware_reranking.md)의
+"남은 작업" 참고), 그건 더 나은 artifact를 학습해서 같은 커맨드를 다시
+돌리는 것이지 보고 방식을 바꾸는 게 아닙니다.
 
 재시도 후에도 `single_call_listwise@20` 2개 row와 `acurank_k5_b1` 5개 row가
 invalid로 남았습니다. 이 row는 보정하지 않고 invalid rate에 반영했습니다.
