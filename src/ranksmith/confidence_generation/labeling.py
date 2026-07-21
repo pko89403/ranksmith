@@ -5,14 +5,22 @@ import re
 from typing import Literal
 
 from ranksmith.confidence_generation.errors import ConfidenceGenerationInputError
-from ranksmith.model import NO_ANSWER_VALUE
 
 JudgmentValue = Literal["relevant", "not_relevant"]
 
 
-def normalized_exact_match(answer: str, gold_answer: str | list[str]) -> bool:
+def normalized_exact_match(
+    answer: str,
+    gold_answer: str | list[str],
+    *,
+    no_answer_value: str = "__NO_ANSWER__",
+) -> bool:
+    if not isinstance(no_answer_value, str) or not no_answer_value.strip():
+        raise ConfidenceGenerationInputError(
+            "no_answer_value must be a non-empty string"
+        )
     normalized_answer = _normalize(answer)
-    if normalized_answer == _normalize(NO_ANSWER_VALUE):
+    if normalized_answer == _normalize(no_answer_value):
         return False
 
     candidates = [gold_answer] if isinstance(gold_answer, str) else gold_answer
