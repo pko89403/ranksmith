@@ -4,6 +4,7 @@ import argparse
 import importlib.util
 import sys
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -94,6 +95,37 @@ def test_compare_optional_prp_sliding_p1_is_preserved() -> None:
     cases: list[BenchmarkCase] = []
 
     assert compare_reranking._selected_algorithms(args, cases) == ("prp_sliding_p1",)
+
+
+def test_compare_explicit_cbdr_is_preserved() -> None:
+    args = argparse.Namespace(algorithm=["cbdr"])
+    cases: list[BenchmarkCase] = []
+
+    assert compare_reranking._selected_algorithms(args, cases) == ("cbdr",)
+
+
+def test_compare_estimates_cbdr_provider_calls_as_upper_bound() -> None:
+    assert (
+        compare_reranking._estimate_provider_calls(
+            20,
+            "cbdr",
+            window_size=20,
+            stride=10,
+            top_k=5,
+        )
+        == 21
+    )
+
+
+def test_compare_describes_cbdr_estimates_as_upper_bounds() -> None:
+    assert (
+        compare_reranking._call_estimate_message(
+            needs_live=True,
+            algorithms=("cbdr",),
+            call_estimates={"cbdr": 21},
+        )
+        == "Live Azure comparison upper-bounds provider calls at 21: {'cbdr': 21}"
+    )
 
 
 def test_compare_explicit_tourrank_is_preserved_for_non_100_candidate_cases() -> None:
@@ -242,6 +274,16 @@ def test_compare_report_records_method_settings() -> None:
         passes=10,
         tourrank_rounds=2,
         set_size=3,
+        cbdr_base_artifact=None,
+        cbdr_context_artifact=None,
+        cbdr_skip_threshold=0.8,
+        cbdr_device="cpu",
+        cbdr_cache_dir=None,
+        cbdr_local_files_only=False,
+        cbdr_hf_token_env=None,
+        cbdr_max_length=None,
+        cbdr_max_document_chars=4000,
+        cbdr_allow_truncation=False,
         query_id=[],
         timeout=None,
         checkpoint_output=None,
@@ -264,6 +306,167 @@ def test_compare_report_records_method_settings() -> None:
             "top_k_early_stop": True,
         }
     }
+
+
+def test_compare_cbdr_method_settings_record_runtime_options() -> None:
+    args = argparse.Namespace(
+        candidate_count=20,
+        cbdr_base_artifact=Path("base.joblib"),
+        cbdr_context_artifact=Path("context.joblib"),
+        cbdr_answer_provider="lmstudio",
+        cbdr_skip_threshold=0.7,
+        cbdr_device="cpu",
+        cbdr_cache_dir=Path(".hf-cache"),
+        cbdr_local_files_only=True,
+        cbdr_hf_token_env="HF_TOKEN",
+        cbdr_max_length=128,
+        cbdr_max_document_chars=1234,
+        cbdr_allow_truncation=True,
+        lmstudio_base_url="http://localhost:1234/v1",
+        lmstudio_model="google/gemma-4-12b",
+        lmstudio_api_key="local-key",
+        lmstudio_max_tokens=64,
+    )
+
+    assert compare_reranking._method_setting(args, "cbdr") == {
+        "candidate_count": 20,
+        "base_artifact": "base.joblib",
+        "context_artifact": "context.joblib",
+        "answer_provider": "lmstudio",
+        "skip_threshold": 0.7,
+        "device": "cpu",
+        "cache_dir": ".hf-cache",
+        "local_files_only": True,
+        "hf_token_env": "HF_TOKEN",
+        "max_length": 128,
+        "max_document_chars": 1234,
+        "allow_truncation": True,
+        "lmstudio_base_url": "http://localhost:1234/v1",
+        "lmstudio_model": "google/gemma-4-12b",
+        "lmstudio_api_key": "configured",
+        "lmstudio_max_tokens": 64,
+        "provider_call_estimate": "upper_bound",
+        "top_k_early_stop": False,
+    }
+
+
+def test_compare_cbdr_method_settings_record_lmstudio_env_defaults(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    args = argparse.Namespace(
+        candidate_count=20,
+        cbdr_base_artifact=Path("base.joblib"),
+        cbdr_context_artifact=Path("context.joblib"),
+        cbdr_answer_provider="lmstudio",
+        cbdr_skip_threshold=0.7,
+        cbdr_device="cpu",
+        cbdr_cache_dir=None,
+        cbdr_local_files_only=False,
+        cbdr_hf_token_env=None,
+        cbdr_max_length=128,
+        cbdr_max_document_chars=1234,
+        cbdr_allow_truncation=False,
+        lmstudio_base_url=None,
+        lmstudio_model=None,
+        lmstudio_api_key=None,
+        lmstudio_max_tokens=64,
+    )
+    monkeypatch.setenv("LMSTUDIO_MODEL", "env-model")
+    monkeypatch.setenv("LMSTUDIO_API_KEY", "env-key")
+    monkeypatch.delenv("LMSTUDIO_BASE_URL", raising=False)
+
+    settings = compare_reranking._method_setting(args, "cbdr")
+
+    assert settings["lmstudio_base_url"] == "http://localhost:1234/v1"
+    assert settings["lmstudio_model"] == "env-model"
+    assert settings["lmstudio_api_key"] == "configured"
+
+
+def test_compare_cbdr_requires_artifacts() -> None:
+    args = argparse.Namespace(
+        algorithm="cbdr",
+        cbdr_base_artifact=None,
+        cbdr_context_artifact=Path("context.joblib"),
+        cbdr_skip_threshold=0.8,
+        cbdr_max_length=None,
+        cbdr_max_document_chars=4000,
+        window_size=20,
+        stride=10,
+        passes=10,
+        tourrank_rounds=2,
+        set_size=3,
+        top_k=5,
+        candidate_count=20,
+        max_cases=None,
+        timeout=None,
+        checkpoint_output=None,
+        dataset="fixture",
+        cache_dir=None,
+        dataset_name=None,
+        candidates=None,
+        candidate_strategy="candidate_file",
+    )
+
+    with pytest.raises(SystemExit, match="--cbdr-base-artifact"):
+        compare_reranking._validate_args(args)
+
+
+def test_compare_cbdr_requires_context_artifact() -> None:
+    args = argparse.Namespace(
+        algorithm="cbdr",
+        cbdr_base_artifact=Path("base.joblib"),
+        cbdr_context_artifact=None,
+        cbdr_skip_threshold=0.8,
+        cbdr_max_length=None,
+        cbdr_max_document_chars=4000,
+        window_size=20,
+        stride=10,
+        passes=10,
+        tourrank_rounds=2,
+        set_size=3,
+        top_k=5,
+        candidate_count=20,
+        max_cases=None,
+        timeout=None,
+        checkpoint_output=None,
+        dataset="fixture",
+        cache_dir=None,
+        dataset_name=None,
+        candidates=None,
+        candidate_strategy="candidate_file",
+    )
+
+    with pytest.raises(SystemExit, match="--cbdr-context-artifact"):
+        compare_reranking._validate_args(args)
+
+
+def test_compare_rejects_non_positive_lmstudio_max_tokens() -> None:
+    args = argparse.Namespace(
+        algorithm="original_bm25",
+        cbdr_skip_threshold=0.8,
+        cbdr_max_length=None,
+        cbdr_max_document_chars=4000,
+        lmstudio_max_tokens=0,
+        window_size=20,
+        stride=10,
+        passes=10,
+        tourrank_rounds=2,
+        set_size=3,
+        top_k=5,
+        candidate_count=20,
+        max_cases=None,
+        timeout=None,
+        checkpoint_output=None,
+        output=None,
+        dataset="fixture",
+        cache_dir=None,
+        dataset_name=None,
+        candidates=None,
+        candidate_strategy="candidate_file",
+    )
+
+    with pytest.raises(SystemExit, match="--lmstudio-max-tokens"):
+        compare_reranking._validate_args(args)
 
 
 def test_compare_setwise_heapsort_uses_set_size(
@@ -312,7 +515,7 @@ def test_compare_setwise_heapsort_uses_set_size(
         set_size=5,
     )
 
-    assert captured["strategy"].set_size == 5
+    assert cast(Any, captured["strategy"]).set_size == 5
 
 
 def test_compare_setwise_hs_s10_uses_fixed_set_size(
@@ -361,7 +564,7 @@ def test_compare_setwise_hs_s10_uses_fixed_set_size(
         set_size=5,
     )
 
-    assert captured["strategy"].set_size == 10
+    assert cast(Any, captured["strategy"]).set_size == 10
 
 
 def test_compare_setwise_heapsort_forwards_top_k(
@@ -462,7 +665,7 @@ def test_compare_acurank_live_strategy_does_not_force_estimated_budget(
         tourrank_rounds=2,
     )
 
-    assert captured["strategy"].max_adaptive_reranker_calls == 4
+    assert cast(Any, captured["strategy"]).max_adaptive_reranker_calls == 4
 
 
 def test_compare_acurank_b1_uses_budget_one(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -508,7 +711,7 @@ def test_compare_acurank_b1_uses_budget_one(monkeypatch: pytest.MonkeyPatch) -> 
         tourrank_rounds=2,
     )
 
-    assert captured["strategy"].max_adaptive_reranker_calls == 1
+    assert cast(Any, captured["strategy"]).max_adaptive_reranker_calls == 1
 
 
 def test_compare_acurank_k5_b1_uses_target_rank_five(
@@ -556,8 +759,8 @@ def test_compare_acurank_k5_b1_uses_target_rank_five(
         tourrank_rounds=2,
     )
 
-    assert captured["strategy"].target_rank == 5
-    assert captured["strategy"].max_adaptive_reranker_calls == 1
+    assert cast(Any, captured["strategy"]).target_rank == 5
+    assert cast(Any, captured["strategy"]).max_adaptive_reranker_calls == 1
 
 
 def test_compare_rankgpt_sw_w5_uses_small_sliding_window(
@@ -605,8 +808,8 @@ def test_compare_rankgpt_sw_w5_uses_small_sliding_window(
         tourrank_rounds=2,
     )
 
-    assert captured["strategy"].window_size == 5
-    assert captured["strategy"].stride == 2
+    assert cast(Any, captured["strategy"]).window_size == 5
+    assert cast(Any, captured["strategy"]).stride == 2
 
 
 def test_compare_original_bm25_returns_candidate_order() -> None:
@@ -658,6 +861,52 @@ def test_compare_original_bm25_only_does_not_require_live_flag(
     assert output_path.exists()
 
 
+def test_compare_cbdr_requires_live_flag(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "compare_reranking.py",
+            "--algorithm",
+            "cbdr",
+            "--cbdr-base-artifact",
+            str(tmp_path / "base.joblib"),
+            "--cbdr-context-artifact",
+            str(tmp_path / "context.joblib"),
+        ],
+    )
+
+    with pytest.raises(SystemExit, match="--allow-live"):
+        compare_reranking.main()
+
+
+def test_compare_cbdr_lmstudio_requires_live_flag(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "compare_reranking.py",
+            "--algorithm",
+            "cbdr",
+            "--cbdr-base-artifact",
+            str(tmp_path / "base.joblib"),
+            "--cbdr-context-artifact",
+            str(tmp_path / "context.joblib"),
+            "--cbdr-answer-provider",
+            "lmstudio",
+        ],
+    )
+
+    with pytest.raises(SystemExit, match="--allow-live"):
+        compare_reranking.main()
+
+
 def test_compare_cli_defaults_match_top20_evaluate_at_5(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -670,6 +919,366 @@ def test_compare_cli_defaults_match_top20_evaluate_at_5(
     assert args.stride == 10
     assert args.set_size == 3
     assert args.top_k == 5
+    assert args.cbdr_skip_threshold == 0.8
+    assert args.cbdr_device == "cpu"
+    assert args.cbdr_max_document_chars == 4000
+    assert args.cbdr_answer_provider == "azure"
+    assert args.lmstudio_base_url is None
+    assert args.lmstudio_model is None
+    assert args.lmstudio_api_key is None
+    assert args.lmstudio_max_tokens == 128
+
+
+def test_compare_cbdr_rank_case_builds_strategy_from_artifacts(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    captured: dict[str, object] = {}
+    base_estimator = object()
+    context_estimator = object()
+
+    def fake_cached_cbdr_estimators(**kwargs: object) -> tuple[object, object]:
+        captured["estimator_kwargs"] = kwargs
+        return base_estimator, context_estimator
+
+    class FakeCBDRStrategy:
+        def __init__(self, **kwargs: object) -> None:
+            captured["strategy_kwargs"] = kwargs
+
+        def rerank(
+            self,
+            *,
+            query: str,
+            documents: list[object],
+            model_client: object | None = None,
+            top_k: int | None = None,
+        ) -> list[object]:
+            del query, model_client, top_k
+            return [
+                type("Result", (), {"document": document})() for document in documents
+            ]
+
+    class FakeAnswerGenerator:
+        @classmethod
+        def from_env(cls, **kwargs: object) -> object:
+            captured["generator_kwargs"] = kwargs
+            generator = cls()
+            captured["answer_generator"] = generator
+            return generator
+
+    class FakeReranker:
+        def __init__(self, **kwargs: object) -> None:
+            del kwargs
+            raise AssertionError("CBDR benchmark must not create AzureOpenAIReranker")
+
+        def rerank(
+            self,
+            query: str,
+            documents: list[object],
+            *,
+            top_k: int | None = None,
+        ) -> list[object]:
+            del query, top_k
+            return [
+                type("Result", (), {"document": document})() for document in documents
+            ]
+
+    monkeypatch.setenv("AZURE_OPENAI_API_KEY", "key")
+    monkeypatch.setenv("AZURE_OPENAI_ENDPOINT", "https://example.openai.azure.com")
+    monkeypatch.setenv("AZURE_OPENAI_DEPLOYMENT", "deployment")
+    monkeypatch.setenv("HF_TOKEN", "hf-token")
+    monkeypatch.setattr("ranksmith.AzureOpenAIReranker", FakeReranker)
+    monkeypatch.setattr("ranksmith.strategies.CBDRStrategy", FakeCBDRStrategy)
+    monkeypatch.setattr(
+        compare_reranking,
+        "_cached_cbdr_estimators",
+        fake_cached_cbdr_estimators,
+    )
+    monkeypatch.setattr(
+        "ranksmith.integrations.AzureAnswerGenerator",
+        FakeAnswerGenerator,
+    )
+
+    ranked = compare_reranking._rank_case(
+        case=BenchmarkCase(
+            fixture_id="fixture",
+            dataset="dataset",
+            source="source",
+            license="license",
+            query_id="q1",
+            query="query",
+            documents=tuple(
+                BenchmarkDocument(id=str(index), title="", text="")
+                for index in range(2)
+            ),
+            qrels={},
+        ),
+        algorithm="cbdr",
+        window_size=20,
+        stride=10,
+        passes=10,
+        tourrank_rounds=2,
+        top_k=5,
+        cbdr_base_artifact=tmp_path / "base.joblib",
+        cbdr_context_artifact=tmp_path / "context.joblib",
+        cbdr_skip_threshold=0.7,
+        cbdr_device="cpu",
+        cbdr_cache_dir=tmp_path / "hf",
+        cbdr_local_files_only=True,
+        cbdr_hf_token_env="HF_TOKEN",
+        cbdr_max_length=128,
+        cbdr_max_document_chars=1234,
+        cbdr_allow_truncation=True,
+    )
+
+    assert ranked == ("0", "1")
+    assert captured["generator_kwargs"] == {"timeout": None}
+    assert captured["estimator_kwargs"] == {
+        "base_artifact_path": tmp_path / "base.joblib",
+        "context_artifact_path": tmp_path / "context.joblib",
+        "hf_token": "hf-token",
+        "cache_dir": str(tmp_path / "hf"),
+        "device": "cpu",
+        "local_files_only": True,
+        "max_length": 128,
+        "allow_truncation": True,
+    }
+    assert captured["strategy_kwargs"] == {
+        "base_estimator": base_estimator,
+        "context_estimator": context_estimator,
+        "answer_generator": captured["answer_generator"],
+        "skip_threshold": 0.7,
+        "max_document_chars": 1234,
+    }
+
+
+def test_compare_cbdr_rank_case_rejects_unsupported_answer_provider(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    class FakeAnswerGenerator:
+        @classmethod
+        def from_env(cls, **kwargs: object) -> object:
+            del kwargs
+            raise AssertionError("unsupported provider must not create Azure generator")
+
+    class FakeLMStudioModelProvider:
+        def __init__(self, **kwargs: object) -> None:
+            del kwargs
+            raise AssertionError("unsupported provider must not create LM Studio")
+
+    monkeypatch.setattr(
+        "ranksmith.integrations.AzureAnswerGenerator",
+        FakeAnswerGenerator,
+    )
+    monkeypatch.setattr(
+        "ranksmith.integrations.LMStudioModelProvider",
+        FakeLMStudioModelProvider,
+    )
+
+    with pytest.raises(SystemExit, match="--cbdr-answer-provider"):
+        compare_reranking._rank_case(
+            case=BenchmarkCase(
+                fixture_id="fixture",
+                dataset="dataset",
+                source="source",
+                license="license",
+                query_id="q1",
+                query="query",
+                documents=(BenchmarkDocument(id="d1", title="", text=""),),
+                qrels={"d1": 1},
+            ),
+            algorithm="cbdr",
+            window_size=20,
+            stride=10,
+            passes=10,
+            tourrank_rounds=2,
+            set_size=3,
+            cbdr_base_artifact=tmp_path / "base.joblib",
+            cbdr_context_artifact=tmp_path / "context.joblib",
+            cbdr_answer_provider="bad",
+        )
+
+
+def test_compare_cbdr_rank_case_uses_lmstudio_answer_provider(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeLMStudioModelProvider:
+        def __init__(self, **kwargs: object) -> None:
+            captured["provider_kwargs"] = kwargs
+
+    class FakeProviderAnswerGenerator:
+        def __init__(self, *, provider: object) -> None:
+            captured["provider"] = provider
+            self.no_answer_value = "__NO_ANSWER__"
+
+    base_estimator = object()
+    context_estimator = object()
+
+    def fake_cached_cbdr_estimators(**kwargs: object) -> tuple[object, object]:
+        captured["estimator_kwargs"] = kwargs
+        return base_estimator, context_estimator
+
+    class FakeCBDRStrategy:
+        def __init__(self, **kwargs: object) -> None:
+            captured["strategy_kwargs"] = kwargs
+
+        def rerank(
+            self,
+            *,
+            query: str,
+            documents: list[object],
+            model_client: object | None = None,
+            top_k: int | None = None,
+        ) -> list[object]:
+            del query, model_client, top_k
+            return [
+                type("Result", (), {"document": document})() for document in documents
+            ]
+
+    class FakeAzureAnswerGenerator:
+        @classmethod
+        def from_env(cls, **kwargs: object) -> object:
+            del kwargs
+            raise AssertionError("LM Studio CBDR must not create Azure generator")
+
+    monkeypatch.setattr("ranksmith.strategies.CBDRStrategy", FakeCBDRStrategy)
+    monkeypatch.setattr(
+        compare_reranking,
+        "_cached_cbdr_estimators",
+        fake_cached_cbdr_estimators,
+    )
+    monkeypatch.setattr(
+        "ranksmith.integrations.AzureAnswerGenerator",
+        FakeAzureAnswerGenerator,
+    )
+    monkeypatch.setattr(
+        "ranksmith.integrations.LMStudioModelProvider",
+        FakeLMStudioModelProvider,
+    )
+    monkeypatch.setattr(
+        "ranksmith.integrations.ProviderAnswerGenerator",
+        FakeProviderAnswerGenerator,
+    )
+
+    ranked = compare_reranking._rank_case(
+        case=BenchmarkCase(
+            fixture_id="fixture",
+            dataset="dataset",
+            source="source",
+            license="license",
+            query_id="q1",
+            query="query",
+            documents=(BenchmarkDocument(id="d1", title="", text=""),),
+            qrels={"d1": 1},
+        ),
+        algorithm="cbdr",
+        window_size=20,
+        stride=10,
+        passes=10,
+        tourrank_rounds=2,
+        set_size=3,
+        cbdr_base_artifact=tmp_path / "base.joblib",
+        cbdr_context_artifact=tmp_path / "context.joblib",
+        cbdr_answer_provider="lmstudio",
+        lmstudio_base_url="http://localhost:1234/v1",
+        lmstudio_model="google/gemma-4-12b",
+        lmstudio_api_key="local-key",
+        lmstudio_max_tokens=64,
+        timeout=2.5,
+    )
+
+    assert ranked == ("d1",)
+    assert captured["provider_kwargs"] == {
+        "base_url": "http://localhost:1234/v1",
+        "model": "google/gemma-4-12b",
+        "api_key": "local-key",
+        "timeout": 2.5,
+        "max_tokens": 64,
+    }
+    assert captured["estimator_kwargs"] == {
+        "base_artifact_path": tmp_path / "base.joblib",
+        "context_artifact_path": tmp_path / "context.joblib",
+        "hf_token": None,
+        "cache_dir": None,
+        "device": "cpu",
+        "local_files_only": False,
+        "max_length": None,
+        "allow_truncation": False,
+    }
+    strategy_kwargs = cast(dict[str, object], captured["strategy_kwargs"])
+    answer_generator = strategy_kwargs["answer_generator"]
+    assert strategy_kwargs == {
+        "base_estimator": base_estimator,
+        "context_estimator": context_estimator,
+        "answer_generator": answer_generator,
+        "skip_threshold": 0.8,
+        "max_document_chars": 4000,
+    }
+    assert cast(Any, answer_generator).no_answer_value == "__NO_ANSWER__"
+    assert isinstance(captured["provider"], FakeLMStudioModelProvider)
+
+
+def test_compare_evaluate_cases_forwards_cbdr_answer_provider_options(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+    args = argparse.Namespace(
+        window_size=20,
+        stride=10,
+        passes=10,
+        tourrank_rounds=2,
+        set_size=3,
+        top_k=5,
+        timeout=1.5,
+        cbdr_base_artifact=Path("base.joblib"),
+        cbdr_context_artifact=Path("context.joblib"),
+        cbdr_skip_threshold=0.8,
+        cbdr_device="cpu",
+        cbdr_cache_dir=None,
+        cbdr_local_files_only=False,
+        cbdr_hf_token_env=None,
+        cbdr_max_length=None,
+        cbdr_max_document_chars=4000,
+        cbdr_allow_truncation=False,
+        cbdr_answer_provider="lmstudio",
+        lmstudio_base_url="http://localhost:1234/v1",
+        lmstudio_model="google/gemma-4-12b",
+        lmstudio_api_key="local-key",
+        lmstudio_max_tokens=64,
+        checkpoint_output=None,
+    )
+    case = BenchmarkCase(
+        fixture_id="fixture",
+        dataset="dataset",
+        source="source",
+        license="license",
+        query_id="q1",
+        query="query",
+        documents=(BenchmarkDocument(id="d1", title="", text=""),),
+        qrels={"d1": 1},
+    )
+
+    def fake_rank_case(**kwargs: object) -> tuple[str, ...]:
+        captured.update(kwargs)
+        return ("d1",)
+
+    monkeypatch.setattr(compare_reranking, "_rank_case", fake_rank_case)
+
+    compare_reranking._evaluate_cases(
+        args=args,
+        algorithms=("cbdr",),
+        cases=(case,),
+    )
+
+    assert captured["cbdr_answer_provider"] == "lmstudio"
+    assert captured["lmstudio_base_url"] == "http://localhost:1234/v1"
+    assert captured["lmstudio_model"] == "google/gemma-4-12b"
+    assert captured["lmstudio_api_key"] == "local-key"
+    assert captured["lmstudio_max_tokens"] == 64
 
 
 def test_compare_live_invalid_output_is_recorded(

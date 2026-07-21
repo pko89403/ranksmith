@@ -7,6 +7,8 @@ from typing import Any, TypeVar
 from ranksmith.confidence_generation.io import (
     load_answer_generation_samples,
     load_completed_ids,
+    load_query_answerability_generation_samples,
+    load_query_context_answerability_generation_samples,
     load_relevance_generation_samples,
     open_output_path,
     write_jsonl_row,
@@ -21,13 +23,21 @@ from ranksmith.confidence_generation.parsing import (
     parse_relevance_output,
 )
 from ranksmith.confidence_generation.prompts import (
+    QUERY_ANSWERABILITY_SYSTEM_PROMPT,
+    QUERY_CONTEXT_ANSWERABILITY_SYSTEM_PROMPT,
     RELEVANCE_SYSTEM_PROMPT,
+    build_query_answerability_prompt,
+    build_query_context_answerability_prompt,
     build_relevance_prompt,
 )
 from ranksmith.confidence_generation.types import (
     AnswerGenerationConfig,
     AnswerGenerationSample,
     ConfidenceGenerationResult,
+    QueryAnswerabilityGenerationConfig,
+    QueryAnswerabilityGenerationSample,
+    QueryContextAnswerabilityGenerationConfig,
+    QueryContextAnswerabilityGenerationSample,
     RelevanceGenerationConfig,
     RelevanceGenerationSample,
     UsageCallback,
@@ -94,6 +104,64 @@ def generate_judgment_confidence_dataset(
         max_items=config.max_items,
         get_id=lambda sample: sample.id,
         build_row=lambda sample: _build_judgment_generated_row(sample, config),
+    )
+
+
+def generate_query_answerability_confidence_dataset(
+    config: QueryAnswerabilityGenerationConfig,
+) -> ConfidenceGenerationResult:
+    samples = load_query_answerability_generation_samples(config.input_path)
+    output_path = Path(config.output_path)
+    completed_ids = (
+        load_completed_ids(output_path, task_type="query_answerability_confidence")
+        if config.resume
+        else set()
+    )
+
+    return _write_generation_dataset(
+        samples=samples,
+        output_path=output_path,
+        completed_ids=completed_ids,
+        overwrite=config.overwrite,
+        resume=config.resume,
+        max_items=config.max_items,
+        get_id=lambda sample: sample.id,
+        build_row=lambda sample: _build_query_answerability_generated_row(
+            sample,
+            config,
+        ),
+    )
+
+
+def generate_query_context_answerability_confidence_dataset(
+    config: QueryContextAnswerabilityGenerationConfig,
+) -> ConfidenceGenerationResult:
+    samples = load_query_context_answerability_generation_samples(
+        config.input_path,
+        max_context_chars=config.max_context_chars,
+    )
+    output_path = Path(config.output_path)
+    completed_ids = (
+        load_completed_ids(
+            output_path,
+            task_type="query_context_answerability_confidence",
+        )
+        if config.resume
+        else set()
+    )
+
+    return _write_generation_dataset(
+        samples=samples,
+        output_path=output_path,
+        completed_ids=completed_ids,
+        overwrite=config.overwrite,
+        resume=config.resume,
+        max_items=config.max_items,
+        get_id=lambda sample: sample.id,
+        build_row=lambda sample: _build_query_context_answerability_generated_row(
+            sample,
+            config,
+        ),
     )
 
 
@@ -291,6 +359,139 @@ def _judgment_canonical_row(
         "document": sample.document,
         "judgment": judgment,
         "relevance_label": sample.relevance_label,
+        "label": label,
+        "metadata": {
+            "input_metadata": dict(sample.metadata),
+            "generation": generation,
+        },
+    }
+    source = sample.source if sample.source is not None else config.source
+    if source is not None:
+        row["source"] = source
+    if sample.group_id is not None:
+        row["group_id"] = sample.group_id
+    return row
+
+
+def _build_query_answerability_generated_row(
+    sample: QueryAnswerabilityGenerationSample,
+    config: QueryAnswerabilityGenerationConfig,
+) -> Mapping[str, Any]:
+    raw_output = _call_provider(
+        config.provider,
+        system=QUERY_ANSWERABILITY_SYSTEM_PROMPT,
+        user=build_query_answerability_prompt(
+            sample,
+            no_answer_value=config.no_answer_value,
+        ),
+        on_usage=config.on_usage,
+    )
+    answer = parse_answer_output(raw_output)
+    label = int(
+        normalized_exact_match(
+            answer,
+            sample.gold_answer,
+            no_answer_value=config.no_answer_value,
+        )
+    )
+    return _query_answerability_canonical_row(
+        sample,
+        answer=answer,
+        label=label,
+        raw_output=raw_output,
+        config=config,
+    )
+
+
+def _query_answerability_canonical_row(
+    sample: QueryAnswerabilityGenerationSample,
+    *,
+    answer: str,
+    label: int,
+    raw_output: str,
+    config: QueryAnswerabilityGenerationConfig,
+) -> dict[str, Any]:
+    generation: dict[str, Any] = {
+        "generation_task": "query_answerability",
+        "match_policy": "normalized_exact",
+        "no_answer_value": config.no_answer_value,
+    }
+    if config.include_raw_model_output:
+        generation["raw_model_output"] = raw_output
+
+    row: dict[str, Any] = {
+        "id": sample.id,
+        "task_type": "query_answerability_confidence",
+        "query": sample.query,
+        "answer": answer,
+        "gold_answer": sample.gold_answer,
+        "label": label,
+        "metadata": {
+            "input_metadata": dict(sample.metadata),
+            "generation": generation,
+        },
+    }
+    source = sample.source if sample.source is not None else config.source
+    if source is not None:
+        row["source"] = source
+    if sample.group_id is not None:
+        row["group_id"] = sample.group_id
+    return row
+
+
+def _build_query_context_answerability_generated_row(
+    sample: QueryContextAnswerabilityGenerationSample,
+    config: QueryContextAnswerabilityGenerationConfig,
+) -> Mapping[str, Any]:
+    raw_output = _call_provider(
+        config.provider,
+        system=QUERY_CONTEXT_ANSWERABILITY_SYSTEM_PROMPT,
+        user=build_query_context_answerability_prompt(
+            sample,
+            no_answer_value=config.no_answer_value,
+        ),
+        on_usage=config.on_usage,
+    )
+    answer = parse_answer_output(raw_output)
+    label = int(
+        normalized_exact_match(
+            answer,
+            sample.gold_answer,
+            no_answer_value=config.no_answer_value,
+        )
+    )
+    return _query_context_answerability_canonical_row(
+        sample,
+        answer=answer,
+        label=label,
+        raw_output=raw_output,
+        config=config,
+    )
+
+
+def _query_context_answerability_canonical_row(
+    sample: QueryContextAnswerabilityGenerationSample,
+    *,
+    answer: str,
+    label: int,
+    raw_output: str,
+    config: QueryContextAnswerabilityGenerationConfig,
+) -> dict[str, Any]:
+    generation: dict[str, Any] = {
+        "generation_task": "query_context_answerability",
+        "match_policy": "normalized_exact",
+        "no_answer_value": config.no_answer_value,
+    }
+    if config.include_raw_model_output:
+        generation["raw_model_output"] = raw_output
+
+    row: dict[str, Any] = {
+        "id": sample.id,
+        "task_type": "query_context_answerability_confidence",
+        "query": sample.query,
+        "context": sample.context,
+        "answer": answer,
+        "gold_answer": sample.gold_answer,
         "label": label,
         "metadata": {
             "input_metadata": dict(sample.metadata),

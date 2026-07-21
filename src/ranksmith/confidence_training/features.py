@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from ranksmith.confidence import AnswerConfidenceInput, JudgmentConfidenceInput
+from ranksmith.confidence import (
+    AnswerConfidenceInput,
+    JudgmentConfidenceInput,
+    QueryAnswerabilityConfidenceInput,
+    QueryContextAnswerabilityConfidenceInput,
+)
 from ranksmith.confidence.errors import ConfidenceError
 from ranksmith.confidence.features import (
     FEATURE_DIM,
@@ -81,5 +86,24 @@ def _sample_input(sample: CanonicalConfidenceSample) -> StructuralConfidenceInpu
             query=sample.query,
             document=sample.document,
             judgment=sample.judgment,
+        )
+    if sample.task_type == "query_answerability_confidence":
+        if sample.query is None or sample.answer is None:
+            raise ConfidenceTrainingError(
+                "query answerability sample is missing text fields"
+            )
+        return QueryAnswerabilityConfidenceInput(
+            query=sample.query,
+            answer=sample.answer,
+        )
+    if sample.task_type == "query_context_answerability_confidence":
+        if sample.query is None or sample.context is None or sample.answer is None:
+            raise ConfidenceTrainingError(
+                "query context answerability sample is missing text fields"
+            )
+        return QueryContextAnswerabilityConfidenceInput(
+            query=sample.query,
+            context=sample.context,
+            answer=sample.answer,
         )
     raise ConfidenceTrainingError(f"unsupported task_type: {sample.task_type}")

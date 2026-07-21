@@ -4,6 +4,8 @@ from ranksmith.confidence.errors import ConfidenceInputError
 from ranksmith.confidence.types import (
     AnswerConfidenceInput,
     JudgmentConfidenceInput,
+    QueryAnswerabilityConfidenceInput,
+    QueryContextAnswerabilityConfidenceInput,
     StructuralConfidenceInput,
     TaskType,
 )
@@ -39,5 +41,26 @@ def format_confidence_input(
         document = _require_non_empty(item.document, field_name="document")
         judgment = _require_non_empty(item.judgment, field_name="judgment")
         return f"Query:\n{query}\n\nDocument:\n{document}\n\nJudgment:\n{judgment}"
+
+    if task_type == "query_answerability_confidence":
+        if not isinstance(item, QueryAnswerabilityConfidenceInput):
+            raise ConfidenceInputError(
+                "query_answerability_confidence requires "
+                "QueryAnswerabilityConfidenceInput"
+            )
+        query = _require_non_empty(item.query, field_name="query")
+        answer = _require_non_empty(item.answer, field_name="answer")
+        return f"Query:\n{query}\n\nAnswer:\n{answer}"
+
+    if task_type == "query_context_answerability_confidence":
+        if not isinstance(item, QueryContextAnswerabilityConfidenceInput):
+            raise ConfidenceInputError(
+                "query_context_answerability_confidence requires "
+                "QueryContextAnswerabilityConfidenceInput"
+            )
+        query = _require_non_empty(item.query, field_name="query")
+        context = _require_non_empty(item.context, field_name="context")
+        answer = _require_non_empty(item.answer, field_name="answer")
+        return f"Query:\n{query}\n\nContext:\n{context}\n\nAnswer:\n{answer}"
 
     raise ConfidenceInputError(f"unsupported task_type: {task_type!r}")

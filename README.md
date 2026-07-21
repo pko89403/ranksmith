@@ -14,8 +14,8 @@ documents.
 
 Highlights:
 
-- Built-in listwise RankGPT, pairwise PRP, tournament-style TourRank-r, and
-  uncertainty-aware AcuRank strategies
+- Built-in listwise RankGPT, pairwise PRP, tournament-style TourRank-r,
+  uncertainty-aware AcuRank, and confidence-gain strategies
 - Public strategy contracts for custom reranking methods
 - `ModelClient` / `ModelProvider` boundary for vendor-independent LLM calls
 - Strict JSON parsing and fast-fail error behavior
@@ -70,6 +70,8 @@ logic (Algorithm).
 | `tourrank_r`, `rounds=2` | `TourRankStrategy` | You want stronger quality than listwise on a moderate call budget. | More calls than RankGPT, much fewer than TourRank-10. |
 | `tourrank_r`, `rounds=10` | `TourRankStrategy` | You are doing quality-focused offline reranking, paper-style evaluation, or final reranking where latency is acceptable. | Highest call cost among built-in methods in normal use. |
 | `acurank` | `AcuRankStrategy` | You want adaptive listwise reranking that spends calls on uncertain candidates near the top-k boundary. | Uses TrueSkill state and may issue more calls than basic listwise reranking unless capped. |
+| `confidence_gain` | `ConfidenceGainStrategy` | You have trained query-only and query+context confidence scorers and want to rank documents by `Conf(Q+C)-Conf(Q)`. | Requires scorer artifacts and an answer generator hook. Runtime calls answer generation `N+1` times and confidence scoring `N+1` times for `N` documents. |
+| `cbdr` | `CBDRStrategy` | You have trained answerability confidence scorers and want to skip context reranking when `Conf(Q)` is already high, otherwise rerank by confidence gain. | Requires scorer artifacts and an answer generator hook. Skip path uses 1 answer generation call and 1 confidence score; rerank path uses `N+1` answer generations and `N+1` confidence scores. |
 | Custom strategy | `RerankStrategy` / `AsyncRerankStrategy` | You need deterministic business logic, a proprietary ranking process, or a new research method. | You own the ranking contract and validation behavior. |
 
 ### Applying a Strategy
@@ -315,9 +317,76 @@ encoder and scorer instances across worker threads, so use `max_workers>1` only
 with thread-safe backends. It cancels pending work on the first worker error,
 but Python threads that have already started may finish in the background.
 
+`ConfidenceGainStrategy` is a separate sync reranking Strategy that consumes
+two compatible confidence estimators and an answer generator hook:
+
+```python
+from ranksmith.confidence import StructuralConfidenceEstimator
+from ranksmith.strategies import ConfidenceGainStrategy
+
+base_estimator = StructuralConfidenceEstimator.from_artifact(
+    "query-answerability.joblib"
+)
+context_estimator = StructuralConfidenceEstimator.from_artifact(
+    "query-context-answerability.joblib"
+)
+
+strategy = ConfidenceGainStrategy(
+    base_estimator=base_estimator,
+    context_estimator=context_estimator,
+    answer_generator=my_answer_generator,
+)
+```
+
+It ranks by `Conf(Q+C)-Conf(Q)`. It does not implement CBDR retrieval skipping,
+async reranking, or scorer training.
+
+`CBDRStrategy` is a sync reranking-side router. It does not integrate with a
+retriever or stop upstream retrieval calls; it only skips context reranking once
+documents have already been passed to `rerank(...)`.
+
+```python
+from ranksmith.integrations import AzureAnswerGenerator
+from ranksmith.strategies import CBDRStrategy
+
+answer_generator = AzureAnswerGenerator.from_env()
+
+strategy = CBDRStrategy.from_artifacts(
+    base_artifact_path="query-answerability.joblib",
+    context_artifact_path="query-context-answerability.joblib",
+    answer_generator=answer_generator,
+    skip_threshold=0.8,
+)
+
+results = strategy.rerank(query=query, documents=documents)
+```
+
+When `Conf(Q) >= skip_threshold`, results preserve original document order and
+include `metadata["cbdr_skipped"] == True`. When `Conf(Q) < skip_threshold`, all
+documents are scored before `top_k` slicing.
+`AzureAnswerGenerator` uses the same no-answer sentinel contract as
+`ranksmith.confidence_generation` and returns `{"answer":"__NO_ANSWER__"}` when
+the model cannot answer.
+
+The benchmark runner can execute CBDR explicitly when compatible scorer
+artifacts are available:
+
+```bash
+uv run python scripts/compare_reranking.py \
+  --dataset benchmark-cache \
+  --cache-dir .benchmark-cache/askubuntu-bm25 \
+  --candidates benchmark-results/pyserini/askubuntu-bm25-top20.trec \
+  --algorithm cbdr \
+  --cbdr-base-artifact query-answerability.joblib \
+  --cbdr-context-artifact query-context-answerability.joblib \
+  --cbdr-max-document-chars 4000 \
+  --allow-live
+```
+
 `ranksmith.confidence_generation` can create supervised canonical JSONL for
-confidence training by calling a closed model over raw answer or relevance
-examples. It is a data-generation utility, not a reranking Strategy.
+confidence training by calling a closed model over raw answer, relevance, or
+answerability examples. It is a data-generation utility, not a reranking
+Strategy.
 
 ### Training a compatible confidence scorer
 
@@ -383,6 +452,102 @@ reranker = AzureOpenAIReranker(
 > `docs/specs/spec_confidence_aware_reranking.md`; the standard-benchmark
 > procedure is `docs/benchmarks/answer_confidence_askubuntu.md`.
 
+### Local LM Studio confidence pipeline
+
+For CBDR, train two answerability scorers: `Conf(Q)` from query-only examples
+and `Conf(Q+C)` from query+context examples. LM Studio is used only to generate
+supervised labels; the scorer artifact is still trained by
+`ranksmith.confidence_training`.
+
+Start the local OpenAI-compatible server and select the loaded model:
+
+```bash
+lms server start
+export LMSTUDIO_MODEL=google/gemma-4-12b
+```
+
+Generate canonical JSONL datasets:
+
+```bash
+uv run python scripts/generate_confidence_dataset.py \
+  --task query_answerability_confidence \
+  --provider lmstudio \
+  --input runs/confidence/local/raw/query_answerability.jsonl \
+  --output runs/confidence/local/canonical/query_answerability_confidence.jsonl \
+  --resume
+
+uv run python scripts/generate_confidence_dataset.py \
+  --task query_context_answerability_confidence \
+  --provider lmstudio \
+  --input runs/confidence/local/raw/query_context_answerability.jsonl \
+  --output runs/confidence/local/canonical/query_context_answerability_confidence.jsonl \
+  --max-context-chars 8000 \
+  --resume
+```
+
+Review source and group balance before treating the scorer as general:
+
+```bash
+uv run python scripts/report_confidence_dataset.py \
+  --task query_answerability_confidence \
+  --dataset runs/confidence/local/canonical/query_answerability_confidence.jsonl
+```
+
+Train CBDR-compatible scorer artifacts:
+
+```bash
+uv run python scripts/train_confidence_scorer.py \
+  --task query_answerability_confidence \
+  --dataset runs/confidence/local/canonical/query_answerability_confidence.jsonl \
+  --output-dir runs/confidence/local/training/query_answerability \
+  --export-path runs/confidence/local/artifacts/query_answerability.joblib \
+  --encoder-name bert-base-uncased \
+  --max-length 256
+
+uv run python scripts/train_confidence_scorer.py \
+  --task query_context_answerability_confidence \
+  --dataset runs/confidence/local/canonical/query_context_answerability_confidence.jsonl \
+  --output-dir runs/confidence/local/training/query_context_answerability \
+  --export-path runs/confidence/local/artifacts/query_context_answerability.joblib \
+  --encoder-name bert-base-uncased \
+  --max-length 256
+```
+
+Use the artifacts with LM Studio at runtime:
+
+```python
+from ranksmith.integrations import LMStudioModelProvider, ProviderAnswerGenerator
+from ranksmith.strategies import CBDRStrategy
+
+answer_generator = ProviderAnswerGenerator(
+    provider=LMStudioModelProvider(model="google/gemma-4-12b")
+)
+
+strategy = CBDRStrategy.from_artifacts(
+    base_artifact_path="runs/confidence/local/artifacts/query_answerability.joblib",
+    context_artifact_path="runs/confidence/local/artifacts/query_context_answerability.joblib",
+    answer_generator=answer_generator,
+    skip_threshold=0.8,
+)
+```
+
+The benchmark runner can use the same provider. This command is live and
+requires `--allow-live`; it does not imply any benchmark quality number unless
+summary artifacts are produced and committed.
+
+```bash
+uv run python scripts/compare_reranking.py \
+  --dataset benchmark-cache \
+  --cache-dir .benchmark-cache/askubuntu-bm25 \
+  --candidates benchmark-results/pyserini/askubuntu-bm25-top20.trec \
+  --algorithm cbdr \
+  --cbdr-answer-provider lmstudio \
+  --cbdr-base-artifact runs/confidence/local/artifacts/query_answerability.joblib \
+  --cbdr-context-artifact runs/confidence/local/artifacts/query_context_answerability.joblib \
+  --lmstudio-model google/gemma-4-12b \
+  --allow-live
+```
+
 ## Examples
 
 Runnable examples live in the `examples/` directory.
@@ -435,6 +600,7 @@ algorithm run. The committed evidence artifacts are:
 
 - [`benchmark-results/live/askubuntu-bm25-top20-default-live.v4.merged.json`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/live/askubuntu-bm25-top20-default-live.v4.merged.json)
 - [`benchmark-results/pyserini/askubuntu-bm25-top20.trec`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/pyserini/askubuntu-bm25-top20.trec)
+- [`benchmark-results/askubuntu-bm25-top20-cbdr-live.json`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/askubuntu-bm25-top20-cbdr-live.json) (optional `cbdr` method, run separately)
 
 | Method | NDCG@5 | MRR@5 | Recall@5 | Valid rows | Invalid rate | Nominal LLM calls/query | LLM row attempts/query incl. retries |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -446,6 +612,7 @@ algorithm run. The committed evidence artifacts are:
 | `setwise_hs_s10` | 0.3653 | 0.5059 | 0.3005 | 361/361 | 0.000 | 12 | 1.00 |
 | `prp_sliding_p1` | 0.4065 | 0.5818 | 0.3277 | 361/361 | 0.000 | 38 | 1.00 |
 | `answer_confidence` *(scorer: SQuAD v1.1, out-of-domain)* | 0.1722 | 0.2862 | 0.1435 | 361/361 | 0.000 | 20 | 1.00 |
+| `cbdr` *(scorers: TriviaQA, out-of-domain)* | 0.2259 | 0.3458 | 0.1867 | 361/361 | 0.000 | 21 | 1.00 |
 
 `tourrank_r2` had the best NDCG@5 and Recall@5, while `prp_sliding_p1` had the
 best MRR@5. `single_call_listwise@20` is the one-shot listwise baseline.
@@ -454,15 +621,22 @@ setup. `acurank_k5_b1` aligns AcuRank's uncertainty boundary with the `@5`
 evaluation cutoff. `setwise_hs_s10` is a practical Setwise Heapsort setting
 that extracts only the evaluated top-5 from 20 candidates. `answer_confidence`
 uses a scorer trained on SQuAD v1.1 (out-of-domain for AskUbuntu, see
-[the runbook](docs/benchmarks/answer_confidence_askubuntu.md)) and scores
-below the BM25 baseline here; it is reported as measured, not tuned to win.
+[the runbook](docs/benchmarks/answer_confidence_askubuntu.md)) and `cbdr` uses
+the two `Conf(Q)`/`Conf(Q+C)` scorers documented under [Local LM Studio
+confidence pipeline](#local-lm-studio-confidence-pipeline), trained on
+TriviaQA (also out-of-domain for AskUbuntu). Both score below the BM25
+baseline here and are reported as measured, not tuned to win.
 
-Why not tune it to win: fitting the scorer to this benchmark's distribution
+Why not tune them to win: fitting a scorer to this benchmark's distribution
 would measure overfitting to AskUbuntu, not the algorithm's general quality —
 the same reason `scripts/train_answer_confidence.py` fast-fails below
-`roc_auc 0.6` instead of letting a cherry-picked checkpoint through. A
-stronger in-domain scorer is a legitimate follow-up (see "남은 작업" in
-[the spec](docs/specs/spec_confidence_aware_reranking.md)), but that means
+`roc_auc 0.6` instead of letting a cherry-picked checkpoint through, and why
+this project's reporting rule never reports smoke/partial runs or
+cherry-picked numbers as benchmark quality (see
+[`docs/benchmarks/bm25_top20_reranking.md`](docs/benchmarks/bm25_top20_reranking.md#reporting-rules)).
+A stronger in-domain scorer is a legitimate follow-up for either method (see
+"남은 작업" in [the answer_confidence
+spec](docs/specs/spec_confidence_aware_reranking.md)), but that means
 training a better artifact and re-running this exact command, not adjusting
 the report.
 

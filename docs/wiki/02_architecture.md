@@ -27,13 +27,21 @@ src/ranksmith/
     tourrank.py
     acurank.py
     confidence.py          # answer-confidence rerank (experimental)
+    confidence_gain.py
+    cbdr.py
   providers/
     __init__.py            # public provider exports
     azure.py               # Azure OpenAI implementation
+  integrations/
+    __init__.py            # public runtime helper exports
+    azure_answer_generator.py
+    answer_generator.py
+    lmstudio_provider.py
+    validation.py
 ```
 
-외부 사용자는 root import 또는 `ranksmith.strategies`, `ranksmith.providers`의 public export를 사용한다.
-strategies/, providers/ 하위 개별 모듈은 내부 구현으로 취급한다.
+외부 사용자는 root import 또는 `ranksmith.strategies`, `ranksmith.providers`, `ranksmith.integrations`의 public export를 사용한다.
+strategies/, providers/, integrations/ 하위 개별 모듈은 내부 구현으로 취급한다.
 
 ## ModelProvider
 실제 SDK 호출은 Azure OpenAI만 구현한다.
@@ -41,6 +49,22 @@ strategies/, providers/ 하위 개별 모듈은 내부 구현으로 취급한다
 
 Provider는 `ModelRequest`를 받아 `ModelResponse`를 반환한다.
 Provider는 ranking 도메인 prompt의 의미를 알지 않는다.
+
+## Integrations
+`ranksmith.integrations`는 closed model runtime helper layer다.
+Strategy나 Algorithm을 추가하지 않고, 기존 Strategy가 필요로 하는 외부 hook을 공식 조립 경로로 제공한다.
+
+현재 범위:
+- `AzureAnswerGenerator`: Azure OpenAI JSON answer generation helper
+- `ProviderAnswerGenerator`: `ModelProvider` 기반 sync JSON answer generation helper
+- `LMStudioModelProvider`: LM Studio OpenAI-compatible runtime helper
+- confidence generation과 같은 no-answer sentinel prompt contract
+- root import가 아닌 `ranksmith.integrations` submodule export
+
+제외:
+- async answer generation
+- non-Azure hosted provider implementation
+- scorer training
 
 ## ModelClient
 
@@ -66,6 +90,8 @@ v1 공개 strategy:
 - `AsyncAcuRankStrategy`
 - `AnswerConfidenceRerankStrategy` (실험적 — 학습된 estimator artifact 필요)
 - `AsyncAnswerConfidenceRerankStrategy` (실험적)
+- `ConfidenceGainStrategy`
+- `CBDRStrategy`
 
 공식 확장 지점:
 - 새 reranking 방법은 새 Strategy 클래스로 추가한다.
@@ -85,9 +111,14 @@ v1 지원 algorithm:
 - `setwise_heapsort`
 - `tourrank_r`
 - `acurank`
+- `confidence_gain`
+- `cbdr`
 
 benchmark opt-in algorithm:
 - `answer_confidence` (`scripts/compare_reranking.py`, 학습된 artifact 필요)
+
+향후 algorithm 후보:
+- `Pointwise`
 
 ## Confidence
 `ranksmith.confidence`(estimator)는 reranking Strategy가 아니라 closed model output confidence를 계산하는 utility layer다. 이 estimator를 소비하는 실험적 reranker가 `AnswerConfidenceRerankStrategy`(`ranksmith.strategies`)이며, 스펙에 기록된 소규모 자체 평가에서 Listwise에 진다(`docs/specs/spec_confidence_aware_reranking.md` — 증거 artifact는 리포에 커밋되어 있지 않다).
@@ -97,6 +128,10 @@ benchmark opt-in algorithm:
 - `structural-v1` 70차원 feature extraction
 - 학습된 scorer artifact 기반 single-item sync confidence inference
 - bounded batch sync confidence inference
+- `answer_confidence`
+- `judgment_confidence`
+- `query_answerability_confidence`
+- `query_context_answerability_confidence`
 - root import가 아닌 `ranksmith.confidence` submodule export
 
 `score_batch(..., max_workers>1)`은 같은 encoder/scorer instance를 worker thread들이 공유하므로, concurrent call에 안전한 backend에서만 사용한다. 기본값은 안정성을 위해 `max_workers=1`이다.
@@ -105,6 +140,13 @@ benchmark opt-in algorithm:
 - semantic feature fusion
 - async inference
 - reranking Strategy
+
+`ConfidenceGainStrategy`는 confidence utility layer 자체가 아니라, `ranksmith.confidence`의 query-only 및 query+context answerability scorer를 소비하는 별도 sync Strategy다.
+`Conf(Q+C)-Conf(Q)`를 계산해 confidence gain 내림차순으로 문서를 정렬한다.
+
+`CBDRStrategy`는 `Conf(Q)`가 `skip_threshold` 이상이면 context reranking을 skip하고 original order를 보존한다.
+`Conf(Q)`가 threshold보다 낮으면 `Conf(Q+C)-Conf(Q)` confidence gain으로 문서를 정렬한다.
+true pre-retrieval skip, retriever integration, async CBDR은 구현하지 않는다.
 
 `ranksmith.confidence_training`은 Phase 1 compatible scorer artifact를 만들기 위한 별도 training utility layer다.
 
@@ -115,11 +157,12 @@ benchmark opt-in algorithm:
 - LightGBM binary classifier training
 - validation split 기반 sigmoid calibration
 - Phase 1 `ScorerMetadata` compatible artifact export
+- CBDR용 answerability task CLI wrapper
+- source/group balance dataset report helper
 
 제외:
 - 외부 benchmark/source adapter
 - label 생성
-- CLI
 - reranking Strategy 또는 Algorithm
 
 `ranksmith.confidence_generation`은 closed model output을 생성해 confidence training canonical JSONL로 저장하는 utility layer다.
@@ -127,13 +170,15 @@ benchmark opt-in algorithm:
 현재 범위:
 - answer-oriented raw JSONL -> `answer_confidence` canonical JSONL
 - relevance-oriented raw JSONL -> `judgment_confidence` canonical JSONL
+- query-only answerability raw JSONL -> `query_answerability_confidence` canonical JSONL
+- query+context answerability raw JSONL -> `query_context_answerability_confidence` canonical JSONL
 - sync closed model call
 - resume 가능한 JSONL output
+- CBDR용 answerability task CLI wrapper
 
 제외 (package 범위 — SQuAD 학습 데이터 빌더와 turnkey CLI는 package 밖 `scripts/build_answer_confidence_training_data.py`, `scripts/train_answer_confidence.py`로 제공):
 - async generation
 - dataset adapter
-- CLI
 - runtime reranking Strategy 또는 Algorithm
 
 ## LLM 응답 계약

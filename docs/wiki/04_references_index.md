@@ -9,6 +9,7 @@
 - [Trust in One Round: Confidence Estimation for Large Language Models via Structural Signals](references/structural_confidence.md): Paper / Black-box confidence, proxy hidden-state trajectory / 요약 완료, Phase 1 inference spec 작성
 - [Rethinking LLM Parametric Knowledge as Confidence (CBDR)](references/cbdr_parametric_confidence_rag.md): Paper / Confidence-change preference, dynamic retrieval trigger / 요약 완료, white-box 전제라 개념 참고용
 - [LLM-Confidence Reranker (LCR)](references/llm_confidence_reranker.md): Paper / Training-free black-box confidence reranking, MSCP / 요약 완료, confidence-aware reranking 스펙 후보
+- [Rethinking LLM Parametric Knowledge as Post-retrieval Confidence for Dynamic Retrieval and Reranking](references/parametric_post_retrieval_confidence.md): Paper / Confidence gain, post-retrieval reranking, CBDR / 요약 완료, spec 작성
 
 ## 처리 대기 Reference
 - [Attention in Large Language Models Yields Efficient Zero-Shot Re-Rankers](references/Attention%20in%20Large%20Language%20Models%20Yields%20Efficient%20Zero-Shot%20Re-Rankers.pdf): Paper / Attention-based reranking, zero-shot reranking / 요약 대기
