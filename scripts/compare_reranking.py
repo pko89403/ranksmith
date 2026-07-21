@@ -12,9 +12,10 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
-from ranksmith._benchmark import (  # noqa: E402
+from benchmarks.benchmark import (  # noqa: E402
     SCHEMA_VERSION,
     BenchmarkCase,
     CandidateStrategy,
@@ -26,7 +27,7 @@ from ranksmith._benchmark import (  # noqa: E402
     load_beir_cases,
     load_fixture_cases,
 )
-from ranksmith._mteb_eval import (  # noqa: E402
+from benchmarks.mteb_eval import (  # noqa: E402
     tourrank_stage_configs_for_candidate_count,
 )
 from ranksmith.types import Document  # noqa: E402
@@ -628,7 +629,6 @@ def _rank_case(
             stride,
         )
         strategy = ListwiseStrategy(
-            algorithm="rankgpt_sliding_window",
             window_size=listwise_window_size,
             stride=listwise_stride,
         )

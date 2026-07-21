@@ -1,0 +1,14 @@
+{
+  "name": "ranksmith",
+  "version": "0.1.0",
+  "owner": { "name": "ranksmith contributors" },
+  "plugins": [
+    {
+      "name": "ranksmith-advisor",
+      "description": "Guide ranksmith users to the right LLM reranking strategy and generate correct code.",
+      "version": "0.1.0",
+      "source": "./",
+      "category": "development"
+    }
+  ]
+}

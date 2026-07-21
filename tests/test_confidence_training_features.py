@@ -5,8 +5,8 @@ import math
 import pytest
 
 from ranksmith.confidence_training import ConfidenceTrainingError
-from ranksmith.confidence_training._features import extract_feature_rows
-from ranksmith.confidence_training._types import CanonicalConfidenceSample
+from ranksmith.confidence_training.features import extract_feature_rows
+from ranksmith.confidence_training.types import CanonicalConfidenceSample
 
 
 class FakeEncoder:

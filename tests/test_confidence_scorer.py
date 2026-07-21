@@ -9,7 +9,7 @@ from types import ModuleType
 import pytest
 
 from ranksmith.confidence import ConfidenceArtifactError, ScorerMetadata, TaskType
-from ranksmith.confidence._scorer import (
+from ranksmith.confidence.scorer import (
     ARTIFACT_SCHEMA_VERSION,
     JoblibScorerWrapper,
     LightGBMScorer,
@@ -322,6 +322,28 @@ def test_load_lightgbm_scorer_loads_joblib_dict_model(
     )
 
     scorer = load_lightgbm_scorer(tmp_path / "artifact.joblib")
+
+    assert scorer.predict_confidence([0.0] * 70) == 0.6
+
+
+def test_load_lightgbm_scorer_loads_joblib_dict_with_metadata_path(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    # Regression: the training pipeline exports a joblib dict AND offers a
+    # metadata sidecar, so a caller that passes metadata_path must still load
+    # the joblib artifact instead of misrouting to the raw-Booster loader.
+    install_fake_joblib(
+        monkeypatch,
+        {"model": FakePredictVectorModel(), "metadata": metadata_dict()},
+    )
+    metadata_path = tmp_path / "artifact.metadata.json"
+    metadata_path.write_text(json.dumps(metadata_dict()), encoding="utf-8")
+
+    scorer = load_lightgbm_scorer(
+        tmp_path / "artifact.joblib",
+        metadata_path=metadata_path,
+    )
 
     assert scorer.predict_confidence([0.0] * 70) == 0.6
 

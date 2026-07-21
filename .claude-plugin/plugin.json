@@ -1,0 +1,9 @@
+{
+  "name": "ranksmith-advisor",
+  "description": "Guide ranksmith users to the right LLM reranking strategy and generate correct, idiomatic code.",
+  "version": "0.1.0",
+  "author": { "name": "ranksmith contributors" },
+  "homepage": "https://github.com/pko89403/ranksmith",
+  "repository": "https://github.com/pko89403/ranksmith",
+  "license": "MIT"
+}

@@ -33,12 +33,6 @@ LLM 기반 reranking을 위한 작고 신뢰성 있는 Python 패키지를 만�
 - `AsyncAzureOpenAIReranker`
 - `AzureAOAIProvider`
 - `AsyncAzureAOAIProvider`
-- `OpenAIProvider`
-- `AsyncOpenAIProvider`
-- `AnthropicProvider`
-- `AsyncAnthropicProvider`
-- `GeminiProvider`
-- `AsyncGeminiProvider`
 - `ModelClient`
 - `AsyncModelClient`
 - `ModelProvider`
@@ -92,7 +86,7 @@ LLM 기반 reranking을 위한 작고 신뢰성 있는 Python 패키지를 만�
 - `tolerance`: `0.01`
 - `uncertain_threshold`: `10`
 - `initial_pass`: `True`
-- `score_metadata_key`: `score`
+- score prior metadata key: `score` (고정)
 
 ## Codex 읽기 순서
 1. `docs/wiki/00_context.md`

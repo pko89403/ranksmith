@@ -17,9 +17,11 @@ from ranksmith.confidence import (
     StructuralConfidenceEstimator,
     StructuralConfidenceResult,
     TaskType,
-    _encoder,
 )
-from ranksmith.confidence._structural import _require_result
+from ranksmith.confidence import (
+    encoder as _encoder,
+)
+from ranksmith.confidence.structural import _require_result
 
 
 @dataclass(frozen=True)
@@ -243,7 +245,7 @@ def test_from_artifact_uses_scorer_metadata_defaults(
         return FakeEncoder(max_length=64)
 
     monkeypatch.setattr(
-        "ranksmith.confidence._structural.load_lightgbm_scorer",
+        "ranksmith.confidence.structural.load_lightgbm_scorer",
         fake_load_lightgbm_scorer,
     )
     monkeypatch.setattr(
@@ -292,7 +294,7 @@ def test_from_artifact_rejects_override_metadata_mismatch(
         raise AssertionError("encoder should not load before metadata validation")
 
     monkeypatch.setattr(
-        "ranksmith.confidence._structural.load_lightgbm_scorer",
+        "ranksmith.confidence.structural.load_lightgbm_scorer",
         fake_load_lightgbm_scorer,
     )
     monkeypatch.setattr(
@@ -325,7 +327,7 @@ def test_from_artifact_rejects_empty_encoder_name_override_before_encoder_load(
         raise AssertionError("encoder should not load before metadata validation")
 
     monkeypatch.setattr(
-        "ranksmith.confidence._structural.load_lightgbm_scorer",
+        "ranksmith.confidence.structural.load_lightgbm_scorer",
         fake_load_lightgbm_scorer,
     )
     monkeypatch.setattr(
@@ -358,7 +360,7 @@ def test_from_artifact_rejects_empty_tokenizer_name_override_before_encoder_load
         raise AssertionError("encoder should not load before metadata validation")
 
     monkeypatch.setattr(
-        "ranksmith.confidence._structural.load_lightgbm_scorer",
+        "ranksmith.confidence.structural.load_lightgbm_scorer",
         fake_load_lightgbm_scorer,
     )
     monkeypatch.setattr(
@@ -609,11 +611,11 @@ def test_score_batch_parallel_preserves_input_order(
 
     monkeypatch.setattr(StructuralConfidenceEstimator, "score", fake_score)
     monkeypatch.setattr(
-        "ranksmith.confidence._structural.ThreadPoolExecutor",
+        "ranksmith.confidence.structural.ThreadPoolExecutor",
         FakeExecutor,
     )
     monkeypatch.setattr(
-        "ranksmith.confidence._structural.as_completed",
+        "ranksmith.confidence.structural.as_completed",
         fake_as_completed,
         raising=False,
     )
@@ -711,11 +713,11 @@ def test_score_batch_parallel_raises_first_completed_error(
         return [by_index[1], by_index[0]]
 
     monkeypatch.setattr(
-        "ranksmith.confidence._structural.ThreadPoolExecutor",
+        "ranksmith.confidence.structural.ThreadPoolExecutor",
         FakeExecutor,
     )
     monkeypatch.setattr(
-        "ranksmith.confidence._structural.as_completed",
+        "ranksmith.confidence.structural.as_completed",
         fake_as_completed,
         raising=False,
     )
@@ -773,11 +775,11 @@ def test_score_batch_parallel_uses_executor_branch(
         return futures
 
     monkeypatch.setattr(
-        "ranksmith.confidence._structural.ThreadPoolExecutor",
+        "ranksmith.confidence.structural.ThreadPoolExecutor",
         FakeExecutor,
     )
     monkeypatch.setattr(
-        "ranksmith.confidence._structural.as_completed",
+        "ranksmith.confidence.structural.as_completed",
         fake_as_completed,
         raising=False,
     )

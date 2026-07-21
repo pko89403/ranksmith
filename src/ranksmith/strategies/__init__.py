@@ -1,15 +1,15 @@
-from ranksmith.strategies._acurank import AcuRankStrategy, AsyncAcuRankStrategy
-from ranksmith.strategies._cbdr import CBDRStrategy
-from ranksmith.strategies._confidence_gain import (
+from ranksmith.strategies.acurank import AcuRankStrategy, AsyncAcuRankStrategy
+from ranksmith.strategies.cbdr import CBDRStrategy
+from ranksmith.strategies.confidence_gain import (
     AnswerGenerator,
     ConfidenceEstimator,
     ConfidenceGainResult,
     ConfidenceGainStrategy,
 )
-from ranksmith.strategies._listwise import AsyncListwiseStrategy, ListwiseStrategy
-from ranksmith.strategies._pairwise import AsyncPairwiseStrategy, PairwiseStrategy
-from ranksmith.strategies._setwise import AsyncSetwiseStrategy, SetwiseStrategy
-from ranksmith.strategies._tourrank import (
+from ranksmith.strategies.listwise import AsyncListwiseStrategy, ListwiseStrategy
+from ranksmith.strategies.pairwise import AsyncPairwiseStrategy, PairwiseStrategy
+from ranksmith.strategies.setwise import AsyncSetwiseStrategy, SetwiseStrategy
+from ranksmith.strategies.tourrank import (
     AsyncTourRankStrategy,
     TourRankStageConfig,
     TourRankStrategy,

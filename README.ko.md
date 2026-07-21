@@ -80,7 +80,6 @@ Strategy를 설정한 뒤 `AzureOpenAIReranker`에 전달합니다.
 from ranksmith import AzureOpenAIReranker, ListwiseStrategy
 
 strategy = ListwiseStrategy(
-    algorithm="rankgpt_sliding_window",
     window_size=20,
     stride=10,
     max_document_chars=4000,
@@ -118,7 +117,7 @@ reranker = AzureOpenAIReranker(
     api_key="...",
     azure_endpoint="https://example.openai.azure.com",
     azure_deployment="gpt-4o-mini",
-    strategy=TourRankStrategy(rounds=2, group_parallelism=1),
+    strategy=TourRankStrategy(rounds=2),
 )
 ```
 
@@ -147,7 +146,6 @@ reranker = AzureOpenAIReranker(
         target_rank=10,
         window_size=20,
         max_adaptive_reranker_calls=20,  # 선택적 adaptive phase budget cap.
-        batch_parallelism=2,  # 선택 사항. provider thread-safety가 불확실하면 1 유지.
     ),
 )
 ```
@@ -159,14 +157,14 @@ prior로 사용합니다. score가 전혀 없으면 standard TrueSkill prior를 
 후보 수가 작을 때는 `target_rank`를 문서 수로 자동 제한합니다.
 `max_adaptive_reranker_calls`는 adaptive refinement phase만 제한하며, 선택적
 initial pass 호출은 결과 metadata에서 별도로 함께 집계됩니다.
-`batch_parallelism`은 같은 AcuRank iteration 안의 독립 batch를 병렬 호출하되,
-posterior update는 deterministic batch order로 적용합니다.
+`AsyncAcuRankStrategy`의 `batch_parallelism`은 같은 iteration 안의 독립 batch를
+동시에 호출하되, posterior update는 deterministic batch order로 적용합니다.
 
-> **참고**: `strategy`를 명시하지 않으면 기본적으로 `ListwiseStrategy(algorithm="rankgpt_sliding_window")`가 자동으로 적용됩니다. Pairwise PRP, Setwise, TourRank-r, AcuRank는 기본 listwise보다 LLM 호출 수가 많을 수 있으므로 live benchmark 전 호출 수를 확인해야 합니다.
+> **참고**: `strategy`를 명시하지 않으면 기본적으로 `ListwiseStrategy()`(RankGPT sliding window)가 자동으로 적용됩니다. Pairwise PRP, Setwise, TourRank-r, AcuRank는 기본 listwise보다 LLM 호출 수가 많을 수 있으므로 live benchmark 전 호출 수를 확인해야 합니다.
 
 ## 커스텀 Strategy
 
-커스텀 reranking 메소드는 `ListwiseStrategy.algorithm`에 새 문자열 값을 추가하는
+커스텀 reranking 메소드는 내장 Strategy 클래스를 수정하는
 방식보다, 새 Strategy 클래스로 구현하는 방식을 권장합니다. Strategy는 정규화된
 `Document` 목록, model client, 선택적 `top_k`를 받아 `RerankResult` 목록을 반환합니다.
 
@@ -254,9 +252,6 @@ reranker = AzureOpenAIReranker(
     strategy=PairwiseStrategy(passes=3),
 )
 ```
-
-`OpenAIProvider`, `AnthropicProvider`, `GeminiProvider`는 향후 SDK 구현을 위한
-public stub입니다. 호출하면 `RerankProviderError`로 fast fail 합니다.
 
 ## 비동기 지원 (Async Support)
 
@@ -521,6 +516,26 @@ uv run python scripts/compare_reranking.py \
 - [tourrank.py](https://github.com/pko89403/ranksmith/blob/main/examples/tourrank.py): fake provider 기반 TourRank-r
 - [acurank.py](https://github.com/pko89403/ranksmith/blob/main/examples/acurank.py): first-stage score prior 기반 AcuRank
 - [custom_strategy.py](https://github.com/pko89403/ranksmith/blob/main/examples/custom_strategy.py): custom Strategy 계약
+
+## Claude Code Advisor
+
+이 레포에는 [Claude Code](https://code.claude.com/docs) 플러그인
+`ranksmith-advisor`가 포함되어 있습니다. 사용 사례에 맞는 reranking strategy
+선택을 돕고 CI로 검증된 동작 스니펫을 제시하며, 제안 코드가 라이브러리의 실제
+계약을 따르도록 ranksmith 전용 guardrail을 적용합니다(미구현 provider 호출,
+`algorithm` 문자열 확장, `confidence`를 reranker로 취급하는 패턴을 차단).
+
+Claude Code에서 사용:
+
+```bash
+/plugin marketplace add pko89403/ranksmith
+/plugin install ranksmith-advisor@ranksmith
+```
+
+레포 기여자는 자동으로 활성화됩니다. 프로젝트 공유 `.claude/settings.json`이
+로컬 marketplace를 등록하고 플러그인을 enable 하므로 수동 설치가 필요 없습니다.
+플러그인 본문은 `skills/ranksmith-advisor/`에 있으며 PyPI 배포물에서는
+제외됩니다.
 
 ## 벤치마크
 
