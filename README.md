@@ -433,7 +433,7 @@ attempts. Row attempts are useful for retry accounting, but they are not exact
 provider-call telemetry for multi-call methods that can fail partway through an
 algorithm run. The committed evidence artifacts are:
 
-- [`benchmark-results/live/askubuntu-bm25-top20-default-live.v3.merged.json`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/live/askubuntu-bm25-top20-default-live.v3.merged.json)
+- [`benchmark-results/live/askubuntu-bm25-top20-default-live.v4.merged.json`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/live/askubuntu-bm25-top20-default-live.v4.merged.json)
 - [`benchmark-results/pyserini/askubuntu-bm25-top20.trec`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/pyserini/askubuntu-bm25-top20.trec)
 
 | Method | NDCG@5 | MRR@5 | Recall@5 | Valid rows | Invalid rate | Nominal LLM calls/query | LLM row attempts/query incl. retries |
@@ -445,13 +445,26 @@ algorithm run. The committed evidence artifacts are:
 | `tourrank_r2` | 0.4236 | 0.5725 | 0.3601 | 361/361 | 0.000 | 8 | 1.03 |
 | `setwise_hs_s10` | 0.3653 | 0.5059 | 0.3005 | 361/361 | 0.000 | 12 | 1.00 |
 | `prp_sliding_p1` | 0.4065 | 0.5818 | 0.3277 | 361/361 | 0.000 | 38 | 1.00 |
+| `answer_confidence` *(scorer: SQuAD v1.1, out-of-domain)* | 0.1722 | 0.2862 | 0.1435 | 361/361 | 0.000 | 20 | 1.00 |
 
 `tourrank_r2` had the best NDCG@5 and Recall@5, while `prp_sliding_p1` had the
 best MRR@5. `single_call_listwise@20` is the one-shot listwise baseline.
 `rankgpt_sw_w5` is the true sliding-window listwise baseline for this top-20
 setup. `acurank_k5_b1` aligns AcuRank's uncertainty boundary with the `@5`
 evaluation cutoff. `setwise_hs_s10` is a practical Setwise Heapsort setting
-that extracts only the evaluated top-5 from 20 candidates.
+that extracts only the evaluated top-5 from 20 candidates. `answer_confidence`
+uses a scorer trained on SQuAD v1.1 (out-of-domain for AskUbuntu, see
+[the runbook](docs/benchmarks/answer_confidence_askubuntu.md)) and scores
+below the BM25 baseline here; it is reported as measured, not tuned to win.
+
+Why not tune it to win: fitting the scorer to this benchmark's distribution
+would measure overfitting to AskUbuntu, not the algorithm's general quality —
+the same reason `scripts/train_answer_confidence.py` fast-fails below
+`roc_auc 0.6` instead of letting a cherry-picked checkpoint through. A
+stronger in-domain scorer is a legitimate follow-up (see "남은 작업" in
+[the spec](docs/specs/spec_confidence_aware_reranking.md)), but that means
+training a better artifact and re-running this exact command, not adjusting
+the report.
 
 After retries, 2 `single_call_listwise@20` rows and 5 `acurank_k5_b1` rows
 remained invalid. They are included in the invalid-rate accounting instead of

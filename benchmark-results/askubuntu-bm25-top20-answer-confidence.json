@@ -1,0 +1,6550 @@
+{
+  "aggregate": [
+    {
+      "algorithm": "answer_confidence",
+      "case_count": 361,
+      "invalid_rate": 0.0,
+      "metrics": {
+        "mrr@5": 0.28619575253924284,
+        "ndcg@5": 0.17217008703277661,
+        "recall@5": 0.1434797614811208
+      },
+      "valid_count": 361
+    }
+  ],
+  "algorithm": [
+    "answer_confidence"
+  ],
+  "benchmark_type": "reranking_with_first_stage_candidates",
+  "cache_dir": "/Users/skiiwoo/Documents/ranksmith/.benchmark-cache/askubuntu-bm25",
+  "call_estimates": {
+    "answer_confidence": 7220
+  },
+  "candidate_count": 20,
+  "candidate_strategy": "candidate_file",
+  "candidates": "benchmark-results/pyserini/askubuntu-bm25-top20.trec",
+  "case_count": 361,
+  "checkpoint_output": "benchmark-results/askubuntu-bm25-top20-answer-confidence.checkpoint.jsonl",
+  "dataset": "benchmark-cache",
+  "dataset_name": "askubuntu-bm25",
+  "fixture": null,
+  "method_settings": {
+    "answer_confidence": {
+      "candidate_count": 20,
+      "stride": 10,
+      "top_k_early_stop": false,
+      "window_size": 20
+    }
+  },
+  "passes": 10,
+  "per_query": [
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query0",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.8687949224876582,
+        "recall@5": 0.3333333333333333
+      },
+      "query_id": "test_query0",
+      "ranked_ids": [
+        "apositive_test_query0_00010",
+        "apositive_test_query0_00000",
+        "apositive_test_query0_00006",
+        "apositive_test_query0_00003",
+        "negative_test_query359_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query1",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query1",
+      "ranked_ids": [
+        "negative_test_query245_00006",
+        "apositive_test_query348_00003",
+        "negative_test_query120_00006",
+        "negative_test_query61_00002",
+        "negative_test_query27_00017"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query10",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.4776237035032179,
+        "recall@5": 0.6666666666666666
+      },
+      "query_id": "test_query10",
+      "ranked_ids": [
+        "negative_test_query10_00010",
+        "apositive_test_query10_00001",
+        "negative_test_query104_00011",
+        "negative_test_query10_00000",
+        "apositive_test_query10_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query100",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query100",
+      "ranked_ids": [
+        "negative_test_query100_00010",
+        "negative_test_query290_00015",
+        "negative_test_query100_00009",
+        "apositive_test_query181_00000",
+        "negative_test_query100_00013"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query101",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query101",
+      "ranked_ids": [
+        "apositive_test_query196_00000",
+        "apositive_test_query336_00001",
+        "negative_test_query61_00002",
+        "negative_test_query173_00013",
+        "negative_test_query241_00005"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query102",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query102",
+      "ranked_ids": [
+        "negative_test_query209_00006",
+        "negative_test_query108_00009",
+        "negative_test_query219_00004",
+        "negative_test_query131_00009",
+        "negative_test_query205_00016"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query103",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.21398626473452756,
+        "recall@5": 0.14285714285714285
+      },
+      "query_id": "test_query103",
+      "ranked_ids": [
+        "negative_test_query103_00005",
+        "apositive_test_query103_00005",
+        "negative_test_query185_00003",
+        "negative_test_query307_00004",
+        "negative_test_query307_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query104",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query104",
+      "ranked_ids": [
+        "negative_test_query104_00010",
+        "negative_test_query104_00016",
+        "negative_test_query48_00010",
+        "negative_test_query104_00004",
+        "apositive_test_query48_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query105",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query105",
+      "ranked_ids": [
+        "negative_test_query313_00013",
+        "negative_test_query105_00005",
+        "negative_test_query267_00011",
+        "negative_test_query119_00005",
+        "negative_test_query168_00005"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query106",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query106",
+      "ranked_ids": [
+        "negative_test_query326_00008",
+        "apositive_test_query177_00008",
+        "negative_test_query147_00001",
+        "negative_test_query162_00007",
+        "apositive_test_query42_00006"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query107",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query107",
+      "ranked_ids": [
+        "negative_test_query146_00000",
+        "negative_test_query296_00001",
+        "negative_test_query31_00013",
+        "apositive_test_query142_00002",
+        "negative_test_query105_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query108",
+      "metrics": {
+        "mrr@5": 0.3333333333333333,
+        "ndcg@5": 0.16958010263680806,
+        "recall@5": 0.125
+      },
+      "query_id": "test_query108",
+      "ranked_ids": [
+        "negative_test_query313_00012",
+        "negative_test_query334_00013",
+        "apositive_test_query108_00005",
+        "negative_test_query57_00009",
+        "negative_test_query311_00006"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query109",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query109",
+      "ranked_ids": [
+        "negative_test_query109_00003",
+        "negative_test_query6_00006",
+        "negative_test_query109_00000",
+        "negative_test_query51_00004",
+        "negative_test_query109_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query11",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.3391602052736161,
+        "recall@5": 0.125
+      },
+      "query_id": "test_query11",
+      "ranked_ids": [
+        "apositive_test_query11_00001",
+        "negative_test_query226_00010",
+        "negative_test_query309_00002",
+        "negative_test_query358_00005",
+        "negative_test_query11_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query110",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query110",
+      "ranked_ids": [
+        "apositive_test_query11_00002",
+        "negative_test_query110_00014",
+        "apositive_test_query330_00001",
+        "negative_test_query17_00008",
+        "negative_test_query110_00006"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query111",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query111",
+      "ranked_ids": [
+        "negative_test_query243_00001",
+        "negative_test_query277_00010",
+        "negative_test_query111_00018",
+        "negative_test_query292_00010",
+        "negative_test_query277_00006"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query112",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query112",
+      "ranked_ids": [
+        "apositive_test_query286_00005",
+        "negative_test_query112_00013",
+        "negative_test_query80_00007",
+        "negative_test_query112_00015",
+        "apositive_test_query106_00003"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query113",
+      "metrics": {
+        "mrr@5": 0.3333333333333333,
+        "ndcg@5": 0.16958010263680806,
+        "recall@5": 0.16666666666666666
+      },
+      "query_id": "test_query113",
+      "ranked_ids": [
+        "negative_test_query38_00003",
+        "negative_test_query113_00003",
+        "apositive_test_query113_00001",
+        "negative_test_query105_00000",
+        "apositive_test_query186_00005"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query114",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.21398626473452756,
+        "recall@5": 0.14285714285714285
+      },
+      "query_id": "test_query114",
+      "ranked_ids": [
+        "negative_test_query262_00007",
+        "apositive_test_query114_00004",
+        "negative_test_query80_00008",
+        "negative_test_query106_00009",
+        "negative_test_query114_00010"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query115",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.36005461457723403,
+        "recall@5": 0.3333333333333333
+      },
+      "query_id": "test_query115",
+      "ranked_ids": [
+        "negative_test_query205_00004",
+        "apositive_test_query115_00000",
+        "apositive_test_query121_00001",
+        "apositive_test_query115_00002",
+        "negative_test_query139_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query116",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.38685280723454163,
+        "recall@5": 0.5
+      },
+      "query_id": "test_query116",
+      "ranked_ids": [
+        "negative_test_query116_00000",
+        "apositive_test_query116_00000",
+        "negative_test_query59_00007",
+        "negative_test_query116_00007",
+        "apositive_test_query49_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query117",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.5087403079104241,
+        "recall@5": 0.25
+      },
+      "query_id": "test_query117",
+      "ranked_ids": [
+        "apositive_test_query117_00003",
+        "negative_test_query63_00001",
+        "apositive_test_query117_00007",
+        "negative_test_query117_00003",
+        "negative_test_query175_00013"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query118",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query118",
+      "ranked_ids": [
+        "apositive_test_query340_00002",
+        "negative_test_query88_00007",
+        "apositive_test_query174_00003",
+        "apositive_test_query174_00005",
+        "apositive_test_query174_00010"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query119",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query119",
+      "ranked_ids": [
+        "negative_test_query119_00005",
+        "apositive_test_query79_00004",
+        "negative_test_query157_00007",
+        "negative_test_query359_00005",
+        "negative_test_query152_00004"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query12",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query12",
+      "ranked_ids": [
+        "negative_test_query234_00014",
+        "negative_test_query12_00003",
+        "negative_test_query12_00014",
+        "negative_test_query12_00007",
+        "negative_test_query12_00013"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query120",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query120",
+      "ranked_ids": [
+        "negative_test_query120_00008",
+        "apositive_test_query352_00000",
+        "negative_test_query303_00018",
+        "negative_test_query120_00002",
+        "negative_test_query120_00006"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query121",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.48522855511632257,
+        "recall@5": 0.3333333333333333
+      },
+      "query_id": "test_query121",
+      "ranked_ids": [
+        "apositive_test_query121_00001",
+        "negative_test_query121_00012",
+        "negative_test_query121_00007",
+        "apositive_test_query121_00000",
+        "negative_test_query115_00009"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query122",
+      "metrics": {
+        "mrr@5": 0.2,
+        "ndcg@5": 0.38685280723454163,
+        "recall@5": 1.0
+      },
+      "query_id": "test_query122",
+      "ranked_ids": [
+        "negative_test_query64_00017",
+        "negative_test_query86_00001",
+        "apositive_test_query173_00001",
+        "negative_test_query134_00007",
+        "apositive_test_query122_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query123",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.3391602052736161,
+        "recall@5": 0.2
+      },
+      "query_id": "test_query123",
+      "ranked_ids": [
+        "apositive_test_query123_00002",
+        "negative_test_query123_00002",
+        "negative_test_query123_00008",
+        "negative_test_query123_00006",
+        "negative_test_query269_00006"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query124",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query124",
+      "ranked_ids": [
+        "negative_test_query124_00003",
+        "negative_test_query42_00006",
+        "apositive_test_query13_00004",
+        "negative_test_query93_00010",
+        "apositive_test_query162_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query125",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query125",
+      "ranked_ids": [
+        "negative_test_query301_00012",
+        "apositive_test_query286_00009",
+        "negative_test_query125_00013",
+        "negative_test_query125_00014",
+        "negative_test_query140_00017"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query126",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query126",
+      "ranked_ids": [
+        "negative_test_query131_00009",
+        "apositive_test_query330_00001",
+        "apositive_test_query5_00002",
+        "apositive_test_query151_00003",
+        "negative_test_query126_00006"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query127",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.639945385422766,
+        "recall@5": 0.17647058823529413
+      },
+      "query_id": "test_query127",
+      "ranked_ids": [
+        "apositive_test_query127_00009",
+        "negative_test_query267_00009",
+        "apositive_test_query127_00012",
+        "apositive_test_query94_00005",
+        "apositive_test_query127_00016"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query128",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.3391602052736161,
+        "recall@5": 0.125
+      },
+      "query_id": "test_query128",
+      "ranked_ids": [
+        "apositive_test_query128_00001",
+        "negative_test_query75_00012",
+        "apositive_test_query216_00002",
+        "negative_test_query128_00011",
+        "apositive_test_query21_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query129",
+      "metrics": {
+        "mrr@5": 0.2,
+        "ndcg@5": 0.13120507751234178,
+        "recall@5": 0.125
+      },
+      "query_id": "test_query129",
+      "ranked_ids": [
+        "negative_test_query63_00006",
+        "apositive_test_query249_00003",
+        "negative_test_query16_00007",
+        "negative_test_query187_00012",
+        "apositive_test_query129_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query13",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.5296347172140421,
+        "recall@5": 0.23076923076923078
+      },
+      "query_id": "test_query13",
+      "ranked_ids": [
+        "negative_test_query13_00004",
+        "apositive_test_query13_00010",
+        "apositive_test_query13_00008",
+        "apositive_test_query13_00012",
+        "negative_test_query13_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query130",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query130",
+      "ranked_ids": [
+        "negative_test_query90_00014",
+        "negative_test_query130_00001",
+        "negative_test_query289_00004",
+        "negative_test_query198_00003",
+        "negative_test_query284_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query131",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.3903800499921017,
+        "recall@5": 0.25
+      },
+      "query_id": "test_query131",
+      "ranked_ids": [
+        "apositive_test_query131_00001",
+        "negative_test_query131_00002",
+        "negative_test_query313_00008",
+        "negative_test_query168_00013",
+        "negative_test_query184_00012"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query132",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query132",
+      "ranked_ids": [
+        "apositive_test_query3_00004",
+        "negative_test_query132_00012",
+        "negative_test_query132_00018",
+        "negative_test_query81_00005",
+        "negative_test_query304_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query133",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query133",
+      "ranked_ids": [
+        "apositive_test_query129_00002",
+        "negative_test_query12_00014",
+        "apositive_test_query129_00007",
+        "apositive_test_query174_00011",
+        "negative_test_query206_00017"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query134",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query134",
+      "ranked_ids": [
+        "negative_test_query313_00012",
+        "negative_test_query334_00013",
+        "negative_test_query108_00003",
+        "apositive_test_query238_00001",
+        "apositive_test_query276_00004"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query135",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query135",
+      "ranked_ids": [
+        "negative_test_query135_00001",
+        "negative_test_query297_00017",
+        "negative_test_query135_00007",
+        "negative_test_query135_00008",
+        "negative_test_query135_00014"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query136",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 1.0,
+        "recall@5": 0.3333333333333333
+      },
+      "query_id": "test_query136",
+      "ranked_ids": [
+        "apositive_test_query136_00002",
+        "apositive_test_query136_00011",
+        "apositive_test_query136_00000",
+        "apositive_test_query136_00010",
+        "apositive_test_query136_00014"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query137",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.4144299250118475,
+        "recall@5": 0.5
+      },
+      "query_id": "test_query137",
+      "ranked_ids": [
+        "negative_test_query149_00013",
+        "apositive_test_query137_00002",
+        "negative_test_query74_00001",
+        "apositive_test_query137_00000",
+        "negative_test_query262_00009"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query138",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query138",
+      "ranked_ids": [
+        "negative_test_query138_00015",
+        "apositive_test_query244_00005",
+        "negative_test_query138_00005",
+        "negative_test_query138_00014",
+        "negative_test_query138_00013"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query139",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.46927872602275644,
+        "recall@5": 0.3333333333333333
+      },
+      "query_id": "test_query139",
+      "ranked_ids": [
+        "apositive_test_query139_00001",
+        "negative_test_query262_00002",
+        "negative_test_query198_00011",
+        "negative_test_query101_00006",
+        "apositive_test_query354_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query14",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query14",
+      "ranked_ids": [
+        "apositive_test_query64_00000",
+        "apositive_test_query26_00006",
+        "apositive_test_query296_00005",
+        "negative_test_query14_00001",
+        "negative_test_query179_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query140",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query140",
+      "ranked_ids": [
+        "negative_test_query140_00009",
+        "negative_test_query215_00000",
+        "negative_test_query257_00003",
+        "negative_test_query140_00003",
+        "negative_test_query140_00016"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query141",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query141",
+      "ranked_ids": [
+        "negative_test_query245_00008",
+        "negative_test_query245_00016",
+        "negative_test_query308_00005",
+        "negative_test_query57_00002",
+        "apositive_test_query288_00005"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query142",
+      "metrics": {
+        "mrr@5": 0.25,
+        "ndcg@5": 0.14606834984270645,
+        "recall@5": 0.14285714285714285
+      },
+      "query_id": "test_query142",
+      "ranked_ids": [
+        "negative_test_query200_00014",
+        "negative_test_query337_00016",
+        "negative_test_query142_00007",
+        "apositive_test_query142_00002",
+        "negative_test_query105_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query143",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query143",
+      "ranked_ids": [
+        "negative_test_query90_00014",
+        "negative_test_query143_00004",
+        "negative_test_query45_00009",
+        "negative_test_query143_00011",
+        "negative_test_query143_00006"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query144",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query144",
+      "ranked_ids": [
+        "negative_test_query166_00001",
+        "negative_test_query144_00012",
+        "negative_test_query144_00006",
+        "negative_test_query144_00001",
+        "negative_test_query144_00017"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query145",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query145",
+      "ranked_ids": [
+        "negative_test_query211_00013",
+        "negative_test_query230_00002",
+        "negative_test_query53_00012",
+        "negative_test_query112_00007",
+        "negative_test_query187_00014"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query146",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.3391602052736161,
+        "recall@5": 0.0625
+      },
+      "query_id": "test_query146",
+      "ranked_ids": [
+        "apositive_test_query146_00004",
+        "apositive_test_query314_00009",
+        "negative_test_query146_00002",
+        "apositive_test_query314_00001",
+        "negative_test_query146_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query147",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query147",
+      "ranked_ids": [
+        "negative_test_query17_00009",
+        "negative_test_query147_00013",
+        "negative_test_query147_00008",
+        "negative_test_query309_00014",
+        "negative_test_query200_00011"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query148",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query148",
+      "ranked_ids": [
+        "negative_test_query210_00006",
+        "negative_test_query321_00013",
+        "apositive_test_query234_00003",
+        "apositive_test_query304_00002",
+        "negative_test_query148_00005"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query149",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query149",
+      "ranked_ids": [
+        "negative_test_query149_00001",
+        "negative_test_query149_00013",
+        "apositive_test_query145_00001",
+        "negative_test_query225_00006",
+        "negative_test_query149_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query15",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query15",
+      "ranked_ids": [
+        "negative_test_query15_00014",
+        "negative_test_query15_00007",
+        "negative_test_query15_00004",
+        "negative_test_query325_00011",
+        "negative_test_query15_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query150",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query150",
+      "ranked_ids": [
+        "negative_test_query301_00007",
+        "negative_test_query346_00008",
+        "negative_test_query139_00005",
+        "negative_test_query254_00003",
+        "negative_test_query350_00018"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query151",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.24630238874073,
+        "recall@5": 0.25
+      },
+      "query_id": "test_query151",
+      "ranked_ids": [
+        "negative_test_query190_00014",
+        "apositive_test_query151_00003",
+        "negative_test_query126_00006",
+        "negative_test_query151_00004",
+        "negative_test_query293_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query152",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query152",
+      "ranked_ids": [
+        "negative_test_query349_00001",
+        "negative_test_query262_00010",
+        "negative_test_query342_00005",
+        "negative_test_query237_00011",
+        "negative_test_query349_00005"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query153",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.5531464700081437,
+        "recall@5": 0.125
+      },
+      "query_id": "test_query153",
+      "ranked_ids": [
+        "apositive_test_query153_00001",
+        "apositive_test_query153_00003",
+        "negative_test_query278_00006",
+        "negative_test_query112_00007",
+        "negative_test_query112_00015"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query154",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query154",
+      "ranked_ids": [
+        "negative_test_query245_00006",
+        "apositive_test_query33_00008",
+        "apositive_test_query20_00003",
+        "apositive_test_query358_00008",
+        "negative_test_query68_00015"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query155",
+      "metrics": {
+        "mrr@5": 0.25,
+        "ndcg@5": 0.14606834984270645,
+        "recall@5": 0.16666666666666666
+      },
+      "query_id": "test_query155",
+      "ranked_ids": [
+        "negative_test_query155_00006",
+        "negative_test_query155_00005",
+        "negative_test_query99_00001",
+        "apositive_test_query155_00005",
+        "negative_test_query155_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query156",
+      "metrics": {
+        "mrr@5": 0.25,
+        "ndcg@5": 0.43067655807339306,
+        "recall@5": 1.0
+      },
+      "query_id": "test_query156",
+      "ranked_ids": [
+        "negative_test_query49_00005",
+        "apositive_test_query210_00001",
+        "negative_test_query283_00009",
+        "apositive_test_query156_00000",
+        "negative_test_query156_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query157",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query157",
+      "ranked_ids": [
+        "negative_test_query271_00003",
+        "apositive_test_query237_00004",
+        "apositive_test_query152_00004",
+        "negative_test_query237_00000",
+        "negative_test_query152_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query158",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.48522855511632257,
+        "recall@5": 0.2
+      },
+      "query_id": "test_query158",
+      "ranked_ids": [
+        "apositive_test_query158_00000",
+        "negative_test_query26_00005",
+        "negative_test_query26_00010",
+        "apositive_test_query158_00007",
+        "negative_test_query102_00003"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query159",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query159",
+      "ranked_ids": [
+        "negative_test_query264_00013",
+        "apositive_test_query38_00003",
+        "negative_test_query159_00016",
+        "apositive_test_query212_00003",
+        "negative_test_query122_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query16",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query16",
+      "ranked_ids": [
+        "negative_test_query16_00009",
+        "negative_test_query308_00004",
+        "negative_test_query16_00011",
+        "negative_test_query16_00008",
+        "negative_test_query16_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query160",
+      "metrics": {
+        "mrr@5": 0.2,
+        "ndcg@5": 0.13120507751234178,
+        "recall@5": 0.07142857142857142
+      },
+      "query_id": "test_query160",
+      "ranked_ids": [
+        "apositive_test_query64_00000",
+        "negative_test_query271_00010",
+        "negative_test_query304_00007",
+        "negative_test_query330_00005",
+        "apositive_test_query160_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query161",
+      "metrics": {
+        "mrr@5": 0.25,
+        "ndcg@5": 0.14606834984270645,
+        "recall@5": 0.1111111111111111
+      },
+      "query_id": "test_query161",
+      "ranked_ids": [
+        "apositive_test_query3_00006",
+        "negative_test_query260_00004",
+        "apositive_test_query314_00004",
+        "apositive_test_query161_00008",
+        "apositive_test_query301_00003"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query162",
+      "metrics": {
+        "mrr@5": 0.2,
+        "ndcg@5": 0.13120507751234178,
+        "recall@5": 0.08333333333333333
+      },
+      "query_id": "test_query162",
+      "ranked_ids": [
+        "apositive_test_query194_00009",
+        "negative_test_query162_00001",
+        "negative_test_query343_00012",
+        "negative_test_query177_00002",
+        "apositive_test_query162_00003"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query163",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query163",
+      "ranked_ids": [
+        "negative_test_query58_00015",
+        "negative_test_query197_00002",
+        "negative_test_query265_00015",
+        "negative_test_query163_00011",
+        "negative_test_query202_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query164",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query164",
+      "ranked_ids": [
+        "apositive_test_query146_00014",
+        "negative_test_query164_00015",
+        "negative_test_query245_00005",
+        "negative_test_query321_00011",
+        "negative_test_query100_00013"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query165",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query165",
+      "ranked_ids": [
+        "negative_test_query327_00016",
+        "negative_test_query165_00007",
+        "negative_test_query86_00006",
+        "negative_test_query264_00016",
+        "negative_test_query165_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query166",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.21398626473452756,
+        "recall@5": 0.16666666666666666
+      },
+      "query_id": "test_query166",
+      "ranked_ids": [
+        "apositive_test_query224_00000",
+        "apositive_test_query166_00002",
+        "negative_test_query166_00001",
+        "negative_test_query165_00015",
+        "negative_test_query166_00007"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query167",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query167",
+      "ranked_ids": [
+        "negative_test_query278_00010",
+        "apositive_test_query288_00005",
+        "negative_test_query141_00010",
+        "negative_test_query167_00008",
+        "negative_test_query167_00012"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query168",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.5585075862632192,
+        "recall@5": 0.5
+      },
+      "query_id": "test_query168",
+      "ranked_ids": [
+        "apositive_test_query168_00000",
+        "negative_test_query168_00007",
+        "negative_test_query260_00011",
+        "apositive_test_query168_00001",
+        "negative_test_query168_00009"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query169",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query169",
+      "ranked_ids": [
+        "negative_test_query10_00013",
+        "negative_test_query72_00013",
+        "negative_test_query49_00017",
+        "apositive_test_query330_00001",
+        "apositive_test_query69_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query17",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query17",
+      "ranked_ids": [
+        "negative_test_query17_00016",
+        "negative_test_query17_00005",
+        "negative_test_query17_00014",
+        "negative_test_query164_00006",
+        "negative_test_query17_00012"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query170",
+      "metrics": {
+        "mrr@5": 0.25,
+        "ndcg@5": 0.14606834984270645,
+        "recall@5": 0.1111111111111111
+      },
+      "query_id": "test_query170",
+      "ranked_ids": [
+        "negative_test_query170_00001",
+        "negative_test_query227_00010",
+        "negative_test_query227_00002",
+        "apositive_test_query170_00000",
+        "apositive_test_query297_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query171",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query171",
+      "ranked_ids": [
+        "apositive_test_query224_00000",
+        "negative_test_query277_00007",
+        "negative_test_query346_00005",
+        "negative_test_query24_00007",
+        "negative_test_query171_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query172",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query172",
+      "ranked_ids": [
+        "apositive_test_query124_00002",
+        "negative_test_query349_00001",
+        "negative_test_query173_00006",
+        "negative_test_query8_00000",
+        "negative_test_query350_00009"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query173",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.38356636737133565,
+        "recall@5": 0.3333333333333333
+      },
+      "query_id": "test_query173",
+      "ranked_ids": [
+        "negative_test_query64_00017",
+        "apositive_test_query173_00004",
+        "apositive_test_query173_00001",
+        "negative_test_query173_00006",
+        "negative_test_query222_00010"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query174",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.7860137352654724,
+        "recall@5": 0.23529411764705882
+      },
+      "query_id": "test_query174",
+      "ranked_ids": [
+        "apositive_test_query174_00003",
+        "negative_test_query19_00012",
+        "apositive_test_query174_00005",
+        "apositive_test_query174_00007",
+        "apositive_test_query174_00010"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query175",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.3391602052736161,
+        "recall@5": 0.16666666666666666
+      },
+      "query_id": "test_query175",
+      "ranked_ids": [
+        "apositive_test_query175_00000",
+        "negative_test_query204_00000",
+        "apositive_test_query50_00015",
+        "negative_test_query175_00013",
+        "negative_test_query175_00010"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query176",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query176",
+      "ranked_ids": [
+        "negative_test_query144_00018",
+        "apositive_test_query92_00002",
+        "negative_test_query24_00014",
+        "negative_test_query195_00006",
+        "negative_test_query284_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query177",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.21398626473452756,
+        "recall@5": 0.1
+      },
+      "query_id": "test_query177",
+      "ranked_ids": [
+        "negative_test_query124_00001",
+        "apositive_test_query177_00008",
+        "negative_test_query147_00001",
+        "negative_test_query162_00007",
+        "negative_test_query177_00004"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query178",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query178",
+      "ranked_ids": [
+        "apositive_test_query60_00011",
+        "negative_test_query31_00004",
+        "negative_test_query274_00001",
+        "negative_test_query321_00017",
+        "negative_test_query178_00010"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query179",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query179",
+      "ranked_ids": [
+        "apositive_test_query316_00001",
+        "negative_test_query191_00003",
+        "negative_test_query297_00000",
+        "negative_test_query206_00004",
+        "negative_test_query241_00006"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query18",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query18",
+      "ranked_ids": [
+        "negative_test_query88_00002",
+        "negative_test_query215_00000",
+        "negative_test_query257_00003",
+        "negative_test_query140_00003",
+        "negative_test_query18_00013"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query180",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query180",
+      "ranked_ids": [
+        "negative_test_query246_00003",
+        "negative_test_query207_00007",
+        "negative_test_query180_00002",
+        "negative_test_query180_00007",
+        "apositive_test_query262_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query181",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query181",
+      "ranked_ids": [
+        "negative_test_query181_00005",
+        "negative_test_query181_00010",
+        "negative_test_query348_00007",
+        "apositive_test_query119_00011",
+        "negative_test_query181_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query182",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query182",
+      "ranked_ids": [
+        "negative_test_query182_00011",
+        "negative_test_query182_00018",
+        "negative_test_query342_00004",
+        "negative_test_query237_00006",
+        "negative_test_query182_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query183",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query183",
+      "ranked_ids": [
+        "negative_test_query183_00008",
+        "negative_test_query7_00009",
+        "apositive_test_query7_00001",
+        "negative_test_query183_00010",
+        "negative_test_query7_00010"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query184",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query184",
+      "ranked_ids": [
+        "apositive_test_query33_00004",
+        "negative_test_query156_00001",
+        "negative_test_query216_00008",
+        "negative_test_query216_00002",
+        "apositive_test_query316_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query185",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query185",
+      "ranked_ids": [
+        "negative_test_query350_00007",
+        "negative_test_query185_00002",
+        "apositive_test_query307_00008",
+        "apositive_test_query103_00000",
+        "negative_test_query48_00003"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query186",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query186",
+      "ranked_ids": [
+        "apositive_test_query79_00005",
+        "negative_test_query105_00001",
+        "negative_test_query29_00003",
+        "negative_test_query313_00005",
+        "apositive_test_query50_00010"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query187",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query187",
+      "ranked_ids": [
+        "negative_test_query245_00006",
+        "apositive_test_query33_00008",
+        "negative_test_query13_00005",
+        "negative_test_query245_00015",
+        "apositive_test_query358_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query188",
+      "metrics": {
+        "mrr@5": 0.2,
+        "ndcg@5": 0.13120507751234178,
+        "recall@5": 0.2
+      },
+      "query_id": "test_query188",
+      "ranked_ids": [
+        "negative_test_query112_00017",
+        "negative_test_query20_00006",
+        "apositive_test_query20_00009",
+        "negative_test_query344_00007",
+        "apositive_test_query188_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query189",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.21398626473452756,
+        "recall@5": 0.2
+      },
+      "query_id": "test_query189",
+      "ranked_ids": [
+        "negative_test_query189_00004",
+        "apositive_test_query189_00002",
+        "negative_test_query189_00002",
+        "negative_test_query55_00003",
+        "negative_test_query140_00016"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query19",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query19",
+      "ranked_ids": [
+        "negative_test_query106_00007",
+        "negative_test_query292_00004",
+        "apositive_test_query174_00007",
+        "negative_test_query229_00002",
+        "negative_test_query141_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query190",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query190",
+      "ranked_ids": [
+        "apositive_test_query234_00001",
+        "negative_test_query190_00013",
+        "negative_test_query233_00008",
+        "negative_test_query265_00004",
+        "negative_test_query205_00016"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query191",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.5413996682199069,
+        "recall@5": 0.5
+      },
+      "query_id": "test_query191",
+      "ranked_ids": [
+        "apositive_test_query191_00000",
+        "negative_test_query191_00003",
+        "negative_test_query274_00002",
+        "negative_test_query241_00007",
+        "apositive_test_query191_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query192",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.5087403079104241,
+        "recall@5": 0.4
+      },
+      "query_id": "test_query192",
+      "ranked_ids": [
+        "apositive_test_query192_00002",
+        "negative_test_query192_00002",
+        "apositive_test_query192_00004",
+        "negative_test_query120_00007",
+        "negative_test_query350_00013"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query193",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.36005461457723403,
+        "recall@5": 0.15384615384615385
+      },
+      "query_id": "test_query193",
+      "ranked_ids": [
+        "negative_test_query193_00006",
+        "apositive_test_query193_00001",
+        "apositive_test_query99_00003",
+        "apositive_test_query193_00009",
+        "negative_test_query146_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query194",
+      "metrics": {
+        "mrr@5": 0.25,
+        "ndcg@5": 0.27727342735504823,
+        "recall@5": 0.14285714285714285
+      },
+      "query_id": "test_query194",
+      "ranked_ids": [
+        "negative_test_query262_00007",
+        "negative_test_query177_00007",
+        "negative_test_query95_00016",
+        "apositive_test_query194_00001",
+        "apositive_test_query194_00007"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query195",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.3391602052736161,
+        "recall@5": 0.16666666666666666
+      },
+      "query_id": "test_query195",
+      "ranked_ids": [
+        "apositive_test_query195_00002",
+        "apositive_test_query251_00000",
+        "negative_test_query109_00008",
+        "negative_test_query199_00003",
+        "negative_test_query195_00013"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query196",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.21398626473452756,
+        "recall@5": 0.2
+      },
+      "query_id": "test_query196",
+      "ranked_ids": [
+        "apositive_test_query32_00004",
+        "apositive_test_query196_00003",
+        "apositive_test_query32_00011",
+        "negative_test_query139_00011",
+        "negative_test_query173_00012"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query197",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.46927872602275644,
+        "recall@5": 0.3333333333333333
+      },
+      "query_id": "test_query197",
+      "ranked_ids": [
+        "apositive_test_query197_00000",
+        "apositive_test_query189_00001",
+        "negative_test_query163_00001",
+        "apositive_test_query34_00000",
+        "negative_test_query163_00009"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query198",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query198",
+      "ranked_ids": [
+        "negative_test_query293_00011",
+        "negative_test_query198_00004",
+        "negative_test_query239_00007",
+        "negative_test_query293_00010",
+        "negative_test_query198_00007"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query199",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query199",
+      "ranked_ids": [
+        "negative_test_query350_00007",
+        "negative_test_query199_00006",
+        "negative_test_query185_00002",
+        "negative_test_query199_00002",
+        "negative_test_query221_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query2",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query2",
+      "ranked_ids": [
+        "negative_test_query44_00008",
+        "negative_test_query2_00012",
+        "negative_test_query197_00004",
+        "negative_test_query348_00005",
+        "negative_test_query104_00007"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query20",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.38356636737133565,
+        "recall@5": 0.18181818181818182
+      },
+      "query_id": "test_query20",
+      "ranked_ids": [
+        "apositive_test_query33_00008",
+        "apositive_test_query20_00009",
+        "apositive_test_query20_00003",
+        "negative_test_query66_00002",
+        "apositive_test_query66_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query200",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query200",
+      "ranked_ids": [
+        "negative_test_query200_00015",
+        "negative_test_query38_00005",
+        "negative_test_query264_00007",
+        "negative_test_query264_00006",
+        "negative_test_query200_00012"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query201",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query201",
+      "ranked_ids": [
+        "negative_test_query71_00002",
+        "negative_test_query0_00004",
+        "negative_test_query47_00013",
+        "negative_test_query209_00008",
+        "apositive_test_query30_00005"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query202",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query202",
+      "ranked_ids": [
+        "negative_test_query235_00001",
+        "apositive_test_query61_00003",
+        "apositive_test_query206_00000",
+        "negative_test_query202_00004",
+        "apositive_test_query309_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query203",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query203",
+      "ranked_ids": [
+        "negative_test_query130_00001",
+        "apositive_test_query30_00005",
+        "apositive_test_query284_00003",
+        "negative_test_query35_00004",
+        "negative_test_query203_00005"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query204",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.36005461457723403,
+        "recall@5": 0.11764705882352941
+      },
+      "query_id": "test_query204",
+      "ranked_ids": [
+        "negative_test_query204_00000",
+        "apositive_test_query204_00000",
+        "apositive_test_query353_00002",
+        "apositive_test_query204_00008",
+        "negative_test_query353_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query205",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query205",
+      "ranked_ids": [
+        "negative_test_query31_00015",
+        "negative_test_query205_00007",
+        "negative_test_query115_00000",
+        "apositive_test_query256_00002",
+        "negative_test_query205_00015"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query206",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query206",
+      "ranked_ids": [
+        "negative_test_query64_00016",
+        "negative_test_query206_00001",
+        "negative_test_query206_00018",
+        "negative_test_query206_00003",
+        "negative_test_query299_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query207",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.3391602052736161,
+        "recall@5": 0.16666666666666666
+      },
+      "query_id": "test_query207",
+      "ranked_ids": [
+        "apositive_test_query207_00005",
+        "negative_test_query207_00007",
+        "negative_test_query207_00000",
+        "negative_test_query207_00003",
+        "negative_test_query207_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query208",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query208",
+      "ranked_ids": [
+        "negative_test_query128_00001",
+        "negative_test_query73_00008",
+        "apositive_test_query128_00002",
+        "negative_test_query128_00003",
+        "negative_test_query208_00016"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query209",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query209",
+      "ranked_ids": [
+        "negative_test_query313_00012",
+        "apositive_test_query119_00008",
+        "negative_test_query102_00016",
+        "apositive_test_query158_00004",
+        "negative_test_query26_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query21",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query21",
+      "ranked_ids": [
+        "negative_test_query21_00009",
+        "negative_test_query330_00000",
+        "negative_test_query234_00006",
+        "apositive_test_query128_00003",
+        "apositive_test_query128_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query210",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query210",
+      "ranked_ids": [
+        "negative_test_query288_00006",
+        "negative_test_query210_00006",
+        "negative_test_query321_00013",
+        "negative_test_query156_00015",
+        "negative_test_query202_00014"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query211",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query211",
+      "ranked_ids": [
+        "negative_test_query159_00006",
+        "negative_test_query211_00012",
+        "apositive_test_query101_00000",
+        "negative_test_query211_00000",
+        "negative_test_query211_00015"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query212",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query212",
+      "ranked_ids": [
+        "apositive_test_query326_00000",
+        "apositive_test_query98_00000",
+        "apositive_test_query11_00007",
+        "negative_test_query282_00010",
+        "negative_test_query344_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query213",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.3391602052736161,
+        "recall@5": 0.14285714285714285
+      },
+      "query_id": "test_query213",
+      "ranked_ids": [
+        "apositive_test_query213_00002",
+        "negative_test_query138_00016",
+        "negative_test_query224_00015",
+        "negative_test_query213_00004",
+        "negative_test_query213_00011"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query214",
+      "metrics": {
+        "mrr@5": 0.3333333333333333,
+        "ndcg@5": 0.5,
+        "recall@5": 1.0
+      },
+      "query_id": "test_query214",
+      "ranked_ids": [
+        "negative_test_query214_00015",
+        "apositive_test_query234_00001",
+        "apositive_test_query214_00000",
+        "negative_test_query214_00010",
+        "apositive_test_query160_00009"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query215",
+      "metrics": {
+        "mrr@5": 0.3333333333333333,
+        "ndcg@5": 0.5,
+        "recall@5": 1.0
+      },
+      "query_id": "test_query215",
+      "ranked_ids": [
+        "negative_test_query215_00000",
+        "negative_test_query257_00003",
+        "apositive_test_query215_00000",
+        "negative_test_query257_00001",
+        "negative_test_query215_00018"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query216",
+      "metrics": {
+        "mrr@5": 0.3333333333333333,
+        "ndcg@5": 0.16958010263680806,
+        "recall@5": 0.2
+      },
+      "query_id": "test_query216",
+      "ranked_ids": [
+        "apositive_test_query33_00004",
+        "negative_test_query216_00008",
+        "apositive_test_query216_00002",
+        "negative_test_query216_00009",
+        "negative_test_query246_00016"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query217",
+      "metrics": {
+        "mrr@5": 0.25,
+        "ndcg@5": 0.14606834984270645,
+        "recall@5": 0.125
+      },
+      "query_id": "test_query217",
+      "ranked_ids": [
+        "negative_test_query28_00002",
+        "negative_test_query230_00002",
+        "negative_test_query53_00012",
+        "apositive_test_query217_00000",
+        "negative_test_query185_00003"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query218",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.3391602052736161,
+        "recall@5": 0.14285714285714285
+      },
+      "query_id": "test_query218",
+      "ranked_ids": [
+        "apositive_test_query218_00004",
+        "negative_test_query218_00003",
+        "apositive_test_query60_00012",
+        "negative_test_query218_00000",
+        "negative_test_query274_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query219",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query219",
+      "ranked_ids": [
+        "negative_test_query165_00010",
+        "negative_test_query308_00006",
+        "negative_test_query24_00007",
+        "negative_test_query187_00015",
+        "negative_test_query219_00016"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query22",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query22",
+      "ranked_ids": [
+        "negative_test_query22_00000",
+        "negative_test_query22_00012",
+        "negative_test_query22_00007",
+        "negative_test_query22_00008",
+        "negative_test_query66_00004"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query220",
+      "metrics": {
+        "mrr@5": 0.25,
+        "ndcg@5": 0.14606834984270645,
+        "recall@5": 0.16666666666666666
+      },
+      "query_id": "test_query220",
+      "ranked_ids": [
+        "negative_test_query188_00007",
+        "apositive_test_query20_00009",
+        "negative_test_query344_00007",
+        "apositive_test_query220_00001",
+        "apositive_test_query188_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query221",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query221",
+      "ranked_ids": [
+        "apositive_test_query174_00006",
+        "negative_test_query278_00004",
+        "negative_test_query277_00010",
+        "negative_test_query184_00001",
+        "negative_test_query171_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query222",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query222",
+      "ranked_ids": [
+        "negative_test_query222_00014",
+        "apositive_test_query289_00002",
+        "apositive_test_query275_00008",
+        "negative_test_query275_00004",
+        "apositive_test_query275_00004"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query223",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query223",
+      "ranked_ids": [
+        "negative_test_query51_00003",
+        "apositive_test_query259_00008",
+        "negative_test_query323_00005",
+        "negative_test_query47_00007",
+        "negative_test_query359_00014"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query224",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.3903800499921017,
+        "recall@5": 0.25
+      },
+      "query_id": "test_query224",
+      "ranked_ids": [
+        "apositive_test_query224_00000",
+        "negative_test_query224_00011",
+        "negative_test_query98_00018",
+        "negative_test_query224_00014",
+        "apositive_test_query32_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query225",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.48522855511632257,
+        "recall@5": 0.18181818181818182
+      },
+      "query_id": "test_query225",
+      "ranked_ids": [
+        "apositive_test_query225_00000",
+        "apositive_test_query145_00001",
+        "negative_test_query225_00006",
+        "apositive_test_query225_00003",
+        "negative_test_query149_00011"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query226",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.34519134224686937,
+        "recall@5": 0.3333333333333333
+      },
+      "query_id": "test_query226",
+      "ranked_ids": [
+        "negative_test_query226_00009",
+        "apositive_test_query226_00002",
+        "negative_test_query226_00010",
+        "negative_test_query226_00007",
+        "apositive_test_query226_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query227",
+      "metrics": {
+        "mrr@5": 0.25,
+        "ndcg@5": 0.16812753627111746,
+        "recall@5": 0.25
+      },
+      "query_id": "test_query227",
+      "ranked_ids": [
+        "negative_test_query227_00006",
+        "apositive_test_query348_00004",
+        "negative_test_query321_00004",
+        "apositive_test_query227_00001",
+        "apositive_test_query70_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query228",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.38685280723454163,
+        "recall@5": 0.5
+      },
+      "query_id": "test_query228",
+      "ranked_ids": [
+        "apositive_test_query322_00003",
+        "apositive_test_query228_00000",
+        "negative_test_query73_00016",
+        "negative_test_query165_00011",
+        "apositive_test_query254_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query229",
+      "metrics": {
+        "mrr@5": 0.3333333333333333,
+        "ndcg@5": 0.16958010263680806,
+        "recall@5": 0.1
+      },
+      "query_id": "test_query229",
+      "ranked_ids": [
+        "apositive_test_query146_00004",
+        "negative_test_query355_00001",
+        "apositive_test_query229_00000",
+        "negative_test_query94_00010",
+        "negative_test_query44_00005"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query23",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query23",
+      "ranked_ids": [
+        "apositive_test_query225_00000",
+        "negative_test_query356_00008",
+        "apositive_test_query146_00015",
+        "negative_test_query292_00013",
+        "apositive_test_query54_00007"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query230",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query230",
+      "ranked_ids": [
+        "negative_test_query99_00003",
+        "apositive_test_query3_00006",
+        "negative_test_query230_00010",
+        "apositive_test_query3_00000",
+        "negative_test_query3_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query231",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query231",
+      "ranked_ids": [
+        "negative_test_query201_00011",
+        "negative_test_query221_00006",
+        "negative_test_query345_00011",
+        "negative_test_query306_00006",
+        "apositive_test_query201_00006"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query232",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query232",
+      "ranked_ids": [
+        "negative_test_query232_00013",
+        "negative_test_query232_00014",
+        "negative_test_query232_00011",
+        "negative_test_query232_00016",
+        "negative_test_query232_00003"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query233",
+      "metrics": {
+        "mrr@5": 0.2,
+        "ndcg@5": 0.18154179253735267,
+        "recall@5": 0.3333333333333333
+      },
+      "query_id": "test_query233",
+      "ranked_ids": [
+        "negative_test_query130_00001",
+        "negative_test_query233_00006",
+        "negative_test_query233_00001",
+        "negative_test_query233_00005",
+        "apositive_test_query233_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query234",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.24630238874073,
+        "recall@5": 0.25
+      },
+      "query_id": "test_query234",
+      "ranked_ids": [
+        "negative_test_query234_00010",
+        "apositive_test_query234_00003",
+        "apositive_test_query304_00002",
+        "negative_test_query234_00011",
+        "negative_test_query214_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query235",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.3903800499921017,
+        "recall@5": 0.25
+      },
+      "query_id": "test_query235",
+      "ranked_ids": [
+        "apositive_test_query235_00003",
+        "apositive_test_query32_00004",
+        "negative_test_query235_00013",
+        "negative_test_query235_00011",
+        "negative_test_query235_00009"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query236",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "test_query236",
+      "ranked_ids": [
+        "apositive_test_query236_00000",
+        "negative_test_query236_00002",
+        "negative_test_query236_00005",
+        "negative_test_query236_00000",
+        "negative_test_query236_00012"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query237",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.3391602052736161,
+        "recall@5": 0.2
+      },
+      "query_id": "test_query237",
+      "ranked_ids": [
+        "apositive_test_query237_00001",
+        "negative_test_query237_00005",
+        "negative_test_query237_00006",
+        "apositive_test_query152_00004",
+        "negative_test_query237_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query238",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query238",
+      "ranked_ids": [
+        "negative_test_query238_00011",
+        "negative_test_query13_00003",
+        "negative_test_query111_00013",
+        "negative_test_query142_00011",
+        "negative_test_query102_00007"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query239",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "test_query239",
+      "ranked_ids": [
+        "apositive_test_query239_00000",
+        "negative_test_query239_00007",
+        "negative_test_query239_00003",
+        "negative_test_query167_00011",
+        "negative_test_query198_00007"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query24",
+      "metrics": {
+        "mrr@5": 0.25,
+        "ndcg@5": 0.43067655807339306,
+        "recall@5": 1.0
+      },
+      "query_id": "test_query24",
+      "ranked_ids": [
+        "apositive_test_query106_00002",
+        "negative_test_query24_00002",
+        "negative_test_query24_00004",
+        "apositive_test_query24_00000",
+        "negative_test_query24_00009"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query240",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query240",
+      "ranked_ids": [
+        "negative_test_query240_00010",
+        "negative_test_query240_00016",
+        "negative_test_query240_00018",
+        "negative_test_query297_00005",
+        "negative_test_query27_00010"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query241",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query241",
+      "ranked_ids": [
+        "negative_test_query206_00004",
+        "negative_test_query241_00006",
+        "negative_test_query173_00013",
+        "negative_test_query241_00005",
+        "negative_test_query191_00014"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query242",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.34519134224686937,
+        "recall@5": 0.13333333333333333
+      },
+      "query_id": "test_query242",
+      "ranked_ids": [
+        "apositive_test_query247_00005",
+        "apositive_test_query242_00001",
+        "negative_test_query291_00003",
+        "negative_test_query291_00005",
+        "apositive_test_query242_00013"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query243",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query243",
+      "ranked_ids": [
+        "apositive_test_query173_00004",
+        "apositive_test_query160_00003",
+        "negative_test_query243_00000",
+        "negative_test_query205_00007",
+        "negative_test_query243_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query244",
+      "metrics": {
+        "mrr@5": 0.3333333333333333,
+        "ndcg@5": 0.16958010263680806,
+        "recall@5": 0.1111111111111111
+      },
+      "query_id": "test_query244",
+      "ranked_ids": [
+        "negative_test_query244_00010",
+        "negative_test_query244_00009",
+        "apositive_test_query244_00006",
+        "negative_test_query244_00008",
+        "negative_test_query244_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query245",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query245",
+      "ranked_ids": [
+        "negative_test_query293_00003",
+        "negative_test_query202_00004",
+        "negative_test_query135_00013",
+        "negative_test_query122_00002",
+        "negative_test_query159_00003"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query246",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query246",
+      "ranked_ids": [
+        "negative_test_query6_00006",
+        "negative_test_query252_00003",
+        "negative_test_query134_00001",
+        "negative_test_query218_00004",
+        "negative_test_query58_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query247",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.3391602052736161,
+        "recall@5": 0.16666666666666666
+      },
+      "query_id": "test_query247",
+      "ranked_ids": [
+        "apositive_test_query247_00005",
+        "apositive_test_query242_00001",
+        "negative_test_query291_00003",
+        "negative_test_query291_00005",
+        "negative_test_query186_00010"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query248",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.34519134224686937,
+        "recall@5": 0.25
+      },
+      "query_id": "test_query248",
+      "ranked_ids": [
+        "negative_test_query248_00001",
+        "apositive_test_query248_00003",
+        "negative_test_query248_00006",
+        "negative_test_query205_00017",
+        "apositive_test_query248_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query249",
+      "metrics": {
+        "mrr@5": 0.2,
+        "ndcg@5": 0.13120507751234178,
+        "recall@5": 0.06666666666666667
+      },
+      "query_id": "test_query249",
+      "ranked_ids": [
+        "negative_test_query249_00001",
+        "negative_test_query325_00015",
+        "negative_test_query301_00013",
+        "negative_test_query326_00005",
+        "apositive_test_query249_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query25",
+      "metrics": {
+        "mrr@5": 0.3333333333333333,
+        "ndcg@5": 0.30078518014914984,
+        "recall@5": 0.18181818181818182
+      },
+      "query_id": "test_query25",
+      "ranked_ids": [
+        "negative_test_query328_00000",
+        "negative_test_query45_00014",
+        "apositive_test_query25_00008",
+        "negative_test_query25_00001",
+        "apositive_test_query25_00006"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query250",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query250",
+      "ranked_ids": [
+        "negative_test_query101_00008",
+        "negative_test_query61_00007",
+        "negative_test_query192_00009",
+        "negative_test_query57_00009",
+        "negative_test_query64_00005"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query251",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query251",
+      "ranked_ids": [
+        "negative_test_query234_00006",
+        "negative_test_query251_00003",
+        "negative_test_query143_00001",
+        "negative_test_query56_00005",
+        "negative_test_query170_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query252",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query252",
+      "ranked_ids": [
+        "apositive_test_query110_00001",
+        "negative_test_query252_00009",
+        "negative_test_query44_00011",
+        "negative_test_query321_00004",
+        "negative_test_query252_00012"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query253",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query253",
+      "ranked_ids": [
+        "negative_test_query124_00001",
+        "apositive_test_query162_00008",
+        "negative_test_query177_00000",
+        "apositive_test_query74_00002",
+        "apositive_test_query13_00012"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query254",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.5296347172140421,
+        "recall@5": 0.2727272727272727
+      },
+      "query_id": "test_query254",
+      "ranked_ids": [
+        "negative_test_query21_00009",
+        "apositive_test_query254_00003",
+        "apositive_test_query254_00005",
+        "apositive_test_query254_00010",
+        "apositive_test_query333_00004"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query255",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.6309297535714575,
+        "recall@5": 1.0
+      },
+      "query_id": "test_query255",
+      "ranked_ids": [
+        "negative_test_query246_00003",
+        "apositive_test_query255_00000",
+        "negative_test_query278_00000",
+        "negative_test_query255_00006",
+        "negative_test_query326_00006"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query256",
+      "metrics": {
+        "mrr@5": 0.3333333333333333,
+        "ndcg@5": 0.36331756126716835,
+        "recall@5": 0.5
+      },
+      "query_id": "test_query256",
+      "ranked_ids": [
+        "negative_test_query183_00008",
+        "negative_test_query7_00009",
+        "apositive_test_query256_00002",
+        "apositive_test_query256_00003",
+        "apositive_test_query216_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query257",
+      "metrics": {
+        "mrr@5": 0.3333333333333333,
+        "ndcg@5": 0.30078518014914984,
+        "recall@5": 0.3333333333333333
+      },
+      "query_id": "test_query257",
+      "ranked_ids": [
+        "negative_test_query215_00000",
+        "negative_test_query257_00003",
+        "apositive_test_query257_00003",
+        "apositive_test_query286_00014",
+        "apositive_test_query257_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query258",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query258",
+      "ranked_ids": [
+        "negative_test_query320_00002",
+        "negative_test_query38_00002",
+        "negative_test_query162_00004",
+        "negative_test_query173_00010",
+        "negative_test_query167_00007"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query259",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.3391602052736161,
+        "recall@5": 0.08333333333333333
+      },
+      "query_id": "test_query259",
+      "ranked_ids": [
+        "apositive_test_query259_00008",
+        "negative_test_query30_00009",
+        "negative_test_query213_00004",
+        "negative_test_query259_00006",
+        "negative_test_query47_00004"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query26",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.3391602052736161,
+        "recall@5": 0.125
+      },
+      "query_id": "test_query26",
+      "ranked_ids": [
+        "apositive_test_query26_00004",
+        "negative_test_query26_00005",
+        "negative_test_query26_00008",
+        "negative_test_query119_00006",
+        "negative_test_query158_00009"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query260",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query260",
+      "ranked_ids": [
+        "negative_test_query6_00009",
+        "negative_test_query6_00012",
+        "apositive_test_query6_00000",
+        "negative_test_query252_00004",
+        "negative_test_query260_00011"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query261",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.3391602052736161,
+        "recall@5": 0.2
+      },
+      "query_id": "test_query261",
+      "ranked_ids": [
+        "apositive_test_query261_00000",
+        "negative_test_query261_00009",
+        "negative_test_query261_00007",
+        "negative_test_query261_00005",
+        "negative_test_query118_00006"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query262",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query262",
+      "ranked_ids": [
+        "negative_test_query326_00008",
+        "apositive_test_query177_00008",
+        "negative_test_query147_00001",
+        "negative_test_query162_00007",
+        "apositive_test_query42_00006"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query263",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.3391602052736161,
+        "recall@5": 0.16666666666666666
+      },
+      "query_id": "test_query263",
+      "ranked_ids": [
+        "apositive_test_query263_00002",
+        "apositive_test_query242_00011",
+        "apositive_test_query291_00010",
+        "negative_test_query263_00005",
+        "negative_test_query307_00005"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query264",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query264",
+      "ranked_ids": [
+        "negative_test_query264_00004",
+        "negative_test_query264_00011",
+        "negative_test_query264_00007",
+        "apositive_test_query38_00003",
+        "negative_test_query264_00014"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query265",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query265",
+      "ranked_ids": [
+        "negative_test_query265_00002",
+        "apositive_test_query234_00001",
+        "negative_test_query165_00007",
+        "negative_test_query165_00016",
+        "negative_test_query190_00013"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query266",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query266",
+      "ranked_ids": [
+        "negative_test_query266_00000",
+        "negative_test_query266_00009",
+        "negative_test_query266_00007",
+        "negative_test_query266_00001",
+        "negative_test_query141_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query267",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query267",
+      "ranked_ids": [
+        "apositive_test_query204_00000",
+        "apositive_test_query353_00002",
+        "negative_test_query30_00000",
+        "apositive_test_query250_00000",
+        "negative_test_query186_00006"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query268",
+      "metrics": {
+        "mrr@5": 0.3333333333333333,
+        "ndcg@5": 0.16958010263680806,
+        "recall@5": 0.2
+      },
+      "query_id": "test_query268",
+      "ranked_ids": [
+        "negative_test_query195_00009",
+        "negative_test_query335_00002",
+        "apositive_test_query268_00004",
+        "negative_test_query268_00012",
+        "negative_test_query268_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query269",
+      "metrics": {
+        "mrr@5": 0.25,
+        "ndcg@5": 0.16812753627111746,
+        "recall@5": 0.25
+      },
+      "query_id": "test_query269",
+      "ranked_ids": [
+        "negative_test_query269_00009",
+        "negative_test_query329_00004",
+        "apositive_test_query296_00005",
+        "apositive_test_query269_00000",
+        "negative_test_query329_00014"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query27",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query27",
+      "ranked_ids": [
+        "apositive_test_query127_00010",
+        "negative_test_query27_00009",
+        "negative_test_query76_00009",
+        "negative_test_query27_00014",
+        "negative_test_query130_00006"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query270",
+      "metrics": {
+        "mrr@5": 0.2,
+        "ndcg@5": 0.18154179253735267,
+        "recall@5": 0.3333333333333333
+      },
+      "query_id": "test_query270",
+      "ranked_ids": [
+        "negative_test_query270_00006",
+        "negative_test_query270_00010",
+        "negative_test_query270_00016",
+        "negative_test_query270_00009",
+        "apositive_test_query270_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query271",
+      "metrics": {
+        "mrr@5": 0.25,
+        "ndcg@5": 0.2640681225725909,
+        "recall@5": 0.5
+      },
+      "query_id": "test_query271",
+      "ranked_ids": [
+        "negative_test_query271_00007",
+        "negative_test_query227_00009",
+        "negative_test_query120_00003",
+        "apositive_test_query271_00001",
+        "apositive_test_query10_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query272",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query272",
+      "ranked_ids": [
+        "negative_test_query272_00017",
+        "negative_test_query332_00013",
+        "apositive_test_query251_00000",
+        "negative_test_query328_00000",
+        "negative_test_query272_00014"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query273",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query273",
+      "ranked_ids": [
+        "negative_test_query273_00009",
+        "negative_test_query273_00006",
+        "apositive_test_query18_00001",
+        "negative_test_query273_00008",
+        "apositive_test_query18_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query274",
+      "metrics": {
+        "mrr@5": 0.2,
+        "ndcg@5": 0.15101961822780524,
+        "recall@5": 0.25
+      },
+      "query_id": "test_query274",
+      "ranked_ids": [
+        "negative_test_query274_00012",
+        "negative_test_query218_00011",
+        "negative_test_query34_00014",
+        "negative_test_query352_00012",
+        "apositive_test_query274_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query275",
+      "metrics": {
+        "mrr@5": 0.2,
+        "ndcg@5": 0.13120507751234178,
+        "recall@5": 0.08333333333333333
+      },
+      "query_id": "test_query275",
+      "ranked_ids": [
+        "apositive_test_query110_00001",
+        "negative_test_query275_00007",
+        "apositive_test_query93_00003",
+        "negative_test_query149_00016",
+        "apositive_test_query275_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query276",
+      "metrics": {
+        "mrr@5": 0.2,
+        "ndcg@5": 0.13120507751234178,
+        "recall@5": 0.07692307692307693
+      },
+      "query_id": "test_query276",
+      "ranked_ids": [
+        "negative_test_query146_00000",
+        "apositive_test_query153_00006",
+        "apositive_test_query146_00015",
+        "negative_test_query251_00012",
+        "apositive_test_query276_00004"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query277",
+      "metrics": {
+        "mrr@5": 0.25,
+        "ndcg@5": 0.16812753627111746,
+        "recall@5": 0.25
+      },
+      "query_id": "test_query277",
+      "ranked_ids": [
+        "negative_test_query277_00009",
+        "apositive_test_query359_00001",
+        "negative_test_query305_00003",
+        "apositive_test_query277_00002",
+        "negative_test_query345_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query278",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query278",
+      "ranked_ids": [
+        "negative_test_query140_00006",
+        "negative_test_query177_00001",
+        "negative_test_query15_00007",
+        "negative_test_query278_00009",
+        "negative_test_query260_00011"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query279",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.5531464700081437,
+        "recall@5": 0.4
+      },
+      "query_id": "test_query279",
+      "ranked_ids": [
+        "apositive_test_query279_00004",
+        "apositive_test_query279_00003",
+        "apositive_test_query3_00000",
+        "apositive_test_query76_00002",
+        "negative_test_query279_00013"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query28",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query28",
+      "ranked_ids": [
+        "negative_test_query28_00002",
+        "apositive_test_query217_00000",
+        "apositive_test_query217_00003",
+        "negative_test_query185_00003",
+        "negative_test_query307_00004"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query280",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.3391602052736161,
+        "recall@5": 0.16666666666666666
+      },
+      "query_id": "test_query280",
+      "ranked_ids": [
+        "apositive_test_query280_00005",
+        "negative_test_query280_00012",
+        "negative_test_query9_00012",
+        "negative_test_query280_00010",
+        "negative_test_query106_00005"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query281",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.5531464700081437,
+        "recall@5": 0.10526315789473684
+      },
+      "query_id": "test_query281",
+      "ranked_ids": [
+        "apositive_test_query281_00004",
+        "apositive_test_query281_00011",
+        "apositive_test_query273_00000",
+        "apositive_test_query273_00008",
+        "negative_test_query273_00007"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query282",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.6131471927654584,
+        "recall@5": 0.5
+      },
+      "query_id": "test_query282",
+      "ranked_ids": [
+        "apositive_test_query282_00000",
+        "negative_test_query282_00003",
+        "negative_test_query282_00006",
+        "negative_test_query282_00004",
+        "negative_test_query282_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query283",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query283",
+      "ranked_ids": [
+        "negative_test_query270_00006",
+        "negative_test_query93_00009",
+        "negative_test_query138_00005",
+        "negative_test_query283_00014",
+        "negative_test_query93_00004"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query284",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.4703652827859579,
+        "recall@5": 0.4
+      },
+      "query_id": "test_query284",
+      "ranked_ids": [
+        "apositive_test_query284_00000",
+        "negative_test_query284_00001",
+        "apositive_test_query163_00003",
+        "negative_test_query14_00014",
+        "apositive_test_query284_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query285",
+      "metrics": {
+        "mrr@5": 0.3333333333333333,
+        "ndcg@5": 0.30078518014914984,
+        "recall@5": 0.25
+      },
+      "query_id": "test_query285",
+      "ranked_ids": [
+        "negative_test_query285_00002",
+        "negative_test_query86_00001",
+        "apositive_test_query285_00001",
+        "negative_test_query304_00003",
+        "apositive_test_query285_00005"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query286",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.4703652827859579,
+        "recall@5": 0.13333333333333333
+      },
+      "query_id": "test_query286",
+      "ranked_ids": [
+        "apositive_test_query286_00014",
+        "apositive_test_query257_00000",
+        "negative_test_query139_00008",
+        "negative_test_query52_00001",
+        "apositive_test_query286_00005"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query287",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query287",
+      "ranked_ids": [
+        "apositive_test_query153_00003",
+        "apositive_test_query133_00000",
+        "apositive_test_query133_00004",
+        "negative_test_query301_00010",
+        "apositive_test_query133_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query288",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query288",
+      "ranked_ids": [
+        "negative_test_query288_00006",
+        "apositive_test_query210_00001",
+        "negative_test_query210_00005",
+        "negative_test_query148_00014",
+        "negative_test_query199_00010"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query289",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.36005461457723403,
+        "recall@5": 0.4
+      },
+      "query_id": "test_query289",
+      "ranked_ids": [
+        "negative_test_query289_00004",
+        "apositive_test_query289_00002",
+        "negative_test_query113_00009",
+        "apositive_test_query289_00000",
+        "negative_test_query7_00006"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query29",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.21398626473452756,
+        "recall@5": 0.125
+      },
+      "query_id": "test_query29",
+      "ranked_ids": [
+        "negative_test_query292_00015",
+        "apositive_test_query29_00003",
+        "negative_test_query213_00012",
+        "negative_test_query29_00005",
+        "negative_test_query29_00010"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query290",
+      "metrics": {
+        "mrr@5": 0.2,
+        "ndcg@5": 0.15101961822780524,
+        "recall@5": 0.25
+      },
+      "query_id": "test_query290",
+      "ranked_ids": [
+        "negative_test_query290_00005",
+        "negative_test_query98_00003",
+        "negative_test_query342_00005",
+        "negative_test_query290_00000",
+        "apositive_test_query290_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query291",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query291",
+      "ranked_ids": [
+        "apositive_test_query247_00005",
+        "apositive_test_query242_00001",
+        "negative_test_query291_00003",
+        "negative_test_query291_00005",
+        "negative_test_query291_00007"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query292",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.2960819109658652,
+        "recall@5": 0.3333333333333333
+      },
+      "query_id": "test_query292",
+      "ranked_ids": [
+        "negative_test_query292_00015",
+        "apositive_test_query292_00001",
+        "negative_test_query292_00000",
+        "negative_test_query61_00011",
+        "negative_test_query292_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query293",
+      "metrics": {
+        "mrr@5": 0.3333333333333333,
+        "ndcg@5": 0.23463936301137822,
+        "recall@5": 0.3333333333333333
+      },
+      "query_id": "test_query293",
+      "ranked_ids": [
+        "negative_test_query293_00011",
+        "negative_test_query293_00015",
+        "apositive_test_query293_00002",
+        "negative_test_query293_00010",
+        "negative_test_query293_00003"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query294",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query294",
+      "ranked_ids": [
+        "negative_test_query294_00007",
+        "negative_test_query294_00001",
+        "negative_test_query294_00004",
+        "negative_test_query294_00012",
+        "negative_test_query294_00003"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query295",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query295",
+      "ranked_ids": [
+        "negative_test_query292_00015",
+        "negative_test_query295_00012",
+        "negative_test_query57_00009",
+        "negative_test_query295_00001",
+        "negative_test_query295_00013"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query296",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.34519134224686937,
+        "recall@5": 0.3333333333333333
+      },
+      "query_id": "test_query296",
+      "ranked_ids": [
+        "negative_test_query329_00011",
+        "apositive_test_query296_00004",
+        "negative_test_query296_00001",
+        "negative_test_query0_00004",
+        "apositive_test_query296_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query297",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query297",
+      "ranked_ids": [
+        "negative_test_query297_00004",
+        "negative_test_query297_00007",
+        "apositive_test_query139_00001",
+        "negative_test_query297_00012",
+        "negative_test_query191_00003"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query298",
+      "metrics": {
+        "mrr@5": 0.25,
+        "ndcg@5": 0.38364913903790027,
+        "recall@5": 0.6666666666666666
+      },
+      "query_id": "test_query298",
+      "ranked_ids": [
+        "negative_test_query182_00011",
+        "negative_test_query193_00006",
+        "negative_test_query182_00010",
+        "apositive_test_query298_00000",
+        "apositive_test_query298_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query299",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query299",
+      "ranked_ids": [
+        "negative_test_query288_00000",
+        "negative_test_query58_00005",
+        "negative_test_query89_00008",
+        "apositive_test_query265_00002",
+        "apositive_test_query227_00003"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query3",
+      "metrics": {
+        "mrr@5": 0.3333333333333333,
+        "ndcg@5": 0.16958010263680806,
+        "recall@5": 0.09090909090909091
+      },
+      "query_id": "test_query3",
+      "ranked_ids": [
+        "negative_test_query3_00007",
+        "negative_test_query230_00010",
+        "apositive_test_query3_00000",
+        "negative_test_query3_00000",
+        "negative_test_query3_00005"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query30",
+      "metrics": {
+        "mrr@5": 0.25,
+        "ndcg@5": 0.14606834984270645,
+        "recall@5": 0.14285714285714285
+      },
+      "query_id": "test_query30",
+      "ranked_ids": [
+        "negative_test_query231_00008",
+        "negative_test_query71_00010",
+        "negative_test_query182_00014",
+        "apositive_test_query30_00005",
+        "negative_test_query231_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query300",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query300",
+      "ranked_ids": [
+        "negative_test_query300_00011",
+        "negative_test_query300_00005",
+        "negative_test_query300_00009",
+        "negative_test_query141_00001",
+        "negative_test_query300_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query301",
+      "metrics": {
+        "mrr@5": 0.2,
+        "ndcg@5": 0.15101961822780524,
+        "recall@5": 0.25
+      },
+      "query_id": "test_query301",
+      "ranked_ids": [
+        "apositive_test_query86_00000",
+        "negative_test_query301_00007",
+        "negative_test_query2_00008",
+        "negative_test_query301_00013",
+        "apositive_test_query301_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query302",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.21398626473452756,
+        "recall@5": 0.14285714285714285
+      },
+      "query_id": "test_query302",
+      "ranked_ids": [
+        "negative_test_query308_00005",
+        "apositive_test_query302_00004",
+        "negative_test_query308_00002",
+        "negative_test_query302_00010",
+        "apositive_test_query308_00009"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query303",
+      "metrics": {
+        "mrr@5": 0.25,
+        "ndcg@5": 0.43067655807339306,
+        "recall@5": 1.0
+      },
+      "query_id": "test_query303",
+      "ranked_ids": [
+        "negative_test_query243_00000",
+        "negative_test_query303_00017",
+        "negative_test_query35_00003",
+        "apositive_test_query303_00000",
+        "negative_test_query173_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query304",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query304",
+      "ranked_ids": [
+        "apositive_test_query285_00001",
+        "negative_test_query304_00003",
+        "negative_test_query234_00010",
+        "apositive_test_query285_00005",
+        "apositive_test_query234_00003"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query305",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query305",
+      "ranked_ids": [
+        "negative_test_query51_00003",
+        "negative_test_query0_00004",
+        "negative_test_query224_00015",
+        "negative_test_query164_00011",
+        "negative_test_query47_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query306",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query306",
+      "ranked_ids": [
+        "negative_test_query209_00008",
+        "negative_test_query182_00014",
+        "apositive_test_query289_00003",
+        "apositive_test_query119_00006",
+        "negative_test_query204_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query307",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query307",
+      "ranked_ids": [
+        "negative_test_query307_00006",
+        "negative_test_query103_00012",
+        "negative_test_query48_00018",
+        "negative_test_query163_00010",
+        "apositive_test_query279_00003"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query308",
+      "metrics": {
+        "mrr@5": 0.25,
+        "ndcg@5": 0.27727342735504823,
+        "recall@5": 0.2
+      },
+      "query_id": "test_query308",
+      "ranked_ids": [
+        "apositive_test_query310_00008",
+        "apositive_test_query324_00000",
+        "negative_test_query324_00014",
+        "apositive_test_query308_00002",
+        "apositive_test_query308_00009"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query309",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "test_query309",
+      "ranked_ids": [
+        "apositive_test_query309_00000",
+        "negative_test_query309_00003",
+        "apositive_test_query358_00003",
+        "apositive_test_query76_00002",
+        "apositive_test_query161_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query31",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query31",
+      "ranked_ids": [
+        "negative_test_query38_00003",
+        "apositive_test_query60_00011",
+        "negative_test_query31_00004",
+        "negative_test_query31_00007",
+        "negative_test_query31_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query310",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.4912596920895758,
+        "recall@5": 0.3
+      },
+      "query_id": "test_query310",
+      "ranked_ids": [
+        "negative_test_query179_00013",
+        "apositive_test_query310_00008",
+        "negative_test_query74_00002",
+        "apositive_test_query310_00002",
+        "apositive_test_query310_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query311",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query311",
+      "ranked_ids": [
+        "negative_test_query330_00009",
+        "negative_test_query288_00004",
+        "negative_test_query330_00011",
+        "negative_test_query240_00014",
+        "apositive_test_query330_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query312",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query312",
+      "ranked_ids": [
+        "negative_test_query242_00001",
+        "apositive_test_query237_00001",
+        "apositive_test_query220_00005",
+        "apositive_test_query98_00000",
+        "negative_test_query294_00015"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query313",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query313",
+      "ranked_ids": [
+        "negative_test_query313_00012",
+        "negative_test_query334_00013",
+        "negative_test_query336_00001",
+        "negative_test_query119_00005",
+        "negative_test_query334_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query314",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.7860137352654724,
+        "recall@5": 0.23529411764705882
+      },
+      "query_id": "test_query314",
+      "ranked_ids": [
+        "apositive_test_query314_00009",
+        "negative_test_query146_00002",
+        "apositive_test_query314_00001",
+        "apositive_test_query314_00011",
+        "apositive_test_query314_00016"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query315",
+      "metrics": {
+        "mrr@5": 0.25,
+        "ndcg@5": 0.20210734650054757,
+        "recall@5": 0.3333333333333333
+      },
+      "query_id": "test_query315",
+      "ranked_ids": [
+        "apositive_test_query319_00005",
+        "apositive_test_query82_00005",
+        "negative_test_query315_00009",
+        "apositive_test_query315_00002",
+        "negative_test_query333_00007"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query316",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.6131471927654584,
+        "recall@5": 0.5
+      },
+      "query_id": "test_query316",
+      "ranked_ids": [
+        "apositive_test_query316_00001",
+        "negative_test_query301_00005",
+        "negative_test_query316_00000",
+        "negative_test_query316_00002",
+        "negative_test_query316_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query317",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query317",
+      "ranked_ids": [
+        "negative_test_query317_00010",
+        "negative_test_query331_00009",
+        "negative_test_query55_00014",
+        "negative_test_query317_00017",
+        "negative_test_query317_00005"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query318",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.5413996682199069,
+        "recall@5": 0.5
+      },
+      "query_id": "test_query318",
+      "ranked_ids": [
+        "apositive_test_query318_00002",
+        "negative_test_query318_00002",
+        "negative_test_query318_00004",
+        "negative_test_query73_00004",
+        "apositive_test_query318_00003"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query319",
+      "metrics": {
+        "mrr@5": 0.3333333333333333,
+        "ndcg@5": 0.30078518014914984,
+        "recall@5": 0.2222222222222222
+      },
+      "query_id": "test_query319",
+      "ranked_ids": [
+        "negative_test_query319_00003",
+        "negative_test_query82_00003",
+        "apositive_test_query319_00004",
+        "apositive_test_query82_00004",
+        "apositive_test_query319_00006"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query32",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query32",
+      "ranked_ids": [
+        "apositive_test_query196_00000",
+        "apositive_test_query336_00001",
+        "negative_test_query211_00016",
+        "negative_test_query55_00011",
+        "negative_test_query55_00014"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query320",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query320",
+      "ranked_ids": [
+        "negative_test_query258_00012",
+        "negative_test_query53_00014",
+        "negative_test_query193_00006",
+        "negative_test_query320_00005",
+        "negative_test_query131_00009"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query321",
+      "metrics": {
+        "mrr@5": 0.2,
+        "ndcg@5": 0.38685280723454163,
+        "recall@5": 1.0
+      },
+      "query_id": "test_query321",
+      "ranked_ids": [
+        "negative_test_query321_00002",
+        "negative_test_query321_00010",
+        "negative_test_query136_00004",
+        "negative_test_query210_00016",
+        "apositive_test_query321_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query322",
+      "metrics": {
+        "mrr@5": 0.3333333333333333,
+        "ndcg@5": 0.3156484524795145,
+        "recall@5": 0.2222222222222222
+      },
+      "query_id": "test_query322",
+      "ranked_ids": [
+        "negative_test_query73_00008",
+        "negative_test_query318_00002",
+        "apositive_test_query322_00003",
+        "apositive_test_query322_00005",
+        "negative_test_query322_00003"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query323",
+      "metrics": {
+        "mrr@5": 0.25,
+        "ndcg@5": 0.14606834984270645,
+        "recall@5": 0.14285714285714285
+      },
+      "query_id": "test_query323",
+      "ranked_ids": [
+        "negative_test_query255_00002",
+        "negative_test_query323_00006",
+        "negative_test_query209_00004",
+        "apositive_test_query323_00006",
+        "negative_test_query75_00004"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query324",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.2960819109658652,
+        "recall@5": 0.3333333333333333
+      },
+      "query_id": "test_query324",
+      "ranked_ids": [
+        "negative_test_query218_00003",
+        "apositive_test_query324_00000",
+        "negative_test_query324_00014",
+        "apositive_test_query308_00002",
+        "negative_test_query324_00007"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query325",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query325",
+      "ranked_ids": [
+        "negative_test_query293_00015",
+        "apositive_test_query293_00002",
+        "negative_test_query325_00007",
+        "negative_test_query15_00016",
+        "negative_test_query15_00015"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query326",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.36005461457723403,
+        "recall@5": 0.2222222222222222
+      },
+      "query_id": "test_query326",
+      "ranked_ids": [
+        "negative_test_query265_00007",
+        "apositive_test_query326_00000",
+        "negative_test_query178_00012",
+        "apositive_test_query326_00001",
+        "negative_test_query17_00011"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query327",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query327",
+      "ranked_ids": [
+        "negative_test_query271_00007",
+        "negative_test_query327_00000",
+        "negative_test_query227_00009",
+        "negative_test_query327_00014",
+        "negative_test_query327_00003"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query328",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.21398626473452756,
+        "recall@5": 0.1111111111111111
+      },
+      "query_id": "test_query328",
+      "ranked_ids": [
+        "apositive_test_query40_00003",
+        "apositive_test_query328_00004",
+        "negative_test_query328_00003",
+        "negative_test_query222_00016",
+        "negative_test_query328_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query329",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query329",
+      "ranked_ids": [
+        "negative_test_query329_00006",
+        "negative_test_query329_00011",
+        "apositive_test_query7_00001",
+        "negative_test_query35_00000",
+        "negative_test_query329_00004"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query33",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.21398626473452756,
+        "recall@5": 0.1
+      },
+      "query_id": "test_query33",
+      "ranked_ids": [
+        "negative_test_query154_00006",
+        "apositive_test_query33_00004",
+        "apositive_test_query154_00007",
+        "negative_test_query154_00004",
+        "apositive_test_query284_00004"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query330",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query330",
+      "ranked_ids": [
+        "negative_test_query330_00001",
+        "negative_test_query288_00006",
+        "negative_test_query330_00009",
+        "negative_test_query330_00000",
+        "negative_test_query330_00012"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query331",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.4776237035032179,
+        "recall@5": 0.6666666666666666
+      },
+      "query_id": "test_query331",
+      "ranked_ids": [
+        "negative_test_query214_00015",
+        "apositive_test_query331_00002",
+        "negative_test_query331_00008",
+        "negative_test_query303_00001",
+        "apositive_test_query331_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query332",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.3391602052736161,
+        "recall@5": 0.2
+      },
+      "query_id": "test_query332",
+      "ranked_ids": [
+        "apositive_test_query332_00001",
+        "negative_test_query202_00002",
+        "negative_test_query332_00002",
+        "apositive_test_query348_00008",
+        "negative_test_query115_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query333",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.3391602052736161,
+        "recall@5": 0.16666666666666666
+      },
+      "query_id": "test_query333",
+      "ranked_ids": [
+        "apositive_test_query333_00000",
+        "apositive_test_query254_00005",
+        "negative_test_query73_00008",
+        "negative_test_query136_00003",
+        "negative_test_query128_00004"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query334",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query334",
+      "ranked_ids": [
+        "negative_test_query209_00003",
+        "negative_test_query111_00017",
+        "negative_test_query213_00009",
+        "negative_test_query334_00010",
+        "negative_test_query170_00004"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query335",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.21398626473452756,
+        "recall@5": 0.2
+      },
+      "query_id": "test_query335",
+      "ranked_ids": [
+        "negative_test_query335_00009",
+        "apositive_test_query335_00002",
+        "negative_test_query210_00006",
+        "negative_test_query321_00013",
+        "negative_test_query335_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query336",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query336",
+      "ranked_ids": [
+        "apositive_test_query50_00012",
+        "apositive_test_query38_00005",
+        "apositive_test_query113_00005",
+        "negative_test_query336_00015",
+        "negative_test_query247_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query337",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query337",
+      "ranked_ids": [
+        "negative_test_query200_00015",
+        "apositive_test_query38_00003",
+        "apositive_test_query38_00000",
+        "negative_test_query267_00001",
+        "negative_test_query337_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query338",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.21398626473452756,
+        "recall@5": 0.06666666666666667
+      },
+      "query_id": "test_query338",
+      "ranked_ids": [
+        "negative_test_query119_00003",
+        "apositive_test_query338_00001",
+        "negative_test_query81_00004",
+        "apositive_test_query114_00005",
+        "negative_test_query81_00006"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query339",
+      "metrics": {
+        "mrr@5": 0.2,
+        "ndcg@5": 0.23719771276929622,
+        "recall@5": 0.5
+      },
+      "query_id": "test_query339",
+      "ranked_ids": [
+        "apositive_test_query96_00002",
+        "negative_test_query339_00005",
+        "negative_test_query339_00007",
+        "negative_test_query96_00004",
+        "apositive_test_query339_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query34",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query34",
+      "ranked_ids": [
+        "apositive_test_query352_00000",
+        "negative_test_query34_00014",
+        "negative_test_query352_00012",
+        "negative_test_query34_00008",
+        "negative_test_query352_00010"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query340",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.3391602052736161,
+        "recall@5": 0.2
+      },
+      "query_id": "test_query340",
+      "ranked_ids": [
+        "apositive_test_query340_00002",
+        "negative_test_query88_00007",
+        "negative_test_query340_00001",
+        "negative_test_query340_00006",
+        "negative_test_query88_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query341",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query341",
+      "ranked_ids": [
+        "negative_test_query341_00005",
+        "negative_test_query96_00007",
+        "negative_test_query341_00009",
+        "negative_test_query101_00003",
+        "negative_test_query341_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query342",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query342",
+      "ranked_ids": [
+        "negative_test_query342_00016",
+        "negative_test_query68_00005",
+        "negative_test_query325_00015",
+        "negative_test_query136_00003",
+        "negative_test_query324_00015"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query343",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query343",
+      "ranked_ids": [
+        "negative_test_query307_00006",
+        "negative_test_query227_00010",
+        "apositive_test_query279_00003",
+        "apositive_test_query307_00008",
+        "negative_test_query225_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query344",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query344",
+      "ranked_ids": [
+        "negative_test_query282_00004",
+        "negative_test_query282_00001",
+        "negative_test_query344_00002",
+        "negative_test_query344_00004",
+        "negative_test_query344_00006"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query345",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query345",
+      "ranked_ids": [
+        "negative_test_query90_00003",
+        "negative_test_query9_00002",
+        "negative_test_query130_00004",
+        "negative_test_query345_00011",
+        "negative_test_query345_00010"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query346",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query346",
+      "ranked_ids": [
+        "negative_test_query19_00012",
+        "negative_test_query346_00008",
+        "negative_test_query346_00010",
+        "negative_test_query15_00008",
+        "negative_test_query346_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query347",
+      "metrics": {
+        "mrr@5": 0.2,
+        "ndcg@5": 0.18154179253735267,
+        "recall@5": 0.3333333333333333
+      },
+      "query_id": "test_query347",
+      "ranked_ids": [
+        "negative_test_query347_00006",
+        "negative_test_query251_00007",
+        "negative_test_query347_00015",
+        "negative_test_query347_00002",
+        "apositive_test_query347_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query348",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.4703652827859579,
+        "recall@5": 0.2
+      },
+      "query_id": "test_query348",
+      "ranked_ids": [
+        "apositive_test_query348_00004",
+        "negative_test_query297_00017",
+        "apositive_test_query115_00002",
+        "negative_test_query351_00010",
+        "apositive_test_query348_00005"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query349",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query349",
+      "ranked_ids": [
+        "apositive_test_query137_00002",
+        "apositive_test_query42_00004",
+        "negative_test_query74_00001",
+        "apositive_test_query253_00008",
+        "apositive_test_query74_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query35",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.3903800499921017,
+        "recall@5": 0.25
+      },
+      "query_id": "test_query35",
+      "ranked_ids": [
+        "apositive_test_query35_00003",
+        "negative_test_query262_00002",
+        "negative_test_query198_00011",
+        "negative_test_query101_00006",
+        "negative_test_query205_00005"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query350",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query350",
+      "ranked_ids": [
+        "negative_test_query120_00007",
+        "negative_test_query350_00013",
+        "negative_test_query63_00000",
+        "negative_test_query192_00005",
+        "apositive_test_query33_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query351",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query351",
+      "ranked_ids": [
+        "apositive_test_query218_00004",
+        "negative_test_query8_00003",
+        "negative_test_query53_00011",
+        "negative_test_query156_00006",
+        "apositive_test_query60_00012"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query352",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.4703652827859579,
+        "recall@5": 0.4
+      },
+      "query_id": "test_query352",
+      "ranked_ids": [
+        "apositive_test_query352_00000",
+        "negative_test_query34_00014",
+        "negative_test_query34_00008",
+        "negative_test_query352_00010",
+        "apositive_test_query352_00004"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query353",
+      "metrics": {
+        "mrr@5": 0.25,
+        "ndcg@5": 0.14606834984270645,
+        "recall@5": 0.06666666666666667
+      },
+      "query_id": "test_query353",
+      "ranked_ids": [
+        "apositive_test_query204_00012",
+        "negative_test_query353_00002",
+        "apositive_test_query204_00000",
+        "apositive_test_query353_00002",
+        "apositive_test_query204_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query354",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.6843515475204855,
+        "recall@5": 0.375
+      },
+      "query_id": "test_query354",
+      "ranked_ids": [
+        "apositive_test_query354_00006",
+        "apositive_test_query354_00004",
+        "negative_test_query354_00004",
+        "negative_test_query309_00013",
+        "apositive_test_query354_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query355",
+      "metrics": {
+        "mrr@5": 0.25,
+        "ndcg@5": 0.14606834984270645,
+        "recall@5": 0.1111111111111111
+      },
+      "query_id": "test_query355",
+      "ranked_ids": [
+        "apositive_test_query100_00001",
+        "negative_test_query355_00003",
+        "negative_test_query264_00003",
+        "apositive_test_query355_00005",
+        "negative_test_query355_00007"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query356",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.21398626473452756,
+        "recall@5": 0.1111111111111111
+      },
+      "query_id": "test_query356",
+      "ranked_ids": [
+        "apositive_test_query30_00005",
+        "apositive_test_query356_00004",
+        "negative_test_query253_00001",
+        "negative_test_query15_00006",
+        "negative_test_query102_00014"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query357",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query357",
+      "ranked_ids": [
+        "apositive_test_query119_00002",
+        "apositive_test_query221_00000",
+        "apositive_test_query32_00002",
+        "negative_test_query196_00001",
+        "apositive_test_query119_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query358",
+      "metrics": {
+        "mrr@5": 0.3333333333333333,
+        "ndcg@5": 0.3156484524795145,
+        "recall@5": 0.2
+      },
+      "query_id": "test_query358",
+      "ranked_ids": [
+        "apositive_test_query309_00000",
+        "apositive_test_query161_00000",
+        "apositive_test_query358_00000",
+        "apositive_test_query358_00003",
+        "apositive_test_query11_00007"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query359",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query359",
+      "ranked_ids": [
+        "apositive_test_query0_00010",
+        "apositive_test_query0_00000",
+        "apositive_test_query0_00006",
+        "apositive_test_query0_00003",
+        "negative_test_query359_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query36",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query36",
+      "ranked_ids": [
+        "apositive_test_query286_00005",
+        "negative_test_query112_00013",
+        "negative_test_query80_00007",
+        "negative_test_query112_00015",
+        "apositive_test_query106_00003"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query360",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.6131471927654584,
+        "recall@5": 0.5
+      },
+      "query_id": "test_query360",
+      "ranked_ids": [
+        "apositive_test_query360_00000",
+        "negative_test_query360_00009",
+        "negative_test_query189_00013",
+        "apositive_test_query152_00002",
+        "negative_test_query240_00010"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query37",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query37",
+      "ranked_ids": [
+        "negative_test_query57_00009",
+        "negative_test_query20_00003",
+        "apositive_test_query177_00000",
+        "apositive_test_query158_00007",
+        "negative_test_query152_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query38",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.5087403079104241,
+        "recall@5": 0.25
+      },
+      "query_id": "test_query38",
+      "ranked_ids": [
+        "apositive_test_query38_00002",
+        "apositive_test_query247_00005",
+        "apositive_test_query38_00007",
+        "negative_test_query267_00016",
+        "negative_test_query267_00015"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query39",
+      "metrics": {
+        "mrr@5": 0.2,
+        "ndcg@5": 0.13120507751234178,
+        "recall@5": 0.14285714285714285
+      },
+      "query_id": "test_query39",
+      "ranked_ids": [
+        "negative_test_query232_00007",
+        "negative_test_query39_00003",
+        "negative_test_query232_00017",
+        "negative_test_query331_00010",
+        "apositive_test_query39_00003"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query4",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.34519134224686937,
+        "recall@5": 0.14285714285714285
+      },
+      "query_id": "test_query4",
+      "ranked_ids": [
+        "negative_test_query266_00009",
+        "apositive_test_query4_00010",
+        "negative_test_query4_00002",
+        "apositive_test_query174_00000",
+        "apositive_test_query4_00005"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query40",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query40",
+      "ranked_ids": [
+        "negative_test_query40_00012",
+        "negative_test_query40_00010",
+        "negative_test_query40_00006",
+        "negative_test_query40_00005",
+        "negative_test_query214_00015"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query41",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query41",
+      "ranked_ids": [
+        "negative_test_query282_00003",
+        "negative_test_query41_00000",
+        "negative_test_query98_00000",
+        "negative_test_query41_00011",
+        "negative_test_query41_00004"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query42",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.36005461457723403,
+        "recall@5": 0.25
+      },
+      "query_id": "test_query42",
+      "ranked_ids": [
+        "negative_test_query250_00010",
+        "apositive_test_query42_00003",
+        "negative_test_query42_00000",
+        "apositive_test_query42_00004",
+        "apositive_test_query162_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query43",
+      "metrics": {
+        "mrr@5": 0.25,
+        "ndcg@5": 0.14606834984270645,
+        "recall@5": 0.125
+      },
+      "query_id": "test_query43",
+      "ranked_ids": [
+        "apositive_test_query146_00004",
+        "apositive_test_query314_00009",
+        "negative_test_query146_00002",
+        "apositive_test_query43_00000",
+        "negative_test_query43_00009"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query44",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query44",
+      "ranked_ids": [
+        "negative_test_query293_00015",
+        "negative_test_query21_00009",
+        "negative_test_query330_00009",
+        "negative_test_query141_00007",
+        "negative_test_query190_00011"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query45",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query45",
+      "ranked_ids": [
+        "negative_test_query143_00004",
+        "negative_test_query45_00009",
+        "negative_test_query45_00003",
+        "negative_test_query143_00011",
+        "negative_test_query342_00005"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query46",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query46",
+      "ranked_ids": [
+        "apositive_test_query79_00005",
+        "negative_test_query213_00012",
+        "negative_test_query108_00003",
+        "negative_test_query168_00003",
+        "negative_test_query79_00012"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query47",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query47",
+      "ranked_ids": [
+        "apositive_test_query331_00002",
+        "negative_test_query47_00013",
+        "negative_test_query325_00007",
+        "negative_test_query144_00018",
+        "negative_test_query47_00012"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query48",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 1.0,
+        "recall@5": 1.0
+      },
+      "query_id": "test_query48",
+      "ranked_ids": [
+        "apositive_test_query48_00000",
+        "negative_test_query103_00012",
+        "negative_test_query48_00018",
+        "apositive_test_query307_00002",
+        "negative_test_query48_00009"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query49",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query49",
+      "ranked_ids": [
+        "negative_test_query342_00005",
+        "negative_test_query52_00011",
+        "negative_test_query15_00008",
+        "negative_test_query156_00010",
+        "apositive_test_query204_00003"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query5",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query5",
+      "ranked_ids": [
+        "negative_test_query5_00004",
+        "negative_test_query5_00007",
+        "negative_test_query275_00001",
+        "negative_test_query5_00014",
+        "negative_test_query5_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query50",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.7227265726449519,
+        "recall@5": 0.17647058823529413
+      },
+      "query_id": "test_query50",
+      "ranked_ids": [
+        "apositive_test_query50_00006",
+        "apositive_test_query50_00012",
+        "apositive_test_query50_00015",
+        "apositive_test_query186_00005",
+        "apositive_test_query131_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query51",
+      "metrics": {
+        "mrr@5": 0.3333333333333333,
+        "ndcg@5": 0.16958010263680806,
+        "recall@5": 0.1
+      },
+      "query_id": "test_query51",
+      "ranked_ids": [
+        "negative_test_query51_00000",
+        "negative_test_query97_00001",
+        "apositive_test_query51_00006",
+        "negative_test_query51_00004",
+        "negative_test_query209_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query52",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query52",
+      "ranked_ids": [
+        "negative_test_query215_00000",
+        "negative_test_query257_00003",
+        "apositive_test_query257_00003",
+        "apositive_test_query286_00014",
+        "apositive_test_query257_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query53",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query53",
+      "ranked_ids": [
+        "negative_test_query258_00018",
+        "negative_test_query132_00015",
+        "negative_test_query150_00014",
+        "negative_test_query258_00013",
+        "negative_test_query169_00003"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query54",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query54",
+      "ranked_ids": [
+        "negative_test_query44_00007",
+        "negative_test_query54_00006",
+        "apositive_test_query86_00000",
+        "apositive_test_query335_00002",
+        "apositive_test_query51_00006"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query55",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query55",
+      "ranked_ids": [
+        "negative_test_query55_00010",
+        "negative_test_query55_00003",
+        "negative_test_query55_00012",
+        "negative_test_query55_00011",
+        "negative_test_query234_00011"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query56",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query56",
+      "ranked_ids": [
+        "negative_test_query46_00014",
+        "negative_test_query56_00006",
+        "apositive_test_query46_00001",
+        "apositive_test_query238_00001",
+        "negative_test_query56_00005"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query57",
+      "metrics": {
+        "mrr@5": 0.3333333333333333,
+        "ndcg@5": 0.16958010263680806,
+        "recall@5": 0.1111111111111111
+      },
+      "query_id": "test_query57",
+      "ranked_ids": [
+        "negative_test_query313_00012",
+        "negative_test_query334_00013",
+        "apositive_test_query57_00008",
+        "apositive_test_query203_00000",
+        "negative_test_query334_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query58",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query58",
+      "ranked_ids": [
+        "apositive_test_query311_00004",
+        "negative_test_query308_00004",
+        "negative_test_query58_00015",
+        "negative_test_query27_00017",
+        "negative_test_query240_00005"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query59",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query59",
+      "ranked_ids": [
+        "negative_test_query116_00000",
+        "negative_test_query59_00011",
+        "negative_test_query59_00014",
+        "negative_test_query59_00015",
+        "negative_test_query202_00007"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query6",
+      "metrics": {
+        "mrr@5": 0.3333333333333333,
+        "ndcg@5": 0.23463936301137822,
+        "recall@5": 0.3333333333333333
+      },
+      "query_id": "test_query6",
+      "ranked_ids": [
+        "negative_test_query179_00007",
+        "negative_test_query6_00012",
+        "apositive_test_query6_00000",
+        "negative_test_query252_00004",
+        "apositive_test_query109_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query60",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.48522855511632257,
+        "recall@5": 0.125
+      },
+      "query_id": "test_query60",
+      "ranked_ids": [
+        "apositive_test_query60_00011",
+        "negative_test_query31_00004",
+        "apositive_test_query218_00004",
+        "apositive_test_query60_00006",
+        "apositive_test_query285_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query61",
+      "metrics": {
+        "mrr@5": 0.3333333333333333,
+        "ndcg@5": 0.19519002499605084,
+        "recall@5": 0.25
+      },
+      "query_id": "test_query61",
+      "ranked_ids": [
+        "apositive_test_query173_00004",
+        "negative_test_query327_00016",
+        "apositive_test_query61_00003",
+        "negative_test_query61_00002",
+        "negative_test_query129_00005"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query62",
+      "metrics": {
+        "mrr@5": 0.25,
+        "ndcg@5": 0.2640681225725909,
+        "recall@5": 0.5
+      },
+      "query_id": "test_query62",
+      "ranked_ids": [
+        "negative_test_query62_00003",
+        "negative_test_query62_00002",
+        "negative_test_query62_00000",
+        "apositive_test_query62_00001",
+        "negative_test_query219_00006"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query63",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.4703652827859579,
+        "recall@5": 0.2222222222222222
+      },
+      "query_id": "test_query63",
+      "ranked_ids": [
+        "apositive_test_query63_00006",
+        "negative_test_query321_00002",
+        "negative_test_query297_00006",
+        "negative_test_query63_00003",
+        "apositive_test_query63_00004"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query64",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query64",
+      "ranked_ids": [
+        "negative_test_query120_00000",
+        "apositive_test_query160_00003",
+        "negative_test_query149_00001",
+        "negative_test_query120_00003",
+        "negative_test_query64_00016"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query65",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query65",
+      "ranked_ids": [
+        "negative_test_query195_00009",
+        "negative_test_query335_00002",
+        "negative_test_query65_00000",
+        "negative_test_query268_00012",
+        "apositive_test_query356_00004"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query66",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.34519134224686937,
+        "recall@5": 0.3333333333333333
+      },
+      "query_id": "test_query66",
+      "ranked_ids": [
+        "negative_test_query9_00012",
+        "apositive_test_query66_00004",
+        "apositive_test_query20_00005",
+        "negative_test_query188_00006",
+        "apositive_test_query66_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query67",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query67",
+      "ranked_ids": [
+        "apositive_test_query286_00004",
+        "apositive_test_query286_00010",
+        "negative_test_query123_00008",
+        "negative_test_query67_00007",
+        "negative_test_query260_00013"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query68",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.2960819109658652,
+        "recall@5": 0.3333333333333333
+      },
+      "query_id": "test_query68",
+      "ranked_ids": [
+        "negative_test_query330_00009",
+        "apositive_test_query68_00000",
+        "negative_test_query288_00004",
+        "negative_test_query330_00011",
+        "negative_test_query68_00014"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query69",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.639945385422766,
+        "recall@5": 0.15789473684210525
+      },
+      "query_id": "test_query69",
+      "ranked_ids": [
+        "apositive_test_query69_00010",
+        "apositive_test_query257_00003",
+        "apositive_test_query69_00005",
+        "negative_test_query18_00010",
+        "apositive_test_query69_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query7",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query7",
+      "ranked_ids": [
+        "apositive_test_query159_00001",
+        "negative_test_query264_00013",
+        "apositive_test_query38_00003",
+        "negative_test_query159_00010",
+        "negative_test_query7_00005"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query70",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.24630238874073,
+        "recall@5": 0.25
+      },
+      "query_id": "test_query70",
+      "ranked_ids": [
+        "negative_test_query227_00006",
+        "apositive_test_query70_00001",
+        "negative_test_query227_00010",
+        "apositive_test_query227_00000",
+        "negative_test_query348_00007"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query71",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query71",
+      "ranked_ids": [
+        "negative_test_query71_00002",
+        "negative_test_query71_00015",
+        "apositive_test_query30_00005",
+        "negative_test_query71_00009",
+        "negative_test_query71_00005"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query72",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query72",
+      "ranked_ids": [
+        "negative_test_query17_00009",
+        "negative_test_query72_00015",
+        "negative_test_query72_00006",
+        "negative_test_query72_00003",
+        "negative_test_query72_00007"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query73",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query73",
+      "ranked_ids": [
+        "negative_test_query73_00013",
+        "apositive_test_query333_00000",
+        "negative_test_query73_00008",
+        "negative_test_query233_00015",
+        "negative_test_query128_00004"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query74",
+      "metrics": {
+        "mrr@5": 0.25,
+        "ndcg@5": 0.16812753627111746,
+        "recall@5": 0.25
+      },
+      "query_id": "test_query74",
+      "ranked_ids": [
+        "apositive_test_query60_00006",
+        "negative_test_query74_00001",
+        "apositive_test_query113_00001",
+        "apositive_test_query74_00002",
+        "negative_test_query74_00013"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query75",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.21398626473452756,
+        "recall@5": 0.14285714285714285
+      },
+      "query_id": "test_query75",
+      "ranked_ids": [
+        "negative_test_query99_00006",
+        "apositive_test_query75_00001",
+        "negative_test_query209_00004",
+        "negative_test_query67_00017",
+        "negative_test_query75_00004"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query76",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.36005461457723403,
+        "recall@5": 0.2857142857142857
+      },
+      "query_id": "test_query76",
+      "ranked_ids": [
+        "negative_test_query76_00009",
+        "apositive_test_query76_00000",
+        "negative_test_query147_00007",
+        "apositive_test_query76_00002",
+        "negative_test_query181_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query77",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query77",
+      "ranked_ids": [
+        "negative_test_query329_00015",
+        "negative_test_query77_00013",
+        "negative_test_query342_00007",
+        "negative_test_query98_00014",
+        "negative_test_query301_00003"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query78",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query78",
+      "ranked_ids": [
+        "negative_test_query101_00008",
+        "negative_test_query61_00007",
+        "negative_test_query214_00010",
+        "apositive_test_query38_00003",
+        "apositive_test_query326_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query79",
+      "metrics": {
+        "mrr@5": 0.3333333333333333,
+        "ndcg@5": 0.16958010263680806,
+        "recall@5": 0.16666666666666666
+      },
+      "query_id": "test_query79",
+      "ranked_ids": [
+        "negative_test_query38_00007",
+        "negative_test_query313_00013",
+        "apositive_test_query79_00004",
+        "apositive_test_query295_00001",
+        "negative_test_query157_00000"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query8",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query8",
+      "ranked_ids": [
+        "apositive_test_query192_00002",
+        "negative_test_query329_00005",
+        "negative_test_query8_00000",
+        "negative_test_query8_00014",
+        "negative_test_query96_00010"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query80",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query80",
+      "ranked_ids": [
+        "negative_test_query289_00005",
+        "apositive_test_query179_00003",
+        "negative_test_query287_00005",
+        "negative_test_query80_00009",
+        "negative_test_query80_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query81",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.34519134224686937,
+        "recall@5": 0.2222222222222222
+      },
+      "query_id": "test_query81",
+      "ranked_ids": [
+        "negative_test_query81_00005",
+        "apositive_test_query81_00003",
+        "negative_test_query81_00004",
+        "negative_test_query145_00004",
+        "apositive_test_query81_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query82",
+      "metrics": {
+        "mrr@5": 0.25,
+        "ndcg@5": 0.14606834984270645,
+        "recall@5": 0.1111111111111111
+      },
+      "query_id": "test_query82",
+      "ranked_ids": [
+        "negative_test_query319_00003",
+        "negative_test_query82_00003",
+        "apositive_test_query319_00004",
+        "apositive_test_query82_00004",
+        "apositive_test_query319_00006"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query83",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query83",
+      "ranked_ids": [
+        "apositive_test_query146_00014",
+        "apositive_test_query168_00000",
+        "negative_test_query279_00012",
+        "negative_test_query168_00007",
+        "negative_test_query287_00004"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query84",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query84",
+      "ranked_ids": [
+        "negative_test_query84_00013",
+        "negative_test_query268_00009",
+        "negative_test_query84_00006",
+        "negative_test_query84_00005",
+        "negative_test_query84_00017"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query85",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.4144299250118475,
+        "recall@5": 0.5
+      },
+      "query_id": "test_query85",
+      "ranked_ids": [
+        "apositive_test_query286_00004",
+        "apositive_test_query85_00002",
+        "apositive_test_query81_00008",
+        "apositive_test_query85_00000",
+        "negative_test_query85_00011"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query86",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.24630238874073,
+        "recall@5": 0.25
+      },
+      "query_id": "test_query86",
+      "ranked_ids": [
+        "negative_test_query86_00001",
+        "apositive_test_query86_00000",
+        "negative_test_query86_00003",
+        "negative_test_query86_00000",
+        "negative_test_query86_00011"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query87",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.6131471927654584,
+        "recall@5": 0.5
+      },
+      "query_id": "test_query87",
+      "ranked_ids": [
+        "apositive_test_query87_00001",
+        "negative_test_query87_00002",
+        "negative_test_query182_00017",
+        "negative_test_query200_00011",
+        "negative_test_query315_00006"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query88",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.6131471927654584,
+        "recall@5": 0.5
+      },
+      "query_id": "test_query88",
+      "ranked_ids": [
+        "apositive_test_query88_00001",
+        "negative_test_query88_00002",
+        "negative_test_query88_00010",
+        "negative_test_query88_00012",
+        "negative_test_query105_00014"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query89",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query89",
+      "ranked_ids": [
+        "negative_test_query89_00005",
+        "negative_test_query68_00004",
+        "negative_test_query233_00005",
+        "apositive_test_query255_00000",
+        "negative_test_query89_00008"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query9",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query9",
+      "ranked_ids": [
+        "negative_test_query9_00018",
+        "negative_test_query9_00013",
+        "negative_test_query9_00005",
+        "negative_test_query9_00016",
+        "negative_test_query9_00006"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query90",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query90",
+      "ranked_ids": [
+        "negative_test_query227_00006",
+        "negative_test_query90_00012",
+        "negative_test_query227_00001",
+        "negative_test_query127_00001",
+        "negative_test_query90_00002"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query91",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query91",
+      "ranked_ids": [
+        "negative_test_query358_00004",
+        "apositive_test_query342_00001",
+        "apositive_test_query11_00006",
+        "negative_test_query279_00011",
+        "negative_test_query303_00011"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query92",
+      "metrics": {
+        "mrr@5": 0.3333333333333333,
+        "ndcg@5": 0.16958010263680806,
+        "recall@5": 0.16666666666666666
+      },
+      "query_id": "test_query92",
+      "ranked_ids": [
+        "apositive_test_query100_00001",
+        "negative_test_query122_00018",
+        "apositive_test_query92_00001",
+        "apositive_test_query99_00003",
+        "negative_test_query283_00009"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query93",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.21398626473452756,
+        "recall@5": 0.14285714285714285
+      },
+      "query_id": "test_query93",
+      "ranked_ids": [
+        "apositive_test_query243_00006",
+        "apositive_test_query93_00003",
+        "apositive_test_query335_00003",
+        "negative_test_query108_00003",
+        "negative_test_query280_00012"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query94",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.5147714448836774,
+        "recall@5": 0.375
+      },
+      "query_id": "test_query94",
+      "ranked_ids": [
+        "apositive_test_query127_00010",
+        "apositive_test_query94_00002",
+        "apositive_test_query94_00006",
+        "negative_test_query94_00002",
+        "apositive_test_query94_00005"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query95",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query95",
+      "ranked_ids": [
+        "negative_test_query244_00010",
+        "apositive_test_query292_00001",
+        "negative_test_query95_00008",
+        "apositive_test_query177_00000",
+        "negative_test_query95_00006"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query96",
+      "metrics": {
+        "mrr@5": 1.0,
+        "ndcg@5": 0.46927872602275644,
+        "recall@5": 0.3333333333333333
+      },
+      "query_id": "test_query96",
+      "ranked_ids": [
+        "apositive_test_query96_00002",
+        "negative_test_query339_00005",
+        "negative_test_query339_00007",
+        "negative_test_query96_00004",
+        "apositive_test_query339_00001"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query97",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query97",
+      "ranked_ids": [
+        "negative_test_query51_00009",
+        "negative_test_query113_00009",
+        "negative_test_query113_00006",
+        "negative_test_query209_00008",
+        "negative_test_query16_00014"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query98",
+      "metrics": {
+        "mrr@5": 0.0,
+        "ndcg@5": 0.0,
+        "recall@5": 0.0
+      },
+      "query_id": "test_query98",
+      "ranked_ids": [
+        "negative_test_query98_00018",
+        "negative_test_query98_00011",
+        "negative_test_query98_00005",
+        "apositive_test_query14_00002",
+        "negative_test_query23_00013"
+      ],
+      "valid": true
+    },
+    {
+      "algorithm": "answer_confidence",
+      "fixture_id": "askubuntu-bm25-test-test_query99",
+      "metrics": {
+        "mrr@5": 0.5,
+        "ndcg@5": 0.21398626473452756,
+        "recall@5": 0.1111111111111111
+      },
+      "query_id": "test_query99",
+      "ranked_ids": [
+        "apositive_test_query193_00010",
+        "apositive_test_query99_00001",
+        "apositive_test_query333_00003",
+        "apositive_test_query253_00003",
+        "apositive_test_query153_00012"
+      ],
+      "valid": true
+    }
+  ],
+  "query_id_filter": [],
+  "schema_version": 1,
+  "seed": 13,
+  "set_size": 3,
+  "stride": 10,
+  "timeout": null,
+  "top_k": 5,
+  "tourrank_rounds": 2,
+  "tourrank_stage_policy": "paper_top_100_else_single_group_halving",
+  "window_size": 20
+}

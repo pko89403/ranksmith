@@ -108,10 +108,19 @@ listwise가 완벽하고 answer_confidence는 훨씬 나쁘며 10배 비싸다. 
 조건(도메인 밖 + 쉬운 distractor + 작은 로컬 모델) 때문이며, 공정 비교가 아니다.
 
 ### 남은 작업
-- **README 표 편입 실행**: `docs/benchmarks/answer_confidence_askubuntu.md`
-  러닝북을 AskUbuntu 캐시 + gpt-5.4-nano 접근이 있는 환경에서 실행하고,
-  결과를 artifact 도메인(SQuAD, 도메인 밖) 라벨과 함께 보고. 도구는 준비
-  완료, 실행만 남음.
+- ~~README 표 편입 실행~~: 2026-07-20 완료. AskUbuntu 361쿼리, BM25 top-20,
+  gpt-5.4-nano 환경에서 러닝북(빌드→학습→벤치마크→병합) 전체를 실행했다.
+  `answer_confidence` NDCG@5=0.1722 / MRR@5=0.2862 / Recall@5=0.1435,
+  361/361 valid, invalid_rate 0.000. BM25 baseline(NDCG@5=0.3520)보다 낮다 —
+  SQuAD 학습 → AskUbuntu 도메인 밖이므로 예상된 결과이며, 이기도록 튜닝하지
+  않고 측정된 그대로 README에 반영했다. 근거:
+  `benchmark-results/live/askubuntu-bm25-top20-default-live.v4.merged.json`.
+  실행 환경 노트: 이 macOS 환경에서 torch로 BERT를 인코딩한 뒤 같은 프로세스에서
+  LightGBM `.fit()`을 호출하면 세그폴트가 재현됐다(torch/lightgbm의 OpenMP
+  런타임 충돌로 추정, `OMP_NUM_THREADS=1`/`KMP_DUPLICATE_LIB_OK=TRUE`로도
+  해결되지 않음). feature 추출과 LightGBM 학습을 별도 프로세스로 분리해
+  우회했다 — 동일 하드웨어/라이브러리 조합에서 이 러닝북을 재현하려는
+  사람을 위해 기록.
 - IR에 맞는 변형: qrels로 학습 가능한 judgment_confidence 리랭커(초기 구현 후
   교체됨)를 되살리면 이 IR 벤치마크로 공정 비교 가능.
 - 학습된 artifact는 커밋하지 않는다(`.gitignore`). 배포 시 사용자가 자기 도메인
@@ -194,4 +203,4 @@ listwise가 완벽하고 answer_confidence는 훨씬 나쁘며 10배 비싸다. 
 - [x] ≥30개 실제 라벨 데이터로 scorer artifact 생성 (SciFact 56개 스모크 → SQuAD 500행 도구화)
 - [x] 구현: `AnswerConfidenceRerankStrategy` / async 변형 + `ModelClient.answer` + 단위 테스트
 - [x] 표준 벤치마크 편입 도구 + 러닝북 (`docs/benchmarks/answer_confidence_askubuntu.md`)
-- [ ] README 표 편입 실행 (AskUbuntu 캐시 + gpt-5.4-nano 환경에서 러닝북 실행, 도메인 라벨 필수)
+- [x] README 표 편입 실행 (AskUbuntu 캐시 + gpt-5.4-nano 환경에서 러닝북 실행, 도메인 라벨 필수) — 2026-07-20 완료. `answer_confidence` NDCG@5=0.1722, MRR@5=0.2862, Recall@5=0.1435, 361/361 valid, invalid_rate 0.000. BM25 baseline보다 낮음(예상대로, SQuAD 학습 → AskUbuntu 도메인 밖).
