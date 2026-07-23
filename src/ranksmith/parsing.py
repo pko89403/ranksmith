@@ -4,11 +4,31 @@ import json
 
 from ranksmith.errors import RerankInputError, RerankParseError
 
-__all__ = ["parse_ranking_response", "parse_selection_response"]
+__all__ = [
+    "parse_answer_response",
+    "parse_ranking_response",
+    "parse_selection_response",
+]
 
 
 def _is_json_int(value: object) -> bool:
     return type(value) is int
+
+
+def parse_answer_response(raw_response: str) -> str:
+    """Parse a non-empty answer string from provider JSON ({"answer": ...})."""
+    try:
+        data = json.loads(raw_response)
+    except json.JSONDecodeError as exc:
+        raise RerankParseError("LLM response is not valid JSON.", raw_response) from exc
+
+    answer = data.get("answer") if isinstance(data, dict) else None
+    if not isinstance(answer, str) or not answer.strip():
+        raise RerankParseError(
+            'LLM response must contain a non-empty "answer" string.',
+            raw_response,
+        )
+    return answer
 
 
 def parse_ranking_response(raw_response: str, *, expected_count: int) -> list[int]:

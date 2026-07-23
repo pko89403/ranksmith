@@ -30,11 +30,17 @@ second copy.
    are not integers in a ranking.
    Source: `src/ranksmith/parsing.py`, `src/ranksmith/errors.py`, AGENTS.md "프로젝트 원칙".
 
-6. **Confidence is not reranking.** `ranksmith.confidence`,
-   `ranksmith.confidence_generation`, and `ranksmith.confidence_training` are
-   optional utilities (`pip install "ranksmith[confidence]"`), not a Strategy or
-   Algorithm. Do not present them as a reranker.
-   Source: `docs/wiki/02_architecture.md` "Confidence".
+6. **Confidence: the estimator is a utility; the reranker is experimental.**
+   `ranksmith.confidence` / `confidence_generation` / `confidence_training` are
+   optional scoring/data/training utilities (`pip install
+   "ranksmith[confidence]"`), not rerankers themselves.
+   `AnswerConfidenceRerankStrategy` **is** a reranking Strategy that consumes a
+   trained `answer_confidence` estimator (one LLM answer per document + local
+   scoring). It is **experimental and not a default recommendation**: on the
+   committed benchmark it loses to `ListwiseStrategy` (acc@1 0.80 vs 1.00) at 4x
+   the LLM cost. Recommend it only if the user explicitly wants confidence-based
+   reranking, and always name the Listwise baseline.
+   Source: `docs/specs/spec_confidence_aware_reranking.md`.
 
 7. **Evidence only.** Quote metrics and call counts from the committed README /
    benchmark artifacts, label call counts as estimates, and never fabricate

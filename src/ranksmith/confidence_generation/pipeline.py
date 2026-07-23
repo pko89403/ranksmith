@@ -23,11 +23,9 @@ from ranksmith.confidence_generation.parsing import (
     parse_relevance_output,
 )
 from ranksmith.confidence_generation.prompts import (
-    ANSWER_SYSTEM_PROMPT,
     QUERY_ANSWERABILITY_SYSTEM_PROMPT,
     QUERY_CONTEXT_ANSWERABILITY_SYSTEM_PROMPT,
     RELEVANCE_SYSTEM_PROMPT,
-    build_answer_prompt,
     build_query_answerability_prompt,
     build_query_context_answerability_prompt,
     build_relevance_prompt,
@@ -45,7 +43,13 @@ from ranksmith.confidence_generation.types import (
     UsageCallback,
 )
 from ranksmith.errors import RerankProviderError
-from ranksmith.model import ModelMessage, ModelProvider, ModelRequest
+from ranksmith.model import (
+    NO_ANSWER_VALUE,
+    ModelMessage,
+    ModelProvider,
+    ModelRequest,
+    _answer_messages,
+)
 from ranksmith.types import RerankUsage
 
 SampleT = TypeVar("SampleT")
@@ -249,23 +253,15 @@ def _build_answer_generated_row(
     sample: AnswerGenerationSample,
     config: AnswerGenerationConfig,
 ) -> Mapping[str, Any]:
+    system, user = _answer_messages(sample.query, sample.context)
     raw_output = _call_provider(
         config.provider,
-        system=ANSWER_SYSTEM_PROMPT,
-        user=build_answer_prompt(
-            sample,
-            no_answer_value=config.no_answer_value,
-        ),
+        system=system,
+        user=user,
         on_usage=config.on_usage,
     )
     answer = parse_answer_output(raw_output)
-    label = int(
-        normalized_exact_match(
-            answer,
-            sample.gold_answer,
-            no_answer_value=config.no_answer_value,
-        )
-    )
+    label = int(normalized_exact_match(answer, sample.gold_answer))
     return _answer_canonical_row(
         sample,
         answer=answer,
@@ -287,7 +283,7 @@ def _answer_canonical_row(
         "generation_task": "answer_oriented",
         "query": sample.query,
         "match_policy": "normalized_exact",
-        "no_answer_value": config.no_answer_value,
+        "no_answer_value": NO_ANSWER_VALUE,
     }
     if config.include_raw_model_output:
         generation["raw_model_output"] = raw_output

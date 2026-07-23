@@ -79,6 +79,10 @@ class ModelClient:
         system, user = _select_messages(query, documents, top_m)
         return self._complete(system=system, user=user)
 
+    def answer(self, query: str, context: str) -> str:
+        system, user = _answer_messages(query, context)
+        return self._complete(system=system, user=user)
+
     def _complete(self, *, system: str, user: str) -> str:
         try:
             response = self._provider.complete(
@@ -125,6 +129,10 @@ class AsyncModelClient:
 
     async def select(self, query: str, documents: list[Document], top_m: int) -> str:
         system, user = _select_messages(query, documents, top_m)
+        return await self._complete(system=system, user=user)
+
+    async def answer(self, query: str, context: str) -> str:
+        system, user = _answer_messages(query, context)
         return await self._complete(system=system, user=user)
 
     async def _complete(self, *, system: str, user: str) -> str:
@@ -201,6 +209,25 @@ def _select_messages(
         f"1 to {candidate_count}, without duplicates."
     )
     return system, _build_selection_prompt(query, documents, top_m)
+
+
+NO_ANSWER_VALUE = "__NO_ANSWER__"
+
+
+def _answer_messages(query: str, context: str) -> tuple[str, str]:
+    system = (
+        "You answer questions using only the provided context. "
+        'Return only JSON with an "answer" string.'
+    )
+    user = (
+        f"Question:\n{query}\n\n"
+        f"Context:\n{context}\n\n"
+        "Return JSON exactly like this shape:\n"
+        '{"answer":"..."}\n\n'
+        "Use only the context. If the context does not contain the answer, "
+        f'return {{"answer":"{NO_ANSWER_VALUE}"}}.'
+    )
+    return system, user
 
 
 def _build_prompt(query: str, documents: list[Document]) -> str:

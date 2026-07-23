@@ -407,3 +407,46 @@ def test_async_azure_aoai_provider_fast_fails_empty_choices() -> None:
             )
 
     asyncio.run(run())
+
+
+def test_model_client_answer_builds_domain_prompt_and_emits_usage() -> None:
+    captured: list[RerankUsage] = []
+    usage = RerankUsage(prompt_tokens=3, completion_tokens=2, total_tokens=5)
+    provider = FakeModelProvider(
+        [ModelResponse(content='{"answer": "scurvy"}', usage=usage)]
+    )
+    client = ModelClient(provider=provider, on_usage=captured.append)
+
+    result = client.answer("What causes scurvy?", "Vitamin C deficiency.")
+
+    assert result == '{"answer": "scurvy"}'
+    assert captured == [usage]
+    request = provider.requests[0]
+    assert request.messages[0].role == "system"
+    assert 'Return only JSON with an "answer" string' in request.messages[0].content
+    assert "Question:\nWhat causes scurvy?" in request.messages[1].content
+    assert "Context:\nVitamin C deficiency." in request.messages[1].content
+    assert '{"answer":"..."}' in request.messages[1].content
+    assert '{"answer":"__NO_ANSWER__"}' in request.messages[1].content
+
+
+def test_model_client_answer_wraps_errors_and_rejects_empty_content() -> None:
+    client = ModelClient(provider=FailingModelProvider())
+    with pytest.raises(RerankProviderError, match="provider timeout"):
+        client.answer("query", "context")
+
+    empty_client = ModelClient(provider=FakeModelProvider([ModelResponse(content="")]))
+    with pytest.raises(RerankProviderError, match="empty response"):
+        empty_client.answer("query", "context")
+
+
+@pytest.mark.asyncio
+async def test_async_model_client_answer_matches_sync_prompt() -> None:
+    sync_provider = FakeModelProvider([ModelResponse(content='{"answer": "x"}')])
+    ModelClient(provider=sync_provider).answer("q", "ctx")
+    async_provider = AsyncFakeModelProvider([ModelResponse(content='{"answer": "x"}')])
+
+    result = await AsyncModelClient(provider=async_provider).answer("q", "ctx")
+
+    assert result == '{"answer": "x"}'
+    assert async_provider.requests[0].messages == sync_provider.requests[0].messages

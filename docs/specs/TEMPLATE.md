@@ -31,7 +31,7 @@
 - **성공 케이스 (Happy Paths)**: 정상적으로 동작해야 하는 시나리오, 기댓값, 필수 모의(Mock) 데이터 구조를 명시합니다.
 - **엣지/실패 케이스 (Edge & Failure Cases)**: 경계값, 특이한 입력, 또는 에러가 발생해야 하는 시나리오와 예상 Exception을 명시합니다.
 - **공통 Reranking Smoke/Benchmark**:
-  - reranking algorithm을 추가하거나 기존 algorithm의 순위 생성 로직을 바꾸는 경우, `tests/fixtures/reranking_smoke_fixture.jsonl`과 `src/ranksmith/_metrics.py`를 재사용해 실제 query/documents/qrels 기반 smoke test를 추가하거나 갱신합니다.
+  - reranking algorithm을 추가하거나 기존 algorithm의 순위 생성 로직을 바꾸는 경우, `tests/fixtures/reranking_smoke_fixture.jsonl`과 `benchmarks/metrics.py`를 재사용해 실제 query/documents/qrels 기반 smoke test를 추가하거나 갱신합니다.
   - LLM provider를 사용하는 algorithm이면 `scripts/compare_reranking.py`의 비교 대상에 포함하고, live 실행은 명시적 opt-in으로만 수행합니다.
   - 완료 판단에는 synthetic provider 테스트와 실제 fixture 기반 metric 검증을 모두 포함합니다. live provider metric은 credential/cost 때문에 별도 기록으로 둡니다.
 
