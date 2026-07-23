@@ -16,12 +16,18 @@ from ranksmith.model import (
     ModelRequest,
     ModelResponse,
 )
-from ranksmith.parsing import parse_ranking_response, parse_selection_response
+from ranksmith.parsing import (
+    parse_answer_response,
+    parse_ranking_response,
+    parse_selection_response,
+)
 from ranksmith.protocols import AsyncRerankStrategy, RerankStrategy
 from ranksmith.providers import AsyncAzureAOAIProvider, AzureAOAIProvider
 from ranksmith.strategies import (
     AcuRankStrategy,
+    AnswerConfidenceRerankStrategy,
     AsyncAcuRankStrategy,
+    AsyncAnswerConfidenceRerankStrategy,
     AsyncListwiseStrategy,
     AsyncPairwiseStrategy,
     AsyncSetwiseStrategy,
@@ -39,6 +45,7 @@ __all__ = [
     "AsyncAcuRankStrategy",
     "AsyncAzureAOAIProvider",
     "AsyncAzureOpenAIReranker",
+    "AsyncAnswerConfidenceRerankStrategy",
     "AsyncListwiseStrategy",
     "AsyncModelClient",
     "AsyncModelProvider",
@@ -48,6 +55,7 @@ __all__ = [
     "AsyncTourRankStrategy",
     "AzureAOAIProvider",
     "AzureOpenAIReranker",
+    "AnswerConfidenceRerankStrategy",
     "Document",
     "DocumentTooLongError",
     "ListwiseStrategy",
@@ -68,6 +76,7 @@ __all__ = [
     "RerankUsage",
     "TourRankStageConfig",
     "TourRankStrategy",
+    "parse_answer_response",
     "parse_ranking_response",
     "parse_selection_response",
 ]

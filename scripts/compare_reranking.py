@@ -11,6 +11,45 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Literal, cast
 
+
+@functools.lru_cache(maxsize=2)
+def _load_answer_confidence_estimator(artifact_path: str) -> Any:
+    # Loaded once per artifact: from_artifact pulls torch + lightgbm and is slow.
+    from ranksmith.confidence import StructuralConfidenceEstimator
+
+    return StructuralConfidenceEstimator.from_artifact(
+        artifact_path, allow_truncation=True
+    )
+
+
+def _openai_compatible_provider(base_url: str) -> Any:
+    # ModelProvider backed by any OpenAI-compatible chat endpoint (LM Studio,
+    # vLLM, ...). RANKSMITH_OPENAI_MODEL / _API_KEY override the defaults.
+    from openai import OpenAI
+
+    from ranksmith.model import ModelRequest, ModelResponse
+
+    client = OpenAI(
+        base_url=base_url,
+        api_key=os.getenv("RANKSMITH_OPENAI_API_KEY", "local"),
+        timeout=180,
+    )
+    model = os.getenv("RANKSMITH_OPENAI_MODEL", "local-model")
+
+    class _Provider:
+        def complete(self, request: ModelRequest) -> ModelResponse:
+            resp = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": m.role, "content": m.content} for m in request.messages
+                ],
+                temperature=0,
+            )
+            return ModelResponse(content=resp.choices[0].message.content or "")
+
+    return _Provider()
+
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
@@ -51,6 +90,7 @@ Algorithm = Literal[
     "tourrank_r",
     "setwise_heapsort",
     "acurank",
+    "answer_confidence",
     "cbdr",
 ]
 Dataset = Literal["fixture", "benchmark-cache", "beir-scifact"]
@@ -69,6 +109,8 @@ OPTIONAL_ALGORITHMS: tuple[Algorithm, ...] = (
     "acurank_b4",
     "tourrank_r10",
     "prp_sliding_p3",
+    # Opt-in only: needs --answer-confidence-artifact, excluded from --algorithm all.
+    "answer_confidence",
     "cbdr",
 )
 LEGACY_ALGORITHMS: tuple[Algorithm, ...] = (
@@ -197,8 +239,14 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=13)
     parser.add_argument(
         "--algorithm",
+        action="append",
         choices=("all", *ALGORITHMS, *OPTIONAL_ALGORITHMS, *LEGACY_ALGORITHMS),
-        default="all",
+        default=None,
+        help=(
+            "Algorithm to run; repeat the flag to run several algorithms on "
+            "identical cases in one invocation. Defaults to the default "
+            "method set ('all')."
+        ),
     )
     parser.add_argument("--window-size", type=int, default=20)
     parser.add_argument("--stride", type=int, default=10)
@@ -225,6 +273,20 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--lmstudio-model")
     parser.add_argument("--lmstudio-api-key")
     parser.add_argument("--lmstudio-max-tokens", type=int, default=128)
+    parser.add_argument(
+        "--answer-confidence-artifact",
+        type=str,
+        default=None,
+        help=(
+            "Path to a trained answer_confidence scorer (.joblib) for the "
+            "'answer_confidence' algorithm. NOTE: this scorer must be trained "
+            "separately on QA data with gold answers (this IR benchmark has "
+            "qrels but no gold answers, so it cannot train one). Passing an "
+            "artifact trained on a different domain (e.g. SQuAD) measures that "
+            "domain shift, not a like-for-like comparison — label results "
+            "accordingly. Requires 'pip install ranksmith[confidence]'."
+        ),
+    )
     parser.add_argument(
         "--query-id",
         action="append",
@@ -320,6 +382,17 @@ def _validate_args(args: argparse.Namespace) -> None:
             "--candidates is required for BEIR benchmark mode. "
             "Use --candidate-strategy oracle_plus_random only for diagnostics."
         )
+    if "answer_confidence" in (args.algorithm or []):
+        if args.answer_confidence_artifact is None:
+            raise SystemExit(
+                "--algorithm answer_confidence requires "
+                "--answer-confidence-artifact (a trained scorer .joblib)."
+            )
+        if not Path(args.answer_confidence_artifact).is_file():
+            raise SystemExit(
+                "--answer-confidence-artifact file does not exist: "
+                f"{args.answer_confidence_artifact}"
+            )
 
 
 def _load_cases(args: argparse.Namespace) -> list[BenchmarkCase]:
@@ -359,9 +432,16 @@ def _selected_algorithms(
     args: argparse.Namespace,
     cases: Sequence[BenchmarkCase],
 ) -> tuple[Algorithm, ...]:
-    if args.algorithm != "all":
-        return (cast(Algorithm, args.algorithm),)
-    return ALGORITHMS
+    selected: list[str] = args.algorithm or ["all"]
+    if "all" in selected:
+        if len(selected) > 1:
+            raise SystemExit(
+                "--algorithm all cannot be combined with other --algorithm values."
+            )
+        return ALGORITHMS
+    if len(set(selected)) != len(selected):
+        raise SystemExit("--algorithm values must not repeat.")
+    return tuple(cast(Algorithm, algorithm) for algorithm in selected)
 
 
 def _evaluate_cases(
@@ -392,6 +472,9 @@ def _evaluate_cases(
                     set_size=args.set_size,
                     top_k=args.top_k,
                     timeout=getattr(args, "timeout", None),
+                    answer_confidence_artifact=getattr(
+                        args, "answer_confidence_artifact", None
+                    ),
                     cbdr_base_artifact=getattr(args, "cbdr_base_artifact", None),
                     cbdr_context_artifact=getattr(
                         args,
@@ -512,6 +595,7 @@ def _rank_case(
     set_size: int = 3,
     top_k: int | None = None,
     timeout: float | None = None,
+    answer_confidence_artifact: str | None = None,
     cbdr_base_artifact: Path | None = None,
     cbdr_context_artifact: Path | None = None,
     cbdr_skip_threshold: float = 0.8,
@@ -530,6 +614,7 @@ def _rank_case(
 ) -> tuple[str, ...]:
     from ranksmith import (
         AcuRankStrategy,
+        AnswerConfidenceRerankStrategy,
         AzureOpenAIReranker,
         ListwiseStrategy,
         PairwiseStrategy,
@@ -576,6 +661,15 @@ def _rank_case(
             target_rank=target_rank,
             window_size=window_size,
             max_adaptive_reranker_calls=_acurank_budget_for_algorithm(algorithm),
+        )
+    elif algorithm == "answer_confidence":
+        if not answer_confidence_artifact:
+            raise ValueError(
+                "answer_confidence requires --answer-confidence-artifact "
+                "(a trained answer_confidence scorer)."
+            )
+        strategy = AnswerConfidenceRerankStrategy(
+            estimator=_load_answer_confidence_estimator(answer_confidence_artifact),
         )
     elif algorithm == "cbdr":
         if cbdr_base_artifact is None:
@@ -633,22 +727,32 @@ def _rank_case(
             stride=listwise_stride,
         )
 
-    reranker = AzureOpenAIReranker(
-        api_key=_required_env("AZURE_OPENAI_API_KEY"),
-        azure_endpoint=_required_env("AZURE_OPENAI_ENDPOINT"),
-        azure_deployment=_required_env(
-            "AZURE_OPENAI_LLM_DEPLOYMENT",
-            fallback="AZURE_OPENAI_DEPLOYMENT",
-        ),
-        api_version=_env_value(
-            "AZURE_OPENAI_LLM_API_VERSION",
-            fallback="AZURE_OPENAI_API_VERSION",
-            default="2024-08-01-preview",
+    # Local/test escape hatch: point at any OpenAI-compatible endpoint (e.g.
+    # LM Studio) instead of Azure by setting RANKSMITH_OPENAI_BASE_URL.
+    base_url = os.getenv("RANKSMITH_OPENAI_BASE_URL")
+    if base_url:
+        from ranksmith import ModelClient
+
+        reranker = AzureOpenAIReranker(
+            model_client=ModelClient(provider=_openai_compatible_provider(base_url)),
+            strategy=strategy,
         )
-        or "2024-08-01-preview",
-        timeout=timeout or _env_float("AZURE_OPENAI_LLM_TIMEOUT"),
-        strategy=strategy,
-    )
+    else:
+        reranker = AzureOpenAIReranker(
+            api_key=_required_env("AZURE_OPENAI_API_KEY"),
+            azure_endpoint=_required_env("AZURE_OPENAI_ENDPOINT"),
+            azure_deployment=_required_env(
+                "AZURE_OPENAI_LLM_DEPLOYMENT",
+                fallback="AZURE_OPENAI_DEPLOYMENT",
+            ),
+            api_version=_env_value(
+                "AZURE_OPENAI_LLM_API_VERSION",
+                fallback="AZURE_OPENAI_API_VERSION",
+                default="2024-08-01-preview",
+            ),
+            timeout=timeout or _env_float("AZURE_OPENAI_LLM_TIMEOUT"),
+            strategy=strategy,
+        )
     if top_k is None:
         results = reranker.rerank(case.query, documents)
     else:
@@ -1019,6 +1123,8 @@ def _estimate_provider_calls(
         if adaptive_budget is None:
             adaptive_budget = 1
         return max(1, math.ceil(document_count / window_size) + adaptive_budget)
+    if algorithm == "answer_confidence":
+        return document_count  # one answer() call per document
     window_size, stride = _listwise_window_stride_for_algorithm(
         algorithm,
         window_size,

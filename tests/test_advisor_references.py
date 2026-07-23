@@ -83,6 +83,9 @@ _DOCUMENTED_DEFAULTS: dict[str, dict[str, object]] = {
         "initial_pass": True,
         "max_adaptive_reranker_calls": None,
     },
+    "AnswerConfidenceRerankStrategy": {
+        "max_document_chars": 4000,
+    },
 }
 
 

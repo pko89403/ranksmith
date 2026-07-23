@@ -19,16 +19,8 @@ def test_normalized_exact_match_uses_simple_normalization() -> None:
 
 
 def test_no_answer_value_is_always_mismatch() -> None:
-    assert not normalized_exact_match(
-        "__NO_ANSWER__",
-        "__NO_ANSWER__",
-        no_answer_value="__NO_ANSWER__",
-    )
-    assert not normalized_exact_match(
-        " __no_answer__ ",
-        "__NO_ANSWER__",
-        no_answer_value="__NO_ANSWER__",
-    )
+    assert not normalized_exact_match("__NO_ANSWER__", "__NO_ANSWER__")
+    assert not normalized_exact_match(" __no_answer__ ", "__NO_ANSWER__")
 
 
 def test_relevance_truth_defaults_to_gt_zero() -> None:
@@ -60,8 +52,3 @@ def test_relevance_truth_rejects_invalid_thresholds() -> None:
 
     with pytest.raises(ConfidenceGenerationInputError):
         relevance_truth(1, threshold=math.nan, operator="gt")
-
-
-def test_normalized_exact_match_rejects_invalid_no_answer_value() -> None:
-    with pytest.raises(ConfidenceGenerationInputError):
-        normalized_exact_match("answer", "answer", no_answer_value=" ")

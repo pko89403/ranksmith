@@ -53,6 +53,8 @@ LLM 기반 reranking을 위한 작고 신뢰성 있는 Python 패키지를 만�
 - `TourRankStageConfig`
 - `AcuRankStrategy`
 - `AsyncAcuRankStrategy`
+- `AnswerConfidenceRerankStrategy` (experimental)
+- `AsyncAnswerConfidenceRerankStrategy` (experimental)
 - `RerankError`
 - `RerankInputError`
 - `RerankParseError`

@@ -14,6 +14,7 @@ in sync with them; do not invent numbers.
 | Pairwise preference / reproduce PRP / best MRR | `PairwiseStrategy(...)` | Best MRR@5 in the benchmark, but many calls. |
 | Adaptive spend near the top-k boundary | `AcuRankStrategy(target_rank=k)` | TrueSkill-based; uses `metadata["score"]` as a first-stage prior when present. |
 | Setwise top-k extraction with early stopping | `SetwiseStrategy(set_size=...)` | The only strategy with true `top_k` early stopping; lowest quality in the benchmark. |
+| Confidence-based reranking (explicitly asked for) | `AnswerConfidenceRerankStrategy(estimator=...)` | Experimental; needs a trained artifact and 1 LLM call/doc. Loses to Listwise on the committed eval — name that baseline. |
 | Deterministic business logic / a new research method | A custom Strategy class | You own the ranking contract. |
 | High-throughput (FastAPI, etc.) | The `Async*` variant of any of the above | Same contracts, `await`ed. |
 
@@ -72,6 +73,17 @@ exact provider-call telemetry.
 - First-stage prior: if every `Document` has a numeric `metadata["score"]`, it
   seeds the prior. All-or-none — partial or boolean scores fail fast.
 - Model op: `rank()` over batches.
+
+### AnswerConfidenceRerankStrategy / AsyncAnswerConfidenceRerankStrategy — experimental
+- `estimator` (required, a trained `answer_confidence`
+  `StructuralConfidenceEstimator`), `max_document_chars=4000`.
+- Per document: one `answer()` LLM call, then local structural confidence that
+  the answer is correct; documents sorted by that confidence, descending.
+- **Not a default recommendation.** Needs a trained artifact (QA data with gold
+  answers) and costs 1 LLM call per document. On the committed eval it loses to
+  `ListwiseStrategy` (acc@1 0.80 vs 1.00) at 4x the cost. Recommend only when the
+  user explicitly asks for confidence-based reranking; always name Listwise.
+- Model op: `answer()` per document.
 
 ## top_k behavior
 Only `SetwiseStrategy` stops early at `top_k`. Every other strategy computes the

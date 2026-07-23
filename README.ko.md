@@ -304,8 +304,11 @@ batch_results = estimator.score_batch(
 )
 ```
 
-이 모듈은 scorer를 학습하지 않고, reranking Strategy를 추가하지 않으며, async
-inference를 수행하지 않습니다. 병렬 batch scoring은 같은 encoder/scorer instance를
+이 모듈은 scorer를 학습하지 않고 async inference를 수행하지 않습니다. estimator는
+스코어링 utility이며, 이를 소비하는 실험적 reranker가
+`AnswerConfidenceRerankStrategy`(`ranksmith.strategies`)입니다 — 아래
+"Answer Confidence Reranking (experimental)" 참고. 병렬 batch scoring은 같은
+encoder/scorer instance를
 worker thread들이 공유하므로 thread-safe backend에서만 `max_workers>1`을 사용해야
 합니다. 첫 worker error에서 pending work를 취소하지만, 이미 시작된 Python thread는
 background에서 완료될 수 있습니다.
@@ -408,6 +411,36 @@ result = train_confidence_scorer(
 )
 print(result.export_path)
 ```
+
+### Answer Confidence Reranking (experimental)
+
+`AnswerConfidenceRerankStrategy`는 학습된 `answer_confidence` estimator를
+CBDR 방식의 reranker로 만듭니다: 문서마다 모델이 그 문맥으로 질문에 답하고(문서당
+LLM 1회), 그 답변이 맞을 로컬 structural confidence로 문서를 정렬합니다. 한 질문
+안에서 이 정렬은 confidence 변화 기준 정렬과 동일합니다.
+
+```python
+from ranksmith import AnswerConfidenceRerankStrategy, AzureOpenAIReranker
+from ranksmith.confidence import StructuralConfidenceEstimator
+
+estimator = StructuralConfidenceEstimator.from_artifact(
+    "artifacts/answer_confidence.joblib"
+)
+reranker = AzureOpenAIReranker(
+    api_key="...",
+    azure_endpoint="https://example.openai.azure.com",
+    azure_deployment="gpt-4o-mini",
+    strategy=AnswerConfidenceRerankStrategy(estimator=estimator),
+)
+```
+
+> **실험적 — 기본 선택 아님.** 학습된 `answer_confidence` artifact(정답이 있는 QA
+> 데이터)가 필요하고 문서당 LLM answer 1회 비용이 듭니다. 스펙에 기록된 소규모
+> 자체 평가(held-out SQuAD 15개, 리포 밖 환경에서 실행 — 증거 artifact는 커밋되어
+> 있지 않음)에서는 순수 `ListwiseStrategy`에 4배 비용으로 졌습니다. 아직 기존
+> 전략을 이기는 세팅을 입증하지 못했고, 가능성 있는 영역(listwise window 초과
+> 후보)은 미측정입니다. 수치와 한계는 `docs/specs/spec_confidence_aware_reranking.md`,
+> 표준 벤치마크 절차는 `docs/benchmarks/answer_confidence_askubuntu.md` 참고.
 
 ### LM Studio 로컬 confidence pipeline
 
@@ -522,8 +555,9 @@ uv run python scripts/compare_reranking.py \
 이 레포에는 [Claude Code](https://code.claude.com/docs) 플러그인
 `ranksmith-advisor`가 포함되어 있습니다. 사용 사례에 맞는 reranking strategy
 선택을 돕고 CI로 검증된 동작 스니펫을 제시하며, 제안 코드가 라이브러리의 실제
-계약을 따르도록 ranksmith 전용 guardrail을 적용합니다(미구현 provider 호출,
-`algorithm` 문자열 확장, `confidence`를 reranker로 취급하는 패턴을 차단).
+계약을 따르도록 ranksmith 전용 guardrail을 적용합니다(Azure만 번들 provider이고,
+`confidence` estimator는 스코어링 utility, `AnswerConfidenceRerankStrategy`는
+그 위에 얹은 실험적 reranker).
 
 Claude Code에서 사용:
 
@@ -554,7 +588,7 @@ top-5만 출력할 수 있습니다. Live LLM 호출에는 Azure OpenAI deployme
 중간 단계에서 실패할 수 있으므로 정확한 provider-call telemetry는 아닙니다.
 커밋된 근거 artifact는 다음과 같습니다.
 
-- [`benchmark-results/live/askubuntu-bm25-top20-default-live.v3.merged.json`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/live/askubuntu-bm25-top20-default-live.v3.merged.json)
+- [`benchmark-results/live/askubuntu-bm25-top20-default-live.v4.merged.json`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/live/askubuntu-bm25-top20-default-live.v4.merged.json)
 - [`benchmark-results/pyserini/askubuntu-bm25-top20.trec`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/pyserini/askubuntu-bm25-top20.trec)
 - [`benchmark-results/askubuntu-bm25-top20-cbdr-live.json`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/askubuntu-bm25-top20-cbdr-live.json) (optional `cbdr` method, 별도 run)
 
@@ -567,6 +601,7 @@ top-5만 출력할 수 있습니다. Live LLM 호출에는 Azure OpenAI deployme
 | `tourrank_r2` | 0.4236 | 0.5725 | 0.3601 | 361/361 | 0.000 | 8 | 1.03 |
 | `setwise_hs_s10` | 0.3653 | 0.5059 | 0.3005 | 361/361 | 0.000 | 12 | 1.00 |
 | `prp_sliding_p1` | 0.4065 | 0.5818 | 0.3277 | 361/361 | 0.000 | 38 | 1.00 |
+| `answer_confidence` *(scorer: SQuAD v1.1, 도메인 밖)* | 0.1722 | 0.2862 | 0.1435 | 361/361 | 0.000 | 20 | 1.00 |
 | `cbdr` *(scorer: TriviaQA, 도메인 밖)* | 0.2259 | 0.3458 | 0.1867 | 361/361 | 0.000 | 21 | 1.00 |
 
 `tourrank_r2`는 NDCG@5와 Recall@5가 가장 높았고, `prp_sliding_p1`은 MRR@5가
@@ -574,19 +609,24 @@ top-5만 출력할 수 있습니다. Live LLM 호출에는 Azure OpenAI deployme
 `rankgpt_sw_w5`는 이 top-20 설정의 실제 sliding-window listwise baseline입니다.
 `acurank_k5_b1`은 AcuRank uncertainty boundary를 `@5` 평가 cutoff와 맞춘
 설정입니다. `setwise_hs_s10`은 20개 후보에서 평가 대상 top-5만 추출하는 실용적인
-Setwise Heapsort 설정입니다. `cbdr`은 [LM Studio 로컬 confidence
+Setwise Heapsort 설정입니다. `answer_confidence`는 SQuAD v1.1로 학습한
+scorer를 사용하며(AskUbuntu 기준 도메인 밖, [러닝북](docs/benchmarks/answer_confidence_askubuntu.md)
+참고), `cbdr`은 [LM Studio 로컬 confidence
 pipeline](#lm-studio-로컬-confidence-pipeline)에 문서화된 `Conf(Q)`/`Conf(Q+C)`
-스코어러 두 개를 사용하며, TriviaQA로 학습해 AskUbuntu 기준 도메인 밖입니다.
-이 벤치마크에서는 BM25 baseline보다 낮은 점수를 기록했고, 이기도록 튜닝하지
+스코어러 두 개를 사용하며 TriviaQA로 학습해 역시 도메인 밖입니다. 둘 다 이
+벤치마크에서는 BM25 baseline보다 낮은 점수를 기록했고, 이기도록 튜닝하지
 않고 측정된 그대로 보고합니다.
 
 왜 이기게 튜닝하지 않는가: 스코어러를 이 벤치마크 분포에 맞추면 알고리즘의
-일반적인 품질이 아니라 AskUbuntu에 대한 과적합을 측정하게 됩니다. 이는
-smoke/partial run이나 cherry-pick된 수치를 벤치마크 품질로 보고하지 않는다는
-이 프로젝트의 보고 규칙([`docs/benchmarks/bm25_top20_reranking.md`](docs/benchmarks/bm25_top20_reranking.md#reporting-rules))과도
-어긋납니다. 더 강한 domain-in 스코어러를 만드는 건 정당한 후속 작업이지만,
-그건 더 나은 artifact를 학습해서 같은 커맨드를 다시 돌리는 것이지 보고
-방식을 바꾸는 게 아닙니다.
+일반적인 품질이 아니라 AskUbuntu에 대한 과적합을 측정하게 됩니다.
+`scripts/train_answer_confidence.py`가 test roc_auc < 0.6이면 cherry-pick된
+체크포인트를 통과시키지 않고 fast-fail하는 것도, 이 프로젝트의 보고
+규칙([`docs/benchmarks/bm25_top20_reranking.md`](docs/benchmarks/bm25_top20_reranking.md#reporting-rules))이
+smoke/partial run이나 cherry-pick된 수치를 벤치마크 품질로 보고하지 않는 것도
+같은 이유입니다. 더 강한 domain-in 스코어러를 만드는 건 어느 쪽이든 정당한
+후속 작업이지만([스펙](docs/specs/spec_confidence_aware_reranking.md)의
+"남은 작업" 참고), 그건 더 나은 artifact를 학습해서 같은 커맨드를 다시
+돌리는 것이지 보고 방식을 바꾸는 게 아닙니다.
 
 재시도 후에도 `single_call_listwise@20` 2개 row와 `acurank_k5_b1` 5개 row가
 invalid로 남았습니다. 이 row는 보정하지 않고 invalid rate에 반영했습니다.

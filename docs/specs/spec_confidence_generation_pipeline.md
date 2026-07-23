@@ -227,10 +227,11 @@ Normalization:
 - collapse internal whitespace
 
 No-answer policy:
-- `no_answer_value`는 non-empty string이어야 한다.
-- closed model answer가 `no_answer_value`와 정확히 같으면 항상 `label=0`이다.
-- `gold_answer`가 우연히 `no_answer_value`와 같아도 match로 인정하지 않는다.
-- 기본 sentinel은 `"__NO_ANSWER__"`이다.
+- sentinel은 `ranksmith.model.NO_ANSWER_VALUE`(`"__NO_ANSWER__"`) 고정 상수다.
+  (초안의 config 필드 `no_answer_value`는 answer prompt를 리랭커와 공유 상수로
+  통일하면서 제거됐다 — 학습/추론 프롬프트 일관성 요구사항.)
+- closed model answer가 sentinel과 정확히 같으면 항상 `label=0`이다.
+- `gold_answer`가 우연히 sentinel과 같아도 match로 인정하지 않는다.
 
 제외:
 - punctuation removal
@@ -307,7 +308,9 @@ Generation metadata는 output `metadata.generation` 아래에 nested로 기록�
 - `include_raw_model_output: bool = True`
 - `on_usage: Callable[[RerankUsage], None] | None = None`
 - `source: str | None = None`
-- `no_answer_value: str = "__NO_ANSWER__"`
+
+(sentinel은 config가 아니라 `ranksmith.model.NO_ANSWER_VALUE` 공유 상수를 쓴다.
+초안에 있던 `no_answer_value` 필드는 제거됐다.)
 
 #### `RelevanceGenerationConfig`
 
@@ -589,7 +592,6 @@ Provider 호출 실패:
 - `max_items < 1`.
 - `max_context_chars < 1`.
 - `max_document_chars < 1`.
-- `no_answer_value`가 non-empty string이 아님.
 - metadata가 JSON object가 아님.
 - metadata key가 string이 아님.
 - metadata value가 JSON-serializable이 아님.
@@ -623,7 +625,7 @@ Resume 실패:
 - answer raw JSONL을 읽고 `answer_confidence` canonical JSONL을 생성한다.
 - answer normalized exact match가 `label=1`을 만든다.
 - answer mismatch가 `label=0`을 만든다.
-- answer가 `no_answer_value`와 같으면 gold answer와 무관하게 `label=0`을 만든다.
+- answer가 `NO_ANSWER_VALUE` sentinel과 같으면 gold answer와 무관하게 `label=0`을 만든다.
 - gold answer list 중 하나와 match하면 `label=1`이다.
 - relevance raw JSONL을 읽고 `judgment_confidence` canonical JSONL을 생성한다.
 - `relevance_label > 0` 기본 truth가 relevant를 만든다.
@@ -652,7 +654,6 @@ Resume 실패:
 - invalid `max_items`.
 - invalid `max_context_chars`.
 - invalid `max_document_chars`.
-- invalid `no_answer_value`.
 - invalid metadata.
 - provider empty response.
 - invalid provider JSON.

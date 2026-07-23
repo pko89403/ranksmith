@@ -24,7 +24,7 @@ SPEC.loader.exec_module(compare_reranking)
 
 
 def test_compare_all_uses_top20_bm25_default_methods() -> None:
-    args = argparse.Namespace(algorithm="all")
+    args = argparse.Namespace(algorithm=["all"])
     cases = [
         BenchmarkCase(
             fixture_id="fixture",
@@ -55,7 +55,7 @@ def test_compare_all_uses_top20_bm25_default_methods() -> None:
 
 
 def test_compare_all_is_stable_for_100_candidate_cases() -> None:
-    args = argparse.Namespace(algorithm="all")
+    args = argparse.Namespace(algorithm=["all"])
     cases = [
         BenchmarkCase(
             fixture_id="fixture",
@@ -84,21 +84,21 @@ def test_compare_all_is_stable_for_100_candidate_cases() -> None:
 
 
 def test_compare_optional_prp_sliding_p3_is_preserved() -> None:
-    args = argparse.Namespace(algorithm="prp_sliding_p3")
+    args = argparse.Namespace(algorithm=["prp_sliding_p3"])
     cases: list[BenchmarkCase] = []
 
     assert compare_reranking._selected_algorithms(args, cases) == ("prp_sliding_p3",)
 
 
 def test_compare_optional_prp_sliding_p1_is_preserved() -> None:
-    args = argparse.Namespace(algorithm="prp_sliding_p1")
+    args = argparse.Namespace(algorithm=["prp_sliding_p1"])
     cases: list[BenchmarkCase] = []
 
     assert compare_reranking._selected_algorithms(args, cases) == ("prp_sliding_p1",)
 
 
 def test_compare_explicit_cbdr_is_preserved() -> None:
-    args = argparse.Namespace(algorithm="cbdr")
+    args = argparse.Namespace(algorithm=["cbdr"])
     cases: list[BenchmarkCase] = []
 
     assert compare_reranking._selected_algorithms(args, cases) == ("cbdr",)
@@ -129,14 +129,14 @@ def test_compare_describes_cbdr_estimates_as_upper_bounds() -> None:
 
 
 def test_compare_explicit_tourrank_is_preserved_for_non_100_candidate_cases() -> None:
-    args = argparse.Namespace(algorithm="tourrank_r")
+    args = argparse.Namespace(algorithm=["tourrank_r"])
     cases: list[BenchmarkCase] = []
 
     assert compare_reranking._selected_algorithms(args, cases) == ("tourrank_r",)
 
 
 def test_compare_explicit_setwise_heapsort_is_preserved() -> None:
-    args = argparse.Namespace(algorithm="setwise_heapsort")
+    args = argparse.Namespace(algorithm=["setwise_heapsort"])
     cases: list[BenchmarkCase] = []
 
     assert compare_reranking._selected_algorithms(args, cases) == ("setwise_heapsort",)
@@ -165,7 +165,7 @@ def test_compare_estimates_tourrank_calls_from_generated_stages() -> None:
 
 
 def test_compare_explicit_acurank_is_preserved() -> None:
-    args = argparse.Namespace(algorithm="acurank")
+    args = argparse.Namespace(algorithm=["acurank"])
     cases: list[BenchmarkCase] = []
 
     assert compare_reranking._selected_algorithms(args, cases) == ("acurank",)
@@ -1431,3 +1431,116 @@ def test_compare_beir_scifact_dataset_name_remains_legacy_alias() -> None:
     )
 
     assert compare_reranking._dataset_name(args) == "BEIR/SciFact"
+
+
+def test_compare_default_algorithm_selection_is_the_default_set() -> None:
+    args = argparse.Namespace(algorithm=None)
+
+    algorithms = compare_reranking._selected_algorithms(args, [])
+
+    assert algorithms == compare_reranking.ALGORITHMS
+
+
+def test_compare_repeated_algorithm_flags_run_in_one_invocation() -> None:
+    args = argparse.Namespace(
+        algorithm=["original_bm25", "single_call_listwise@20", "answer_confidence"]
+    )
+
+    algorithms = compare_reranking._selected_algorithms(args, [])
+
+    assert algorithms == (
+        "original_bm25",
+        "single_call_listwise@20",
+        "answer_confidence",
+    )
+
+
+def test_compare_rejects_all_combined_with_other_algorithms() -> None:
+    args = argparse.Namespace(algorithm=["all", "answer_confidence"])
+
+    with pytest.raises(SystemExit, match="cannot be combined"):
+        compare_reranking._selected_algorithms(args, [])
+
+
+def test_compare_rejects_duplicate_algorithm_flags() -> None:
+    args = argparse.Namespace(algorithm=["tourrank_r2", "tourrank_r2"])
+
+    with pytest.raises(SystemExit, match="must not repeat"):
+        compare_reranking._selected_algorithms(args, [])
+
+
+def _answer_confidence_args(**overrides: object) -> argparse.Namespace:
+    defaults: dict[str, object] = {
+        "window_size": 20,
+        "stride": 10,
+        "passes": 10,
+        "tourrank_rounds": 2,
+        "set_size": 3,
+        "top_k": 5,
+        "candidate_count": 20,
+        "max_cases": None,
+        "timeout": None,
+        "checkpoint_output": None,
+        "output": None,
+        "dataset": "fixture",
+        "cache_dir": None,
+        "dataset_name": None,
+        "candidates": None,
+        "candidate_strategy": "candidate_file",
+        "algorithm": ["answer_confidence"],
+        "answer_confidence_artifact": None,
+    }
+    defaults.update(overrides)
+    return argparse.Namespace(**defaults)
+
+
+def test_compare_answer_confidence_requires_artifact_before_running() -> None:
+    args = _answer_confidence_args()
+
+    with pytest.raises(SystemExit, match="requires"):
+        compare_reranking._validate_args(args)
+
+
+def test_compare_answer_confidence_requires_existing_artifact_file() -> None:
+    args = _answer_confidence_args(
+        answer_confidence_artifact="/nonexistent/scorer.joblib"
+    )
+
+    with pytest.raises(SystemExit, match="does not exist"):
+        compare_reranking._validate_args(args)
+
+
+def test_compare_estimates_one_answer_call_per_document_for_answer_confidence() -> None:
+    assert (
+        compare_reranking._estimate_provider_calls(
+            20,
+            "answer_confidence",
+            window_size=20,
+            stride=10,
+        )
+        == 20
+    )
+
+
+def test_compare_rank_case_fast_fails_answer_confidence_without_artifact() -> None:
+    case = BenchmarkCase(
+        fixture_id="fixture",
+        dataset="dataset",
+        source="source",
+        license="license",
+        query_id="q1",
+        query="query",
+        documents=(BenchmarkDocument(id="1", title="", text="text"),),
+        qrels={},
+    )
+
+    with pytest.raises(ValueError, match="answer-confidence-artifact"):
+        compare_reranking._rank_case(
+            case=case,
+            algorithm="answer_confidence",
+            window_size=20,
+            stride=10,
+            passes=10,
+            tourrank_rounds=2,
+            answer_confidence_artifact=None,
+        )

@@ -308,8 +308,11 @@ batch_results = estimator.score_batch(
 )
 ```
 
-This module does not train a scorer, does not add a reranking Strategy, and
-does not perform async inference. Parallel batch scoring shares the same
+This module does not train a scorer and does not perform async inference. The
+estimator is a scoring utility; `AnswerConfidenceRerankStrategy`
+(`ranksmith.strategies`) is the experimental reranker that consumes it — see
+[Answer Confidence Reranking](#answer-confidence-reranking-experimental).
+Parallel batch scoring shares the same
 encoder and scorer instances across worker threads, so use `max_workers>1` only
 with thread-safe backends. It cancels pending work on the first worker error,
 but Python threads that have already started may finish in the background.
@@ -413,6 +416,41 @@ result = train_confidence_scorer(
 )
 print(result.export_path)
 ```
+
+### Answer Confidence Reranking (experimental)
+
+`AnswerConfidenceRerankStrategy` turns a trained `answer_confidence` estimator
+into a reranker in the CBDR spirit: for each candidate the model answers the
+query from that document (one LLM call per document), and the document is scored
+by the local structural confidence that the answer is correct. Documents are
+ordered by that confidence, descending — which within a single query equals
+ranking by confidence change.
+
+```python
+from ranksmith import AnswerConfidenceRerankStrategy, AzureOpenAIReranker
+from ranksmith.confidence import StructuralConfidenceEstimator
+
+estimator = StructuralConfidenceEstimator.from_artifact(
+    "artifacts/answer_confidence.joblib"
+)
+reranker = AzureOpenAIReranker(
+    api_key="...",
+    azure_endpoint="https://example.openai.azure.com",
+    azure_deployment="gpt-4o-mini",
+    strategy=AnswerConfidenceRerankStrategy(estimator=estimator),
+)
+```
+
+> **Experimental — not a default choice.** It needs a trained
+> `answer_confidence` artifact (QA data with gold answers) and costs one LLM
+> answer call per document. In the spec's small self-reported eval (15
+> held-out SQuAD queries, run outside this repo — no evidence artifact is
+> committed) it lost to a plain `ListwiseStrategy` at four times the LLM
+> cost. No setting has yet shown it beating an existing strategy; its
+> plausible niche (candidate sets larger than the listwise window) is
+> unmeasured. Numbers and caveats live in
+> `docs/specs/spec_confidence_aware_reranking.md`; the standard-benchmark
+> procedure is `docs/benchmarks/answer_confidence_askubuntu.md`.
 
 ### Local LM Studio confidence pipeline
 
@@ -528,7 +566,8 @@ This repo ships a [Claude Code](https://code.claude.com/docs) plugin,
 `ranksmith-advisor`, that helps you choose a reranking strategy for your use
 case and returns working, CI-verified snippets. It encodes ranksmith-specific
 guardrails, so the suggested code follows the library's real contracts (Azure
-is the only bundled provider, and `confidence` is not a reranker).
+is the only bundled provider; the `confidence` estimator is a scoring utility,
+and `AnswerConfidenceRerankStrategy` is an experimental reranker built on it).
 
 Use it from Claude Code:
 
@@ -559,7 +598,7 @@ attempts. Row attempts are useful for retry accounting, but they are not exact
 provider-call telemetry for multi-call methods that can fail partway through an
 algorithm run. The committed evidence artifacts are:
 
-- [`benchmark-results/live/askubuntu-bm25-top20-default-live.v3.merged.json`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/live/askubuntu-bm25-top20-default-live.v3.merged.json)
+- [`benchmark-results/live/askubuntu-bm25-top20-default-live.v4.merged.json`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/live/askubuntu-bm25-top20-default-live.v4.merged.json)
 - [`benchmark-results/pyserini/askubuntu-bm25-top20.trec`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/pyserini/askubuntu-bm25-top20.trec)
 - [`benchmark-results/askubuntu-bm25-top20-cbdr-live.json`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/askubuntu-bm25-top20-cbdr-live.json) (optional `cbdr` method, run separately)
 
@@ -572,6 +611,7 @@ algorithm run. The committed evidence artifacts are:
 | `tourrank_r2` | 0.4236 | 0.5725 | 0.3601 | 361/361 | 0.000 | 8 | 1.03 |
 | `setwise_hs_s10` | 0.3653 | 0.5059 | 0.3005 | 361/361 | 0.000 | 12 | 1.00 |
 | `prp_sliding_p1` | 0.4065 | 0.5818 | 0.3277 | 361/361 | 0.000 | 38 | 1.00 |
+| `answer_confidence` *(scorer: SQuAD v1.1, out-of-domain)* | 0.1722 | 0.2862 | 0.1435 | 361/361 | 0.000 | 20 | 1.00 |
 | `cbdr` *(scorers: TriviaQA, out-of-domain)* | 0.2259 | 0.3458 | 0.1867 | 361/361 | 0.000 | 21 | 1.00 |
 
 `tourrank_r2` had the best NDCG@5 and Recall@5, while `prp_sliding_p1` had the
@@ -579,18 +619,24 @@ best MRR@5. `single_call_listwise@20` is the one-shot listwise baseline.
 `rankgpt_sw_w5` is the true sliding-window listwise baseline for this top-20
 setup. `acurank_k5_b1` aligns AcuRank's uncertainty boundary with the `@5`
 evaluation cutoff. `setwise_hs_s10` is a practical Setwise Heapsort setting
-that extracts only the evaluated top-5 from 20 candidates. `cbdr` uses the two
-`Conf(Q)`/`Conf(Q+C)` scorers documented under [Local LM Studio confidence
-pipeline](#local-lm-studio-confidence-pipeline), trained on TriviaQA (out-of-domain
-for AskUbuntu); it scores below the BM25 baseline here and is reported as
-measured, not tuned to win.
+that extracts only the evaluated top-5 from 20 candidates. `answer_confidence`
+uses a scorer trained on SQuAD v1.1 (out-of-domain for AskUbuntu, see
+[the runbook](docs/benchmarks/answer_confidence_askubuntu.md)) and `cbdr` uses
+the two `Conf(Q)`/`Conf(Q+C)` scorers documented under [Local LM Studio
+confidence pipeline](#local-lm-studio-confidence-pipeline), trained on
+TriviaQA (also out-of-domain for AskUbuntu). Both score below the BM25
+baseline here and are reported as measured, not tuned to win.
 
-Why not tune it to win: fitting the scorer to this benchmark's distribution
-would measure overfitting to AskUbuntu, not the algorithm's general quality,
-which conflicts with this project's reporting rule that smoke/partial runs
-and cherry-picked numbers are never reported as benchmark quality (see
+Why not tune them to win: fitting a scorer to this benchmark's distribution
+would measure overfitting to AskUbuntu, not the algorithm's general quality —
+the same reason `scripts/train_answer_confidence.py` fast-fails below
+`roc_auc 0.6` instead of letting a cherry-picked checkpoint through, and why
+this project's reporting rule never reports smoke/partial runs or
+cherry-picked numbers as benchmark quality (see
 [`docs/benchmarks/bm25_top20_reranking.md`](docs/benchmarks/bm25_top20_reranking.md#reporting-rules)).
-A stronger in-domain scorer is a legitimate follow-up, but that means
+A stronger in-domain scorer is a legitimate follow-up for either method (see
+"남은 작업" in [the answer_confidence
+spec](docs/specs/spec_confidence_aware_reranking.md)), but that means
 training a better artifact and re-running this exact command, not adjusting
 the report.
 

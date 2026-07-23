@@ -2,7 +2,7 @@
 
 ## 계층
 - ModelProvider: vendor별 JSON completion 호출을 담당한다.
-- ModelClient: ranksmith 도메인의 `rank`, `compare`, `select` 계약과 prompt 생성을 담당한다.
+- ModelClient: ranksmith 도메인의 `rank`, `compare`, `select`, `answer` 계약과 prompt 생성을 담당한다.
 - Strategy: reranking에 쓰는 비교 단위다.
 - Algorithm: 최종 순위를 만드는 절차다.
 
@@ -26,6 +26,7 @@ src/ranksmith/
     setwise.py
     tourrank.py
     acurank.py
+    confidence.py          # answer-confidence rerank (experimental)
     confidence_gain.py
     cbdr.py
   providers/
@@ -73,6 +74,8 @@ Pairwise model client call은 `"A"` 또는 `"B"` winner를 담은 JSON 문자열
 
 Selection model client call은 group 안에서 선택된 문서의 1-based index list를 담은 JSON 문자열을 반환한다.
 
+Answer model client call은 주어진 context만으로 질문에 답한 `"answer"` 문자열을 담은 JSON 문자열을 반환한다(문맥에 답이 없으면 `"__NO_ANSWER__"`).
+
 ## Strategy
 v1 공개 strategy:
 - `ListwiseStrategy`
@@ -85,6 +88,8 @@ v1 공개 strategy:
 - `AsyncTourRankStrategy`
 - `AcuRankStrategy`
 - `AsyncAcuRankStrategy`
+- `AnswerConfidenceRerankStrategy` (실험적 — 학습된 estimator artifact 필요)
+- `AsyncAnswerConfidenceRerankStrategy` (실험적)
 - `ConfidenceGainStrategy`
 - `CBDRStrategy`
 
@@ -93,6 +98,7 @@ v1 공개 strategy:
 - Strategy protocol과 model client/provider contract는 `ranksmith.protocols` 및 root import에서 공개한다.
 - model client JSON ranking을 직접 다루는 custom Strategy는 `parse_ranking_response()`를 사용해 검증한다.
 - selection 기반 Strategy는 `parse_selection_response()`를 사용해 selected index를 검증한다.
+- answer 기반 Strategy는 `parse_answer_response()`를 사용해 answer 문자열을 검증한다.
 - 자세한 확장 규칙은 `docs/wiki/08_custom_strategy_extension.md`를 따른다.
 
 향후 strategy 후보:
@@ -108,11 +114,14 @@ v1 지원 algorithm:
 - `confidence_gain`
 - `cbdr`
 
+benchmark opt-in algorithm:
+- `answer_confidence` (`scripts/compare_reranking.py`, 학습된 artifact 필요)
+
 향후 algorithm 후보:
 - `Pointwise`
 
 ## Confidence
-`ranksmith.confidence`는 reranking Strategy나 Algorithm이 아니라, closed model output confidence를 계산하는 utility layer다.
+`ranksmith.confidence`(estimator)는 reranking Strategy가 아니라 closed model output confidence를 계산하는 utility layer다. 이 estimator를 소비하는 실험적 reranker가 `AnswerConfidenceRerankStrategy`(`ranksmith.strategies`)이며, 스펙에 기록된 소규모 자체 평가에서 Listwise에 진다(`docs/specs/spec_confidence_aware_reranking.md` — 증거 artifact는 리포에 커밋되어 있지 않다).
 
 현재 범위:
 - frozen HuggingFace encoder 기반 token-level trajectory 생성
@@ -167,7 +176,7 @@ true pre-retrieval skip, retriever integration, async CBDR은 구현하지 않�
 - resume 가능한 JSONL output
 - CBDR용 answerability task CLI wrapper
 
-제외:
+제외 (package 범위 — SQuAD 학습 데이터 빌더와 turnkey CLI는 package 밖 `scripts/build_answer_confidence_training_data.py`, `scripts/train_answer_confidence.py`로 제공):
 - async generation
 - dataset adapter
 - runtime reranking Strategy 또는 Algorithm
@@ -189,6 +198,12 @@ Selection JSON:
 
 ```json
 {"selected": [3, 1]}
+```
+
+Answer JSON:
+
+```json
+{"answer": "vitamin C deficiency"}
 ```
 
 잘못된 JSON, 누락 값, 중복 값, 범위 밖 값, 정수가 아닌 값, 잘못된 winner 값은 `RerankParseError`로 실패한다.

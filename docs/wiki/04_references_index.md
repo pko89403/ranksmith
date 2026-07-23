@@ -7,6 +7,8 @@
 - [AcuRank](references/acurank.md): Paper + Repo / Bayesian, Uncertainty-aware Adaptive Reranking / 요약 완료, 구현 완료
 - [A Setwise Approach for Effective and Highly Efficient Zero-shot Ranking with Large Language Models](references/setwise_ranking_prompting.md): Paper / Setwise Reranking, Heapsort-based Selection Reranking / 요약 완료, 구현 완료
 - [Trust in One Round: Confidence Estimation for Large Language Models via Structural Signals](references/structural_confidence.md): Paper / Black-box confidence, proxy hidden-state trajectory / 요약 완료, Phase 1 inference spec 작성
+- [Rethinking LLM Parametric Knowledge as Confidence (CBDR)](references/cbdr_parametric_confidence_rag.md): Paper / Confidence-change preference, dynamic retrieval trigger / 요약 완료, white-box 전제라 개념 참고용
+- [LLM-Confidence Reranker (LCR)](references/llm_confidence_reranker.md): Paper / Training-free black-box confidence reranking, MSCP / 요약 완료, confidence-aware reranking 스펙 후보
 - [Rethinking LLM Parametric Knowledge as Post-retrieval Confidence for Dynamic Retrieval and Reranking](references/parametric_post_retrieval_confidence.md): Paper / Confidence gain, post-retrieval reranking, CBDR / 요약 완료, spec 작성
 
 ## 처리 대기 Reference
@@ -19,7 +21,6 @@
 - [FIRST: Faster Improved Listwise Reranking with Single Token Decoding](references/FIRST-%20Faster%20Improved%20Listwise%20Reranking%20with%20Single%20Token%20Decoding.pdf): Paper / Listwise reranking, single-token decoding, efficiency / 요약 대기
 - [Found in the Middle: Permutation Self-Consistency Improves Listwise Ranking in Large Language Models](references/Found%20in%20the%20Middle-%20Permutation%20Self-Consistency%20Improves%20Listwise%20Ranking%20in%20Large%20Language%20Models.pdf): Paper / Permutation self-consistency, listwise reranking / 요약 대기
 - [InstUPR: Instruction-based Unsupervised Passage Reranking with Large Language Models](references/InstUPR-%20Instruction-based%20Unsupervised%20Passage%20Reranking%20with%20Large%20Language%20Models.pdf): Paper / Pointwise/unsupervised passage reranking / 요약 대기
-- [LLM-Confidence Reranker: A Training-Free Approach for Enhancing Retrieval-Augmented Generation Systems](references/LLM-Confidence%20Reranker-%20A%20Training-Free%20Approach%20for%20Enhancing%20Retrieval-Augmented%20Generation%20Systems.pdf): Paper / Confidence-based reranking, RAG / 요약 대기
 - [Large Language Models are Zero-Shot Rankers for Recommender Systems](references/Large%20Language%20Models%20are%20Zero-Shot%20Rankers%20for%20Recommender%20Systems.pdf): Paper / Zero-shot recommendation ranking / 요약 대기
 - [Measuring Black-Box Confidence via Reasoning Trajectories: Geometry Coverage and Verbalization](references/Measuring%20Black-Box%20Confidence%20via%20Reasoning%20Trajectories-%20Geometry%20Coverage%20and%20Verbalization.pdf): Paper / Black-box confidence, reasoning trajectory / 요약 대기
 - [Parameters vs Context: Fine-Grained Control of Knowledge Reliance in Language Models](references/Parameters%20vs%20Context-%20Fine-Grained%20Control%20of%20Knowledge%20Reliance%20in%20Language%20Models.pdf): Paper / Context confidence gain, token entropy shift / 요약 대기
@@ -27,7 +28,6 @@
 - [Rank-K: Test-Time Reasoning for Listwise Reranking](references/Rank-K-%20Test-Time%20Reasoning%20for%20Listwise%20Reranking.pdf): Paper / Test-time reasoning, listwise reranking / 요약 대기
 - [Re-Ranking Step by Step: Investigating Pre-Filtering for Re-Ranking with Large Language Models](references/Re-Ranking%20Step%20by%20Step-%20Investigating%20Pre-Filtering%20for%20Re-Ranking%20with%20Large%20Language%20Models.pdf): Paper / Pre-filtering, staged reranking / 요약 대기
 - [ReasoningRank: Teaching Student Models to Rank through Reasoning-Based Knowledge Distillation](references/ReasoningRank-%20Teaching%20Student%20Models%20to%20Rank%20through%20Reasoning-Based%20Knowledge%20Distillation.pdf): Paper / Reasoning distillation, training-based ranking / 요약 대기
-- [Rethinking LLM Parametric Knowledge as Confidence for Effective and Efficient Retrieval-Augmented Generation](references/Rethinking%20LLM%20Parametric%20Knowledge%20as%20Confidence%20for%20Effective%20and%20Efficient%20Retrieval-Augmented%20Generation.pdf): Paper / Confidence shift, RAG reranker alignment / 요약 대기
 - [Self-Calibrated Listwise Reranking with Large Language Models](references/Self-Calibrated%20Listwise%20Reranking%20with%20Large%20Language%20Models.pdf): Paper / Self-calibrated listwise reranking / 요약 대기
 - [Stop Overthinking: Unlocking Efficient Listwise Reranking with Minimal Reasoning](references/Stop%20Overthinking-%20Unlocking%20Efficient%20Listwise%20Reranking%20with%20Minimal%20Reasoning.pdf): Paper / Minimal reasoning, listwise reranking efficiency / 요약 대기
 - [Think When Needed: Model-Aware Reasoning Routing for LLM-based Ranking](references/Think%20When%20Needed-%20Model-Aware%20Reasoning%20Routing%20for%20LLM-based%20Ranking.pdf): Paper / Reasoning routing, model-aware ranking / 요약 대기
