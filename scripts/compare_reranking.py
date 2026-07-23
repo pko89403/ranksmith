@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import math
 import os
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -29,6 +30,7 @@ from benchmarks.benchmark import (  # noqa: E402
 from benchmarks.mteb_eval import (  # noqa: E402
     tourrank_stage_configs_for_candidate_count,
 )
+from ranksmith.types import Document  # noqa: E402
 
 Algorithm = Literal[
     "original_bm25",
@@ -49,6 +51,7 @@ Algorithm = Literal[
     "tourrank_r",
     "setwise_heapsort",
     "acurank",
+    "cbdr",
 ]
 Dataset = Literal["fixture", "benchmark-cache", "beir-scifact"]
 DEFAULT_FIXTURE = ROOT / "tests/fixtures/reranking_smoke_fixture.jsonl"
@@ -66,6 +69,7 @@ OPTIONAL_ALGORITHMS: tuple[Algorithm, ...] = (
     "acurank_b4",
     "tourrank_r10",
     "prp_sliding_p3",
+    "cbdr",
 )
 LEGACY_ALGORITHMS: tuple[Algorithm, ...] = (
     "rankgpt_sliding_window",
@@ -87,7 +91,7 @@ def main() -> None:
     needs_live = any(algorithm != "original_bm25" for algorithm in algorithms)
     if needs_live and not args.allow_live:
         raise SystemExit("Refusing live Azure calls without --allow-live.")
-    call_estimates = {
+    call_estimates: dict[str, int] = {
         algorithm: sum(
             _estimate_provider_calls(
                 len(case.documents),
@@ -105,13 +109,20 @@ def main() -> None:
     }
     if needs_live:
         print(
-            "Live Azure comparison will run "
-            f"{sum(call_estimates.values())} provider calls: {call_estimates}",
+            _call_estimate_message(
+                needs_live=True,
+                algorithms=algorithms,
+                call_estimates=call_estimates,
+            ),
             file=sys.stderr,
         )
     else:
         print(
-            f"Offline comparison will run {call_estimates}",
+            _call_estimate_message(
+                needs_live=False,
+                algorithms=algorithms,
+                call_estimates=call_estimates,
+            ),
             file=sys.stderr,
         )
 
@@ -195,6 +206,25 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--tourrank-rounds", type=int, default=2)
     parser.add_argument("--set-size", type=int, default=3)
     parser.add_argument("--top-k", type=int, default=5)
+    parser.add_argument("--cbdr-base-artifact", type=Path)
+    parser.add_argument("--cbdr-context-artifact", type=Path)
+    parser.add_argument("--cbdr-skip-threshold", type=float, default=0.8)
+    parser.add_argument("--cbdr-device", default="cpu")
+    parser.add_argument("--cbdr-cache-dir", type=Path)
+    parser.add_argument("--cbdr-local-files-only", action="store_true")
+    parser.add_argument("--cbdr-hf-token-env")
+    parser.add_argument("--cbdr-max-length", type=int)
+    parser.add_argument("--cbdr-max-document-chars", type=int, default=4000)
+    parser.add_argument("--cbdr-allow-truncation", action="store_true")
+    parser.add_argument(
+        "--cbdr-answer-provider",
+        choices=("azure", "lmstudio"),
+        default="azure",
+    )
+    parser.add_argument("--lmstudio-base-url")
+    parser.add_argument("--lmstudio-model")
+    parser.add_argument("--lmstudio-api-key")
+    parser.add_argument("--lmstudio-max-tokens", type=int, default=128)
     parser.add_argument(
         "--query-id",
         action="append",
@@ -221,7 +251,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--allow-live",
         action="store_true",
-        help="Required because this script sends live Azure OpenAI requests.",
+        help="Required because this script sends live model provider requests.",
     )
     return parser.parse_args()
 
@@ -242,6 +272,24 @@ def _validate_args(args: argparse.Namespace) -> None:
         raise SystemExit("--max-cases must be greater than 0.")
     if args.timeout is not None and args.timeout <= 0:
         raise SystemExit("--timeout must be greater than 0.")
+    cbdr_skip_threshold = getattr(args, "cbdr_skip_threshold", 0.8)
+    if cbdr_skip_threshold < 0.0 or cbdr_skip_threshold > 1.0:
+        raise SystemExit("--cbdr-skip-threshold must be in [0, 1].")
+    cbdr_max_length = getattr(args, "cbdr_max_length", None)
+    if cbdr_max_length is not None and cbdr_max_length < 1:
+        raise SystemExit("--cbdr-max-length must be greater than 0.")
+    cbdr_max_document_chars = getattr(args, "cbdr_max_document_chars", 4000)
+    if cbdr_max_document_chars < 1:
+        raise SystemExit("--cbdr-max-document-chars must be greater than 0.")
+    if getattr(args, "lmstudio_max_tokens", 128) < 1:
+        raise SystemExit("--lmstudio-max-tokens must be greater than 0.")
+    if args.algorithm == "cbdr":
+        if getattr(args, "cbdr_base_artifact", None) is None:
+            raise SystemExit("--cbdr-base-artifact is required with --algorithm cbdr.")
+        if getattr(args, "cbdr_context_artifact", None) is None:
+            raise SystemExit(
+                "--cbdr-context-artifact is required with --algorithm cbdr."
+            )
     if args.checkpoint_output is not None and args.checkpoint_output == args.output:
         raise SystemExit("--checkpoint-output must differ from --output.")
     if args.dataset == "fixture":
@@ -344,6 +392,41 @@ def _evaluate_cases(
                     set_size=args.set_size,
                     top_k=args.top_k,
                     timeout=getattr(args, "timeout", None),
+                    cbdr_base_artifact=getattr(args, "cbdr_base_artifact", None),
+                    cbdr_context_artifact=getattr(
+                        args,
+                        "cbdr_context_artifact",
+                        None,
+                    ),
+                    cbdr_skip_threshold=getattr(args, "cbdr_skip_threshold", 0.8),
+                    cbdr_device=getattr(args, "cbdr_device", "cpu"),
+                    cbdr_cache_dir=getattr(args, "cbdr_cache_dir", None),
+                    cbdr_local_files_only=getattr(
+                        args,
+                        "cbdr_local_files_only",
+                        False,
+                    ),
+                    cbdr_hf_token_env=getattr(args, "cbdr_hf_token_env", None),
+                    cbdr_max_length=getattr(args, "cbdr_max_length", None),
+                    cbdr_max_document_chars=getattr(
+                        args,
+                        "cbdr_max_document_chars",
+                        4000,
+                    ),
+                    cbdr_allow_truncation=getattr(
+                        args,
+                        "cbdr_allow_truncation",
+                        False,
+                    ),
+                    cbdr_answer_provider=getattr(
+                        args,
+                        "cbdr_answer_provider",
+                        "azure",
+                    ),
+                    lmstudio_base_url=getattr(args, "lmstudio_base_url", None),
+                    lmstudio_model=getattr(args, "lmstudio_model", None),
+                    lmstudio_api_key=getattr(args, "lmstudio_api_key", None),
+                    lmstudio_max_tokens=getattr(args, "lmstudio_max_tokens", 128),
                 )
                 evaluation = evaluate_ranked_ids(
                     case=case,
@@ -381,6 +464,43 @@ def _evaluate_cases(
     return evaluations, per_query
 
 
+@functools.cache
+def _cached_cbdr_estimators(
+    *,
+    base_artifact_path: Path,
+    context_artifact_path: Path,
+    hf_token: str | None,
+    cache_dir: str | None,
+    device: str,
+    local_files_only: bool,
+    max_length: int | None,
+    allow_truncation: bool,
+) -> tuple[Any, Any]:
+    from ranksmith.confidence import StructuralConfidenceEstimator
+
+    base_estimator = StructuralConfidenceEstimator.from_artifact(
+        base_artifact_path,
+        task_type="query_answerability_confidence",
+        hf_token=hf_token,
+        cache_dir=cache_dir,
+        device=device,
+        local_files_only=local_files_only,
+        max_length=max_length,
+        allow_truncation=allow_truncation,
+    )
+    context_estimator = StructuralConfidenceEstimator.from_artifact(
+        context_artifact_path,
+        task_type="query_context_answerability_confidence",
+        hf_token=hf_token,
+        cache_dir=cache_dir,
+        device=device,
+        local_files_only=local_files_only,
+        max_length=max_length,
+        allow_truncation=allow_truncation,
+    )
+    return base_estimator, context_estimator
+
+
 def _rank_case(
     *,
     case: BenchmarkCase,
@@ -392,19 +512,42 @@ def _rank_case(
     set_size: int = 3,
     top_k: int | None = None,
     timeout: float | None = None,
+    cbdr_base_artifact: Path | None = None,
+    cbdr_context_artifact: Path | None = None,
+    cbdr_skip_threshold: float = 0.8,
+    cbdr_device: str = "cpu",
+    cbdr_cache_dir: Path | None = None,
+    cbdr_local_files_only: bool = False,
+    cbdr_hf_token_env: str | None = None,
+    cbdr_max_length: int | None = None,
+    cbdr_max_document_chars: int = 4000,
+    cbdr_allow_truncation: bool = False,
+    cbdr_answer_provider: str = "azure",
+    lmstudio_base_url: str | None = None,
+    lmstudio_model: str | None = None,
+    lmstudio_api_key: str | None = None,
+    lmstudio_max_tokens: int = 128,
 ) -> tuple[str, ...]:
     from ranksmith import (
         AcuRankStrategy,
         AzureOpenAIReranker,
-        Document,
         ListwiseStrategy,
         PairwiseStrategy,
         SetwiseStrategy,
         TourRankStrategy,
     )
+    from ranksmith.integrations import (
+        AzureAnswerGenerator,
+        LMStudioModelProvider,
+        ProviderAnswerGenerator,
+    )
+    from ranksmith.protocols import RerankStrategy
+    from ranksmith.strategies import CBDRStrategy
 
     if algorithm == "original_bm25":
         return tuple(document.id for document in case.documents)
+    documents = _case_documents(case)
+    strategy: RerankStrategy[Any]
     if algorithm in {"prp_sliding_k", "prp_sliding_p1", "prp_sliding_p3"}:
         strategy = PairwiseStrategy(passes=_prp_passes_for_algorithm(algorithm, passes))
     elif algorithm in {"tourrank_r", "tourrank_r2", "tourrank_r10"}:
@@ -434,6 +577,51 @@ def _rank_case(
             window_size=window_size,
             max_adaptive_reranker_calls=_acurank_budget_for_algorithm(algorithm),
         )
+    elif algorithm == "cbdr":
+        if cbdr_base_artifact is None:
+            raise SystemExit("--cbdr-base-artifact is required with --algorithm cbdr.")
+        if cbdr_context_artifact is None:
+            raise SystemExit(
+                "--cbdr-context-artifact is required with --algorithm cbdr."
+            )
+        answer_generator: Any
+        if cbdr_answer_provider == "azure":
+            answer_generator = AzureAnswerGenerator.from_env(timeout=timeout)
+        elif cbdr_answer_provider == "lmstudio":
+            answer_generator = ProviderAnswerGenerator(
+                provider=LMStudioModelProvider(
+                    base_url=lmstudio_base_url,
+                    model=lmstudio_model,
+                    api_key=lmstudio_api_key,
+                    timeout=timeout,
+                    max_tokens=lmstudio_max_tokens,
+                )
+            )
+        else:
+            raise SystemExit("--cbdr-answer-provider must be azure or lmstudio.")
+        base_estimator, context_estimator = _cached_cbdr_estimators(
+            base_artifact_path=cbdr_base_artifact,
+            context_artifact_path=cbdr_context_artifact,
+            hf_token=_env_value_required(cbdr_hf_token_env),
+            cache_dir=str(cbdr_cache_dir) if cbdr_cache_dir is not None else None,
+            device=cbdr_device,
+            local_files_only=cbdr_local_files_only,
+            max_length=cbdr_max_length,
+            allow_truncation=cbdr_allow_truncation,
+        )
+        strategy = CBDRStrategy(
+            base_estimator=base_estimator,
+            context_estimator=context_estimator,
+            answer_generator=answer_generator,
+            skip_threshold=cbdr_skip_threshold,
+            max_document_chars=cbdr_max_document_chars,
+        )
+        results = strategy.rerank(
+            query=case.query,
+            documents=documents,
+            top_k=top_k,
+        )
+        return tuple(result.document.id or "" for result in results)
     else:
         listwise_window_size, listwise_stride = _listwise_window_stride_for_algorithm(
             algorithm,
@@ -456,11 +644,22 @@ def _rank_case(
             "AZURE_OPENAI_LLM_API_VERSION",
             fallback="AZURE_OPENAI_API_VERSION",
             default="2024-08-01-preview",
-        ),
+        )
+        or "2024-08-01-preview",
         timeout=timeout or _env_float("AZURE_OPENAI_LLM_TIMEOUT"),
         strategy=strategy,
     )
-    documents = [
+    if top_k is None:
+        results = reranker.rerank(case.query, documents)
+    else:
+        results = reranker.rerank(case.query, documents, top_k=top_k)
+    return tuple(result.document.id or "" for result in results)
+
+
+def _case_documents(case: BenchmarkCase) -> list[Document]:
+    from ranksmith import Document
+
+    return [
         Document(
             id=document.id,
             text=f"{document.title}\n\n{document.text}",
@@ -468,11 +667,6 @@ def _rank_case(
         )
         for document in case.documents
     ]
-    if top_k is None:
-        results = reranker.rerank(case.query, documents)
-    else:
-        results = reranker.rerank(case.query, documents, top_k=top_k)
-    return tuple(result.document.id or "" for result in results)
 
 
 def _build_report(
@@ -582,6 +776,57 @@ def _method_setting(
             "passes": _prp_passes_for_algorithm(algorithm, args.passes),
             "top_k_early_stop": False,
         }
+    if algorithm == "cbdr":
+        base_artifact = getattr(args, "cbdr_base_artifact", None)
+        context_artifact = getattr(args, "cbdr_context_artifact", None)
+        cache_dir = getattr(args, "cbdr_cache_dir", None)
+        answer_provider = getattr(args, "cbdr_answer_provider", "azure")
+        lmstudio_base_url = None
+        lmstudio_model = None
+        lmstudio_api_key_configured = None
+        if answer_provider == "lmstudio":
+            lmstudio_base_url = _resolve_lmstudio_setting(
+                explicit=getattr(args, "lmstudio_base_url", None),
+                env_name="LMSTUDIO_BASE_URL",
+                default="http://localhost:1234/v1",
+            )
+            lmstudio_model = _resolve_lmstudio_setting(
+                explicit=getattr(args, "lmstudio_model", None),
+                env_name="LMSTUDIO_MODEL",
+                default=None,
+            )
+            lmstudio_api_key_configured = (
+                _resolve_lmstudio_setting(
+                    explicit=getattr(args, "lmstudio_api_key", None),
+                    env_name="LMSTUDIO_API_KEY",
+                    default="lm-studio",
+                )
+                is not None
+            )
+        return {
+            **base,
+            "base_artifact": (
+                str(base_artifact) if base_artifact is not None else None
+            ),
+            "context_artifact": (
+                str(context_artifact) if context_artifact is not None else None
+            ),
+            "answer_provider": answer_provider,
+            "skip_threshold": args.cbdr_skip_threshold,
+            "device": args.cbdr_device,
+            "cache_dir": str(cache_dir) if cache_dir is not None else None,
+            "local_files_only": args.cbdr_local_files_only,
+            "hf_token_env": args.cbdr_hf_token_env,
+            "max_length": args.cbdr_max_length,
+            "max_document_chars": args.cbdr_max_document_chars,
+            "allow_truncation": args.cbdr_allow_truncation,
+            "lmstudio_base_url": lmstudio_base_url,
+            "lmstudio_model": lmstudio_model,
+            "lmstudio_api_key": ("configured" if lmstudio_api_key_configured else None),
+            "lmstudio_max_tokens": getattr(args, "lmstudio_max_tokens", 128),
+            "provider_call_estimate": "upper_bound",
+            "top_k_early_stop": False,
+        }
     return {
         **base,
         "window_size": args.window_size,
@@ -590,9 +835,42 @@ def _method_setting(
     }
 
 
+def _resolve_lmstudio_setting(
+    *,
+    explicit: str | None,
+    env_name: str,
+    default: str | None,
+) -> str | None:
+    if explicit is not None:
+        return explicit
+    env_value = os.environ.get(env_name)
+    if env_value is not None:
+        return env_value
+    return default
+
+
 def _append_checkpoint_row(path: Path, row: Mapping[str, object]) -> None:
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(row, sort_keys=True) + "\n")
+
+
+def _call_estimate_message(
+    *,
+    needs_live: bool,
+    algorithms: Sequence[Algorithm],
+    call_estimates: Mapping[str, int],
+) -> str:
+    total = sum(call_estimates.values())
+    if not needs_live:
+        return f"Offline comparison will run {dict(call_estimates)}"
+    if "cbdr" in algorithms:
+        return (
+            "Live Azure comparison upper-bounds provider calls at "
+            f"{total}: {dict(call_estimates)}"
+        )
+    return (
+        f"Live Azure comparison will run {total} provider calls: {dict(call_estimates)}"
+    )
 
 
 def _aggregate_with_validity(
@@ -645,10 +923,10 @@ def _clean_env_value(value: str) -> str:
 
 def _dataset_name(args: argparse.Namespace) -> str:
     if args.dataset == "beir-scifact":
-        return args.dataset_name or "BEIR/SciFact"
+        return cast(str, args.dataset_name or "BEIR/SciFact")
     if args.dataset_name is not None and args.dataset_name.strip() != "":
-        return args.dataset_name.strip()
-    return args.cache_dir.name
+        return cast(str, args.dataset_name.strip())
+    return cast(str, args.cache_dir.name)
 
 
 def _fixture_prefix(dataset_name: str) -> str:
@@ -682,6 +960,15 @@ def _env_value(
     return default
 
 
+def _env_value_required(name: str | None) -> str | None:
+    if name is None or name == "":
+        return None
+    value = os.environ.get(name)
+    if value is None or value == "":
+        raise SystemExit(f"Missing required environment variable: {name}")
+    return value
+
+
 def _env_float(name: str) -> float | None:
     value = os.environ.get(name)
     if value is None or value == "":
@@ -701,6 +988,8 @@ def _estimate_provider_calls(
 ) -> int:
     if algorithm == "original_bm25":
         return 0
+    if algorithm == "cbdr":
+        return document_count + 1
     if algorithm in {"prp_sliding_k", "prp_sliding_p1", "prp_sliding_p3"}:
         return (
             2

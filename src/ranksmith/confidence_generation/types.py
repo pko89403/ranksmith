@@ -48,6 +48,56 @@ class AnswerGenerationConfig:
 
 
 @dataclass(frozen=True)
+class QueryAnswerabilityGenerationConfig:
+    input_path: str | Path
+    output_path: str | Path
+    provider: ModelProvider
+    overwrite: bool = False
+    resume: bool = False
+    max_items: int | None = None
+    include_raw_model_output: bool = True
+    on_usage: UsageCallback | None = None
+    source: str | None = None
+    no_answer_value: str = "__NO_ANSWER__"
+
+    def __post_init__(self) -> None:
+        _validate_common_config(
+            provider=self.provider,
+            overwrite=self.overwrite,
+            resume=self.resume,
+            max_items=self.max_items,
+            source=self.source,
+        )
+        _validate_no_answer_value(self.no_answer_value)
+
+
+@dataclass(frozen=True)
+class QueryContextAnswerabilityGenerationConfig:
+    input_path: str | Path
+    output_path: str | Path
+    provider: ModelProvider
+    overwrite: bool = False
+    resume: bool = False
+    max_items: int | None = None
+    max_context_chars: int = 4000
+    include_raw_model_output: bool = True
+    on_usage: UsageCallback | None = None
+    source: str | None = None
+    no_answer_value: str = "__NO_ANSWER__"
+
+    def __post_init__(self) -> None:
+        _validate_common_config(
+            provider=self.provider,
+            overwrite=self.overwrite,
+            resume=self.resume,
+            max_items=self.max_items,
+            source=self.source,
+        )
+        _validate_positive_int("max_context_chars", self.max_context_chars)
+        _validate_no_answer_value(self.no_answer_value)
+
+
+@dataclass(frozen=True)
 class RelevanceGenerationConfig:
     input_path: str | Path
     output_path: str | Path
@@ -113,6 +163,33 @@ class AnswerGenerationSample:
 
 
 @dataclass(frozen=True)
+class QueryAnswerabilityGenerationSample:
+    id: str
+    query: str
+    gold_answer: str | list[str]
+    source: str | None = None
+    group_id: str | None = None
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "metadata", MappingProxyType(dict(self.metadata)))
+
+
+@dataclass(frozen=True)
+class QueryContextAnswerabilityGenerationSample:
+    id: str
+    query: str
+    context: str
+    gold_answer: str | list[str]
+    source: str | None = None
+    group_id: str | None = None
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "metadata", MappingProxyType(dict(self.metadata)))
+
+
+@dataclass(frozen=True)
 class RelevanceGenerationSample:
     id: str
     query: str
@@ -149,3 +226,10 @@ def _validate_positive_int(name: str, value: object) -> None:
         raise ConfidenceGenerationInputError(f"{name} must be an int")
     if value < 1:
         raise ConfidenceGenerationInputError(f"{name} must be >= 1")
+
+
+def _validate_no_answer_value(value: object) -> None:
+    if not isinstance(value, str) or not value.strip():
+        raise ConfidenceGenerationInputError(
+            "no_answer_value must be a non-empty string"
+        )

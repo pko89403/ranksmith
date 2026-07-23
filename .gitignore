@@ -12,6 +12,7 @@ benchmark-results/live/*.json
 benchmark-results/mteb-reranking/
 benchmark-results/*original-check.json
 confidence-runs/
+runs/
 artifacts/*confidence*.joblib
 dist/
 build/
