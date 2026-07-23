@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.6.0
+
+- Add `CBDRStrategy` (confidence-gain reranking): skips context reranking when
+  `Conf(Q)` is already high, otherwise ranks documents by
+  `Conf(Q+C) - Conf(Q)` using trained query-only and query+context
+  answerability confidence scorers.
+- Add `AnswerConfidenceRerankStrategy` / `AsyncAnswerConfidenceRerankStrategy`
+  (experimental): ranks documents by the structural confidence of a
+  per-document answer.
+- Add a local LM Studio confidence pipeline (`LMStudioModelProvider`,
+  `ProviderAnswerGenerator`) and CLIs to generate, train, and report on
+  `Conf(Q)` / `Conf(Q+C)` scorer datasets without Azure access.
+- Add README Benchmarking rows for `cbdr` and `answer_confidence`, both
+  measured with out-of-domain scorers (TriviaQA and SQuAD v1.1
+  respectively) and reported as measured — below the BM25 baseline here,
+  not tuned to win.
+
 ## 0.5.1
 
 - Add `SetwiseStrategy` and `AsyncSetwiseStrategy` with `setwise_heapsort`.
