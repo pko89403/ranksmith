@@ -14,7 +14,7 @@ Azure OpenAI 기반 zero-shot candidate reranking에 집중합니다.
 주요 특징:
 
 - listwise RankGPT, pairwise PRP, tournament 방식 TourRank-r,
-  uncertainty-aware AcuRank built-in Strategy
+  uncertainty-aware AcuRank, confidence-gain built-in Strategy
 - 커스텀 reranking 메소드를 위한 public Strategy contract
 - vendor 독립 LLM 호출을 위한 `ModelClient` / `ModelProvider` 경계
 - 엄격한 JSON parsing과 fast-fail 오류 정책
@@ -68,6 +68,8 @@ for result in results:
 | `tourrank_r`, `rounds=2` | `TourRankStrategy` | 중간 수준 호출 예산에서 listwise보다 강한 품질을 원할 때 | RankGPT보다 호출 수가 많지만 TourRank-10보다 훨씬 가벼움 |
 | `tourrank_r`, `rounds=10` | `TourRankStrategy` | 품질 중심 offline reranking, 논문식 평가, 최종 reranking처럼 latency를 감수할 수 있을 때 | 일반 사용 기준 built-in 중 호출 비용이 가장 큼 |
 | `acurank` | `AcuRankStrategy` | top-k 경계 근처의 불확실한 후보에 listwise 호출을 집중하고 싶을 때 | TrueSkill 상태를 사용하며, cap을 두지 않으면 기본 listwise보다 호출 수가 늘 수 있음 |
+| `confidence_gain` | `ConfidenceGainStrategy` | query-only 및 query+context confidence scorer를 학습했고 `Conf(Q+C)-Conf(Q)`로 문서를 정렬하고 싶을 때 | scorer artifact와 answer generator hook이 필요함. 문서 수가 `N`이면 runtime에서 answer generation `N+1`회, confidence scoring `N+1`회를 수행함 |
+| `cbdr` | `CBDRStrategy` | answerability confidence scorer를 학습했고 `Conf(Q)`가 충분히 높으면 context reranking을 건너뛰고, 낮으면 confidence gain으로 정렬하고 싶을 때 | scorer artifact와 answer generator hook이 필요함. skip path는 answer generation 1회와 confidence scoring 1회, rerank path는 각각 `N+1`회를 수행함 |
 | Custom strategy | `RerankStrategy` / `AsyncRerankStrategy` | deterministic business logic, proprietary ranking, 새 research method가 필요할 때 | ranking contract와 validation을 직접 책임져야 함 |
 
 ### 전략 적용 방법
@@ -308,8 +310,74 @@ worker thread들이 공유하므로 thread-safe backend에서만 `max_workers>1`
 합니다. 첫 worker error에서 pending work를 취소하지만, 이미 시작된 Python thread는
 background에서 완료될 수 있습니다.
 
-`ranksmith.confidence_generation`은 raw answer/relevance 예시에 대해 closed
-model을 호출해 confidence training용 supervised canonical JSONL을 생성할 수
+`ConfidenceGainStrategy`는 별도 sync reranking Strategy입니다. 두 개의 compatible
+confidence estimator와 answer generator hook을 받아 사용합니다.
+
+```python
+from ranksmith.confidence import StructuralConfidenceEstimator
+from ranksmith.strategies import ConfidenceGainStrategy
+
+base_estimator = StructuralConfidenceEstimator.from_artifact(
+    "query-answerability.joblib"
+)
+context_estimator = StructuralConfidenceEstimator.from_artifact(
+    "query-context-answerability.joblib"
+)
+
+strategy = ConfidenceGainStrategy(
+    base_estimator=base_estimator,
+    context_estimator=context_estimator,
+    answer_generator=my_answer_generator,
+)
+```
+
+이 Strategy는 `Conf(Q+C)-Conf(Q)` 기준으로 정렬합니다. CBDR retrieval skip, async
+reranking, scorer 학습은 구현하지 않습니다.
+
+`CBDRStrategy`는 sync reranking-side router입니다. retriever와 통합하거나 upstream
+retrieval 호출 자체를 멈추지는 않습니다. 이미 `rerank(...)`에 documents가 전달된
+뒤 context reranking을 건너뛸지 결정합니다.
+
+```python
+from ranksmith.integrations import AzureAnswerGenerator
+from ranksmith.strategies import CBDRStrategy
+
+answer_generator = AzureAnswerGenerator.from_env()
+
+strategy = CBDRStrategy.from_artifacts(
+    base_artifact_path="query-answerability.joblib",
+    context_artifact_path="query-context-answerability.joblib",
+    answer_generator=answer_generator,
+    skip_threshold=0.8,
+)
+
+results = strategy.rerank(query=query, documents=documents)
+```
+
+`Conf(Q) >= skip_threshold`이면 original document order를 보존하고
+`metadata["cbdr_skipped"] == True`를 남깁니다. `Conf(Q) < skip_threshold`이면
+모든 문서를 scoring한 뒤 `top_k`를 적용합니다.
+`AzureAnswerGenerator`는 `ranksmith.confidence_generation`과 같은 no-answer
+sentinel 계약을 사용하며, 답할 수 없으면 `{"answer":"__NO_ANSWER__"}`를
+반환하게 합니다.
+
+compatible scorer artifact가 있으면 benchmark runner에서도 CBDR을 명시적으로 실행할
+수 있습니다.
+
+```bash
+uv run python scripts/compare_reranking.py \
+  --dataset benchmark-cache \
+  --cache-dir .benchmark-cache/askubuntu-bm25 \
+  --candidates benchmark-results/pyserini/askubuntu-bm25-top20.trec \
+  --algorithm cbdr \
+  --cbdr-base-artifact query-answerability.joblib \
+  --cbdr-context-artifact query-context-answerability.joblib \
+  --cbdr-max-document-chars 4000 \
+  --allow-live
+```
+
+`ranksmith.confidence_generation`은 raw answer/relevance/answerability 예시에 대해
+closed model을 호출해 confidence training용 supervised canonical JSONL을 생성할 수
 있습니다. 이 모듈은 reranking Strategy가 아니라 데이터 생성 utility입니다.
 
 ### compatible confidence scorer 학습
@@ -339,6 +407,102 @@ result = train_confidence_scorer(
     )
 )
 print(result.export_path)
+```
+
+### LM Studio 로컬 confidence pipeline
+
+CBDR에는 두 answerability scorer가 필요합니다. query-only 예시에서 `Conf(Q)`를,
+query+context 예시에서 `Conf(Q+C)`를 학습합니다. LM Studio는 supervised label
+생성에만 사용하며, scorer artifact는 그대로 `ranksmith.confidence_training`이
+학습합니다.
+
+로컬 OpenAI-compatible server를 시작하고 loaded model을 지정합니다.
+
+```bash
+lms server start
+export LMSTUDIO_MODEL=google/gemma-4-12b
+```
+
+canonical JSONL dataset을 생성합니다.
+
+```bash
+uv run python scripts/generate_confidence_dataset.py \
+  --task query_answerability_confidence \
+  --provider lmstudio \
+  --input runs/confidence/local/raw/query_answerability.jsonl \
+  --output runs/confidence/local/canonical/query_answerability_confidence.jsonl \
+  --resume
+
+uv run python scripts/generate_confidence_dataset.py \
+  --task query_context_answerability_confidence \
+  --provider lmstudio \
+  --input runs/confidence/local/raw/query_context_answerability.jsonl \
+  --output runs/confidence/local/canonical/query_context_answerability_confidence.jsonl \
+  --max-context-chars 8000 \
+  --resume
+```
+
+scorer를 범용적으로 다루기 전에 source/group balance를 확인합니다.
+
+```bash
+uv run python scripts/report_confidence_dataset.py \
+  --task query_answerability_confidence \
+  --dataset runs/confidence/local/canonical/query_answerability_confidence.jsonl
+```
+
+CBDR-compatible scorer artifact를 학습합니다.
+
+```bash
+uv run python scripts/train_confidence_scorer.py \
+  --task query_answerability_confidence \
+  --dataset runs/confidence/local/canonical/query_answerability_confidence.jsonl \
+  --output-dir runs/confidence/local/training/query_answerability \
+  --export-path runs/confidence/local/artifacts/query_answerability.joblib \
+  --encoder-name bert-base-uncased \
+  --max-length 256
+
+uv run python scripts/train_confidence_scorer.py \
+  --task query_context_answerability_confidence \
+  --dataset runs/confidence/local/canonical/query_context_answerability_confidence.jsonl \
+  --output-dir runs/confidence/local/training/query_context_answerability \
+  --export-path runs/confidence/local/artifacts/query_context_answerability.joblib \
+  --encoder-name bert-base-uncased \
+  --max-length 256
+```
+
+학습된 artifact를 LM Studio runtime과 함께 사용합니다.
+
+```python
+from ranksmith.integrations import LMStudioModelProvider, ProviderAnswerGenerator
+from ranksmith.strategies import CBDRStrategy
+
+answer_generator = ProviderAnswerGenerator(
+    provider=LMStudioModelProvider(model="google/gemma-4-12b")
+)
+
+strategy = CBDRStrategy.from_artifacts(
+    base_artifact_path="runs/confidence/local/artifacts/query_answerability.joblib",
+    context_artifact_path="runs/confidence/local/artifacts/query_context_answerability.joblib",
+    answer_generator=answer_generator,
+    skip_threshold=0.8,
+)
+```
+
+benchmark runner도 같은 provider를 사용할 수 있습니다. 이 명령은 live 실행이므로
+`--allow-live`가 필요합니다. summary artifact를 만들고 커밋하기 전까지는 benchmark
+품질 수치로 주장하지 않습니다.
+
+```bash
+uv run python scripts/compare_reranking.py \
+  --dataset benchmark-cache \
+  --cache-dir .benchmark-cache/askubuntu-bm25 \
+  --candidates benchmark-results/pyserini/askubuntu-bm25-top20.trec \
+  --algorithm cbdr \
+  --cbdr-answer-provider lmstudio \
+  --cbdr-base-artifact runs/confidence/local/artifacts/query_answerability.joblib \
+  --cbdr-context-artifact runs/confidence/local/artifacts/query_context_answerability.joblib \
+  --lmstudio-model google/gemma-4-12b \
+  --allow-live
 ```
 
 ## 실전 가이드 (Examples)
@@ -392,6 +556,7 @@ top-5만 출력할 수 있습니다. Live LLM 호출에는 Azure OpenAI deployme
 
 - [`benchmark-results/live/askubuntu-bm25-top20-default-live.v3.merged.json`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/live/askubuntu-bm25-top20-default-live.v3.merged.json)
 - [`benchmark-results/pyserini/askubuntu-bm25-top20.trec`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/pyserini/askubuntu-bm25-top20.trec)
+- [`benchmark-results/askubuntu-bm25-top20-cbdr-live.json`](https://github.com/pko89403/ranksmith/blob/main/benchmark-results/askubuntu-bm25-top20-cbdr-live.json) (optional `cbdr` method, 별도 run)
 
 | Method | NDCG@5 | MRR@5 | Recall@5 | Valid rows | Invalid rate | Nominal LLM calls/query | LLM row attempts/query incl. retries |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -402,13 +567,26 @@ top-5만 출력할 수 있습니다. Live LLM 호출에는 Azure OpenAI deployme
 | `tourrank_r2` | 0.4236 | 0.5725 | 0.3601 | 361/361 | 0.000 | 8 | 1.03 |
 | `setwise_hs_s10` | 0.3653 | 0.5059 | 0.3005 | 361/361 | 0.000 | 12 | 1.00 |
 | `prp_sliding_p1` | 0.4065 | 0.5818 | 0.3277 | 361/361 | 0.000 | 38 | 1.00 |
+| `cbdr` *(scorer: TriviaQA, 도메인 밖)* | 0.2259 | 0.3458 | 0.1867 | 361/361 | 0.000 | 21 | 1.00 |
 
 `tourrank_r2`는 NDCG@5와 Recall@5가 가장 높았고, `prp_sliding_p1`은 MRR@5가
 가장 높았습니다. `single_call_listwise@20`은 one-shot listwise baseline입니다.
 `rankgpt_sw_w5`는 이 top-20 설정의 실제 sliding-window listwise baseline입니다.
 `acurank_k5_b1`은 AcuRank uncertainty boundary를 `@5` 평가 cutoff와 맞춘
 설정입니다. `setwise_hs_s10`은 20개 후보에서 평가 대상 top-5만 추출하는 실용적인
-Setwise Heapsort 설정입니다.
+Setwise Heapsort 설정입니다. `cbdr`은 [LM Studio 로컬 confidence
+pipeline](#lm-studio-로컬-confidence-pipeline)에 문서화된 `Conf(Q)`/`Conf(Q+C)`
+스코어러 두 개를 사용하며, TriviaQA로 학습해 AskUbuntu 기준 도메인 밖입니다.
+이 벤치마크에서는 BM25 baseline보다 낮은 점수를 기록했고, 이기도록 튜닝하지
+않고 측정된 그대로 보고합니다.
+
+왜 이기게 튜닝하지 않는가: 스코어러를 이 벤치마크 분포에 맞추면 알고리즘의
+일반적인 품질이 아니라 AskUbuntu에 대한 과적합을 측정하게 됩니다. 이는
+smoke/partial run이나 cherry-pick된 수치를 벤치마크 품질로 보고하지 않는다는
+이 프로젝트의 보고 규칙([`docs/benchmarks/bm25_top20_reranking.md`](docs/benchmarks/bm25_top20_reranking.md#reporting-rules))과도
+어긋납니다. 더 강한 domain-in 스코어러를 만드는 건 정당한 후속 작업이지만,
+그건 더 나은 artifact를 학습해서 같은 커맨드를 다시 돌리는 것이지 보고
+방식을 바꾸는 게 아닙니다.
 
 재시도 후에도 `single_call_listwise@20` 2개 row와 `acurank_k5_b1` 5개 row가
 invalid로 남았습니다. 이 row는 보정하지 않고 invalid rate에 반영했습니다.

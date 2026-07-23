@@ -5,7 +5,12 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Any, Literal, Protocol, TypeAlias
 
-TaskType: TypeAlias = Literal["answer_confidence", "judgment_confidence"]
+TaskType: TypeAlias = Literal[
+    "answer_confidence",
+    "judgment_confidence",
+    "query_answerability_confidence",
+    "query_context_answerability_confidence",
+]
 ScoreOutput: TypeAlias = Literal["probability"]
 
 
@@ -22,7 +27,25 @@ class JudgmentConfidenceInput:
     judgment: str
 
 
-StructuralConfidenceInput: TypeAlias = AnswerConfidenceInput | JudgmentConfidenceInput
+@dataclass(frozen=True)
+class QueryAnswerabilityConfidenceInput:
+    query: str
+    answer: str
+
+
+@dataclass(frozen=True)
+class QueryContextAnswerabilityConfidenceInput:
+    query: str
+    context: str
+    answer: str
+
+
+StructuralConfidenceInput: TypeAlias = (
+    AnswerConfidenceInput
+    | JudgmentConfidenceInput
+    | QueryAnswerabilityConfidenceInput
+    | QueryContextAnswerabilityConfidenceInput
+)
 
 
 @dataclass(frozen=True)
